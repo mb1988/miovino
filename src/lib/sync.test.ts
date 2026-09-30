@@ -225,3 +225,71 @@ describe('passkey login gate', () => {
     expect((await post({ invite })).status).toBe(403)
   })
 })
+
+describe('push reminders endpoints', () => {
+  async function setup(auth = true) {
+    const db = sqliteD1()
+    const workerPath = new URL('../../worker/index.ts', import.meta.url).href
+    type Worker = { fetch: (req: Request, env: unknown) => Promise<Response>; scheduled: (e: unknown, env: unknown, ctx: { waitUntil: (p: Promise<unknown>) => void }) => Promise<void> }
+    const worker = ((await import(/* @vite-ignore */ workerPath)) as { default: Worker }).default
+    const env = { DB: db, ...(auth ? { ALLOW_NO_AUTH: 'true' } : {}), ASSETS: { fetch: async () => new Response('index') } }
+    const call = (path: string, body?: unknown) => worker.fetch(new Request('https://cellar.test' + path, body === undefined ? undefined : { method: 'POST', body: JSON.stringify(body) }), env)
+    return { db, worker, env, call }
+  }
+  const ua = async () => {
+    const k = (await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits'])) as CryptoKeyPair
+    const b64 = (b: ArrayBuffer | Uint8Array) => Buffer.from(b instanceof Uint8Array ? b : new Uint8Array(b)).toString('base64url')
+    return { p256dh: b64(await crypto.subtle.exportKey('raw', k.publicKey)), auth: b64(crypto.getRandomValues(new Uint8Array(16))) }
+  }
+
+  it('needs a signed-in session', async () => {
+    const { call } = await setup(false)
+    expect((await call('/api/push/key')).status).toBe(401)
+    expect((await call('/api/push/test', {})).status).toBe(401)
+  })
+
+  it('keeps one server key, stores subscriptions and sends the monthly summary', async () => {
+    const { call, db, worker, env } = await setup()
+    const k1 = ((await (await call('/api/push/key')).json()) as { publicKey: string }).publicKey
+    const k2 = ((await (await call('/api/push/key')).json()) as { publicKey: string }).publicKey
+    expect(k1).toBe(k2)
+    expect(k1).toHaveLength(87) // 65-byte P-256 point
+
+    expect((await call('/api/push/subscribe', { subscription: { endpoint: 'https://evil.example/x', keys: await ua() } })).status).toBe(400)
+    expect((await call('/api/push/subscribe', { subscription: { endpoint: 'https://web.push.apple.com/one', keys: await ua() }, device: 'iPhone' })).status).toBe(200)
+    expect((await call('/api/push/subscribe', { subscription: { endpoint: 'https://fcm.googleapis.com/fcm/send/two', keys: await ua() } })).status).toBe(200)
+
+    // A wine closing this year with one bottle in the cellar.
+    const year = new Date().getUTCFullYear()
+    await call('/api/sync', {
+      cursor: 0,
+      changes: [
+        { kind: 'wines', id: 'wine-soon-0001', updatedAt: 1, deleted: false, data: { producer: 'Gaja', name: 'Barbaresco', vintage: 2016, drinkFrom: 2020, drinkTo: year } },
+        { kind: 'bottles', id: 'bottle-0000-0001', updatedAt: 1, deleted: false, data: { wineId: 'wine-soon-0001', status: 'cellar' } },
+      ],
+    })
+
+    const sent: { url: string; headers: Headers }[] = []
+    vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
+      sent.push({ url, headers: new Headers(init.headers) })
+      return new Response(null, { status: url.includes('fcm') ? 410 : 201 }) // the Android one has expired
+    })
+    try {
+      const res = (await (await call('/api/push/test', {})).json()) as { sent: number; devices: number }
+      expect(res).toEqual({ sent: 1, devices: 2 })
+      expect(sent[0].headers.get('content-encoding')).toBe('aes128gcm')
+      expect(sent[0].headers.get('authorization')).toMatch(new RegExp(`^vapid t=[\\w-]+\\.[\\w-]+\\.[\\w-]+, k=${k1}$`))
+      // The expired subscription is gone.
+      expect(db.raw.prepare('SELECT endpoint FROM push_subscriptions').all()).toEqual([{ endpoint: 'https://web.push.apple.com/one' }])
+
+      // The monthly cron sends to the remaining device.
+      sent.length = 0
+      const waits: Promise<unknown>[] = []
+      await worker.scheduled({}, env, { waitUntil: (p) => void waits.push(p) })
+      await Promise.all(waits)
+      expect(sent.map((s) => s.url)).toEqual(['https://web.push.apple.com/one'])
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+})

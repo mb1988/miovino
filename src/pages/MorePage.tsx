@@ -8,6 +8,7 @@ import { useLocations } from '../lib/hooks'
 import { saveSettings, useSettings } from '../lib/settings'
 import { syncNow, useSync } from '../lib/sync'
 import { DevicesSection } from '../components/DevicesSection'
+import { RemindersSection } from '../components/RemindersSection'
 
 export default function MorePage() {
   const s = useSettings()
@@ -102,6 +103,8 @@ export default function MorePage() {
         </span>
         <ChevronRight className="text-cream-500" />
       </Link>
+
+      {sync.available && sync.authenticated && <RemindersSection />}
 
       {sync.available && sync.authenticated && <DevicesSection />}
 

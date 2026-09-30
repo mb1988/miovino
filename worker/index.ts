@@ -3,6 +3,7 @@ import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod'
 import { labelPrompt, LabelSchema, SCAN_MODELS, tidyLabel } from '../src/shared/label'
 import { authorize, json, type AuthEnv } from './auth'
 import { authStatus, handleAuth } from './passkeys'
+import { handlePush, monthlyReminder, type PushDb } from './push'
 import { BadRequest, sync, validate, type Db } from './sync'
 
 interface Env extends AuthEnv {
@@ -100,6 +101,11 @@ export default {
         }
       }
 
+      if (url.pathname.startsWith('/api/push/')) {
+        const res = await handlePush(req, env.DB as unknown as PushDb, url.pathname)
+        if (res) return res
+      }
+
       return json({ error: 'Not found' }, 404)
     } catch (e) {
       if (e instanceof BadRequest) return json({ error: e.message }, 400)
@@ -107,5 +113,10 @@ export default {
       console.error(e)
       return json({ error: 'Server error' }, 500)
     }
+  },
+
+  // Cron (wrangler.jsonc "triggers"): the monthly drinking summary.
+  async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext) {
+    ctx.waitUntil(monthlyReminder(env.DB as unknown as PushDb))
   },
 } satisfies ExportedHandler<Env>
