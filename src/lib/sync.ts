@@ -157,7 +157,7 @@ async function doSync() {
 export async function applyRemote(changes: SyncChange[]) {
   if (!changes.length) return
   await asRemote(() =>
-    db.transaction('rw', [db.wines, db.bottles, db.tastings, db.locations, db.tombstones], async () => {
+    db.transaction('rw', [db.wines, db.bottles, db.tastings, db.locations, db.wishlist, db.tombstones], async () => {
       for (const c of changes) {
         const table = db.table_(c.kind)
         const local = (await table.get(c.id)) as (Record<string, unknown> & { updatedAt?: number; photo?: Blob }) | undefined

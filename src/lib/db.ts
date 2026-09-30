@@ -1,5 +1,5 @@
 import Dexie, { type EntityTable, type Table } from 'dexie'
-import { KINDS, type Bottle, type Kind, type Location, type Tasting, type Tombstone, type Wine, type WineWithBottles } from './types'
+import { KINDS, type Bottle, type Kind, type Location, type Tasting, type Tombstone, type Wine, type WineWithBottles, type WishItem } from './types'
 
 /** Key/value store for sync bookkeeping (cursor, last push time). */
 interface Meta {
@@ -12,6 +12,7 @@ export class MioVinoDB extends Dexie {
   bottles!: EntityTable<Bottle, 'id'>
   tastings!: EntityTable<Tasting, 'id'>
   locations!: EntityTable<Location, 'id'>
+  wishlist!: EntityTable<WishItem, 'id'>
   tombstones!: EntityTable<Tombstone, 'key'>
   meta!: EntityTable<Meta, 'key'>
 
@@ -26,11 +27,12 @@ export class MioVinoDB extends Dexie {
       tombstones: 'key, deletedAt',
       meta: 'key',
     })
+    this.version(2).stores({ wishlist: 'id, done, wineId, updatedAt' })
     for (const kind of KINDS) trackChanges(this, kind)
   }
 
-  table_(kind: Kind): Table<Wine | Bottle | Tasting | Location, string> {
-    return this[kind] as unknown as Table<Wine | Bottle | Tasting | Location, string>
+  table_(kind: Kind): Table<Wine | Bottle | Tasting | Location | WishItem, string> {
+    return this[kind] as unknown as Table<Wine | Bottle | Tasting | Location | WishItem, string>
   }
 }
 
@@ -160,7 +162,7 @@ export async function deleteWine(id: string) {
 
 /** Deletes everything, recording tombstones so the deletion syncs to other devices. */
 export async function deleteAllData() {
-  await db.transaction('rw', db.wines, db.bottles, db.tastings, db.locations, async () => {
+  await db.transaction('rw', [db.wines, db.bottles, db.tastings, db.locations, db.wishlist], async () => {
     for (const kind of KINDS) await db.table_(kind).toCollection().delete()
   })
 }

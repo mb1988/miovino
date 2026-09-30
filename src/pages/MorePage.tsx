@@ -1,4 +1,4 @@
-import { ChevronRight, Dna, Download, Eye, EyeOff, FileJson, FileSpreadsheet, GripVertical, MapPin, Trash2, Upload } from 'lucide-react'
+import { ChevronRight, Dna, ShoppingBag, Download, Eye, EyeOff, FileJson, FileSpreadsheet, GripVertical, MapPin, Trash2, Upload } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Button, cx, Label, PageHeader, Section } from '../components/ui'
@@ -80,6 +80,17 @@ export default function MorePage() {
           )}
         </div>
       </Section>
+
+      <Link to="/wishlist" className="card mb-6 flex items-center gap-4 p-4 hover:ring-ink-600">
+        <span className="rounded-xl bg-ink-700 p-2.5 text-cream-200">
+          <ShoppingBag />
+        </span>
+        <span className="flex-1">
+          <span className="block font-semibold text-cream-50">Wishlist</span>
+          <span className="text-sm text-cream-400">Wines to buy, and ones you said you&rsquo;d buy again</span>
+        </span>
+        <ChevronRight className="text-cream-500" />
+      </Link>
 
       {sync.available && sync.authenticated && <DevicesSection />}
 

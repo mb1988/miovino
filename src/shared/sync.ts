@@ -1,5 +1,5 @@
 /** Wire format between the app and the Worker's /api/sync. */
-export const SYNC_KINDS = ['wines', 'bottles', 'tastings', 'locations'] as const
+export const SYNC_KINDS = ['wines', 'bottles', 'tastings', 'locations', 'wishlist'] as const
 export type SyncKind = (typeof SYNC_KINDS)[number]
 
 export interface SyncChange {
