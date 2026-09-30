@@ -29,6 +29,10 @@ export const IMPORT_FIELDS = {
   guideScore: 'Guide: score',
   guidePairing: 'Guide: food pairing',
   guideDescription: 'Guide: description',
+  criticWindow: 'Critics: drinking window',
+  criticSource: 'Critics: source',
+  criticUrl: 'Critics: link',
+  reviewNote: 'Review note',
 } as const
 export type ImportField = keyof typeof IMPORT_FIELDS
 
@@ -59,6 +63,10 @@ const SYNONYMS: Record<ImportField, string[]> = {
   guideScore: ['vitae score', 'score', 'punteggio', 'points', 'punti'],
   guidePairing: ['vitae abbinamento', 'abbinamento', 'pairing', 'food pairing'],
   guideDescription: ['vitae descrizione', 'descrizione', 'description', 'tasting note', 'scheda'],
+  criticWindow: ['critic window', 'critics window'],
+  criticSource: ['critic source', 'critics source'],
+  criticUrl: ['source link', 'critic link'],
+  reviewNote: ['review', 'review note'],
 }
 
 const clean = (s: string) => normalizeText(s).replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim()
@@ -226,6 +234,16 @@ export function normalizeRow(
       description,
     })
     if (uncertain) warnings.push('Some guide values were marked with "?" (uncertain)')
+  }
+
+  const criticWindow = str('criticWindow')
+  const criticSource = str('criticSource')
+  const reviewNote = str('reviewNote')
+  if (criticWindow || criticSource) {
+    external.push({ source: 'Critics', window: criticWindow, description: criticSource, note: reviewNote, url: str('criticUrl') })
+  }
+  if (reviewNote && /critics: (ready|ends|earlier|keeps)|outside your own window/i.test(reviewNote)) {
+    warnings.push(`Check window — ${reviewNote.replace(/^OK — agrees · /, '')}`)
   }
 
   const grapesRaw = str('grapes')

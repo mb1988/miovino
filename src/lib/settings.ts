@@ -8,7 +8,7 @@ export interface Settings {
 }
 
 const KEY = 'miovino.settings'
-const DEFAULTS: Settings = { currency: 'EUR', apiKey: '', model: 'claude-opus-5-5', cellarName: 'My Cellar' }
+const DEFAULTS: Settings = { currency: 'GBP', apiKey: '', model: 'claude-opus-5-5', cellarName: 'My Cellar' }
 
 let cache: Settings = load()
 const listeners = new Set<() => void>()

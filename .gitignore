@@ -30,3 +30,4 @@ schema.tmp.json
 
 # Claude Code local worktrees
 .claude/worktrees/
+/data/
