@@ -163,3 +163,27 @@ describe('critic columns', () => {
     expect(p.wine.drinkFrom).toBe(2030) // spreadsheet stays the source of truth
   })
 })
+
+describe('cellar timeline', async () => {
+  const { cellarTimeline } = await import('./timeline')
+  it('adds up spend and bottles in/out per year, with continuous years', () => {
+    const at = (d: string) => new Date(d).getTime()
+    const cellar = [
+      {
+        bottles: [
+          { status: 'cellar', purchaseDate: '2023-05-01', purchasePrice: 40, createdAt: at('2023-05-01') },
+          { status: 'drunk', purchaseDate: '2023-05-01', purchasePrice: 40, consumedAt: '2025-12-24', createdAt: at('2023-05-01') },
+          { status: 'cellar', createdAt: at('2025-02-01') }, // no date/price: counted in the year it was added
+        ],
+      },
+    ] as unknown as WineWithBottles[]
+    const t = cellarTimeline(cellar)
+    expect(t.years).toEqual([
+      { year: 2023, spent: 80, bottlesIn: 2, bottlesOut: 0 },
+      { year: 2024, spent: 0, bottlesIn: 0, bottlesOut: 0 },
+      { year: 2025, spent: 0, bottlesIn: 1, bottlesOut: 1 },
+    ])
+    expect(t.valueAtCost).toBe(40)
+    expect(t.unpriced).toBe(1)
+  })
+})
