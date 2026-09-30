@@ -9,7 +9,7 @@ import type { Db, Stmt } from '../../worker/sync'
 /** node:sqlite wrapped in the slice of the D1 API the Worker uses. */
 function sqliteD1(): Db & { raw: DatabaseSync } {
   const raw = new DatabaseSync(':memory:')
-  for (const f of ['0001_init.sql', '0002_photos.sql']) raw.exec(readFileSync(new URL(`../../migrations/${f}`, import.meta.url), 'utf8'))
+  for (const f of ['0001_init.sql', '0002_photos.sql', '0003_auth.sql']) raw.exec(readFileSync(new URL(`../../migrations/${f}`, import.meta.url), 'utf8'))
   const stmt = (sql: string, params: unknown[] = []): Stmt & { first: () => Promise<unknown> } => ({
     // D1 takes ArrayBuffer for BLOBs; node:sqlite wants a typed array.
     bind: (...v: unknown[]) => stmt(sql, v.map((x) => (x instanceof ArrayBuffer ? new Uint8Array(x) : x))),
@@ -167,5 +167,49 @@ describe('two devices syncing through the Worker', () => {
     expect(await b.db.wines.count()).toBe(0)
     expect(await b.db.bottles.count()).toBe(0)
     expect(server.raw.prepare('SELECT COUNT(*) AS n FROM wines').get()).toEqual({ n: 0 })
+  })
+})
+
+describe('passkey login gate', () => {
+  const origin = 'https://cellar.test'
+  async function setup() {
+    const db = sqliteD1()
+    const workerPath = new URL('../../worker/index.ts', import.meta.url).href
+    const worker = ((await import(/* @vite-ignore */ workerPath)) as { default: { fetch: (req: Request, env: unknown) => Promise<Response> } }).default
+    const env = { DB: db, SESSION_SECRET: 'test-secret-'.repeat(4), ASSETS: { fetch: async () => new Response('index') } }
+    const call = (path: string, init?: RequestInit) => worker.fetch(new Request(origin + path, init), env)
+    const passkeys = await import('../../worker/passkeys')
+    return { db, env, call, passkeys }
+  }
+
+  it('reports signed-out state publicly and rejects data access without a session', async () => {
+    const { call } = await setup()
+    expect(await (await call('/api/health')).json()).toMatchObject({ ok: true, authenticated: false, devices: 0, scan: false })
+    expect((await call('/api/sync', { method: 'POST', body: '{"cursor":0,"changes":[]}' })).status).toBe(401)
+    expect((await call('/api/photo/wine-0000-0001')).status).toBe(401)
+    expect((await call('/api/scan', { method: 'POST', body: '{}' })).status).toBe(401)
+    expect((await call('/api/auth/invite', { method: 'POST' })).status).toBe(401)
+  })
+
+  it('rejects forged session cookies', async () => {
+    const { call } = await setup()
+    const exp = Date.now() + 1e9
+    const res = await call('/api/sync', { method: 'POST', body: '{"cursor":0,"changes":[]}', headers: { cookie: `mv_session=${exp}.forged-signature` } })
+    expect(res.status).toBe(401)
+  })
+
+  it('only starts device setup with a valid, unused, unexpired invite', async () => {
+    const { call, env, passkeys, db } = await setup()
+    const post = (body: unknown) => call('/api/auth/register/options', { method: 'POST', body: JSON.stringify(body) })
+    expect((await post({ invite: 'x'.repeat(32) })).status).toBe(403)
+    const invite = await passkeys.createInvite(env as never)
+    const ok = await post({ invite })
+    expect(ok.status).toBe(200)
+    expect((await ok.json()) as { challenge: string; rp: { id: string } }).toMatchObject({ rp: { id: 'cellar.test', name: 'MioVino' } })
+    expect(ok.headers.get('set-cookie')).toMatch(/mv_chal=.*HttpOnly.*SameSite=Lax.*Secure/)
+    // Only the hash is stored, never the token itself.
+    expect(JSON.stringify(db.raw.prepare('SELECT * FROM invites').all())).not.toContain(invite)
+    db.raw.prepare('UPDATE invites SET expires_at = 1').run()
+    expect((await post({ invite })).status).toBe(403)
   })
 })

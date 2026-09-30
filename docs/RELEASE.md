@@ -5,7 +5,7 @@
 | Need | Cloudflare | Vercel + Neon |
 |---|---|---|
 | Host the PWA | Workers static assets ✅ free | ✅ free (Hobby) |
-| Keep it **private** (only you) | **Cloudflare Access**: email one-time code in front of the whole site, no auth code to write, free up to 50 users | Hobby can't protect the production domain. Needs Pro ($20/mo) or hand-written auth |
+| Keep it **private** (only you) | **Built-in passkey login** (Face ID / fingerprint). Cloudflare Access is supported too, but its free plan needs a card on file | Hobby can't protect the production domain. Needs Pro ($20/mo) or hand-written auth |
 | Database | **D1** (SQLite) free | **Neon** Postgres free |
 | Built-in backups | D1 **Time Travel: restore to any minute of the last 7 days** (free) | Neon free: **6 hours** of history |
 | Photos | stored in **D1** (no card needed; R2 optional later) | Vercel Blob (paid beyond small quota) |
@@ -18,7 +18,7 @@
 
 ```
 Phone / laptop (PWA, offline-first; IndexedDB stays as the local cache)
-   │  HTTPS, behind Cloudflare Access (email OTP)
+   │  HTTPS, passkey session cookie (or Cloudflare Access)
    ▼
 Cloudflare Worker ── /api/sync   → D1 (wines, bottles, tastings, locations)
                   ── /api/photo  → D1 photos table
@@ -31,7 +31,7 @@ Cloudflare Worker ── /api/sync   → D1 (wines, bottles, tastings, locations
 ## Environments: no separate staging
 
 - `main` = production. Work happens on branches, then a PR, then **CI** (typecheck, tests, build; already in `.github/workflows/ci.yml`).
-- Every PR gets a **preview URL** (also behind Access) wired to a separate `miovino-preview` D1 database, so tests never touch real data.
+- Every PR gets a **preview URL** (own passkey login) wired to a separate `miovino-preview` D1 database, so tests never touch real data.
 - Merging deploys automatically. **Rollback** is one click (or `wrangler rollback`) to the previous version.
 - A staging environment would add cost and chores and bring no benefit for a single-user app. Preview deployments + CI + rollback cover it.
 
@@ -79,9 +79,9 @@ npm run db:query -- "SELECT producer, name, vintage, bottles, drink_from, drink_
 2. `npm run cf:setup` creates the D1 databases (prod + preview), writes the IDs into `wrangler.jsonc` and applies migrations
 3. `npm run deploy` (first deploy prints `https://miovino.<you>.workers.dev`)
 4. `npx wrangler secret put ANTHROPIC_API_KEY` (paste your key yourself; enables scanning on the server)
-5. **Lock it:** Dashboard → Workers → miovino → Settings → Domains & Routes → workers.dev → *Enable Cloudflare Access*. Copy the team domain and AUD tag into `wrangler.jsonc` → `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`, then `npm run deploy`. Until then, the API refuses every request.
+5. **Login (passkeys, built in):** `npm run auth:invite` prints a QR code and a one-time link (24 h). Open it on your phone, tap *Create passkey*, then approve with Face ID / fingerprint. Add more devices later from More → Devices → *Add a device* (shows a QR). Sessions last 180 days. Optional: Cloudflare Access also works (set `ACCESS_TEAM_DOMAIN` / `ACCESS_AUD`), but Zero Trust's free plan asks for a payment card.
 6. **CI/CD:** create an API token (Workers Scripts Edit, D1 Edit, Account Settings Read). In GitHub → Settings → Secrets add `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`; under Variables add `CF_DEPLOY=true`.
-7. On your phone: open the URL, sign in with the email code, then **Add to Home Screen**.
+7. On your phone, after creating the passkey: **Share → Add to Home Screen**.
 
 ## Day-to-day
 

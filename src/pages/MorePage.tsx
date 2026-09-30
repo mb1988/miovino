@@ -7,6 +7,7 @@ import { db, deleteAllData, ensureLocation } from '../lib/db'
 import { useLocations } from '../lib/hooks'
 import { saveSettings, useSettings } from '../lib/settings'
 import { syncNow, useSync } from '../lib/sync'
+import { DevicesSection } from '../components/DevicesSection'
 
 export default function MorePage() {
   const s = useSettings()
@@ -79,6 +80,8 @@ export default function MorePage() {
           )}
         </div>
       </Section>
+
+      {sync.available && sync.authenticated && <DevicesSection />}
 
       <Section title="Cellar locations">
         <div className="card divide-y divide-ink-700">

@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod'
 import { labelPrompt, LabelSchema, SCAN_MODELS, tidyLabel } from '../src/shared/label'
 import { authorize, json, type AuthEnv } from './auth'
+import { authStatus, handleAuth } from './passkeys'
 import { BadRequest, sync, validate, type Db } from './sync'
 
 interface Env extends AuthEnv {
@@ -19,12 +20,18 @@ export default {
     const url = new URL(req.url)
     if (!url.pathname.startsWith('/api/')) return env.ASSETS.fetch(req)
 
-    const who = await authorize(req, env)
-    if (who instanceof Response) return who
-
     try {
-      // GET /api/health — lets the app know a server is present and what it can do
-      if (url.pathname === '/api/health') return json({ ok: true, scan: !!env.ANTHROPIC_API_KEY, user: who.email })
+      // Public: tells the app a server exists and whether this browser is signed in.
+      if (url.pathname === '/api/health') {
+        const signedIn = !((await authorize(req, env)) instanceof Response)
+        const { devices } = env.SESSION_SECRET ? await authStatus(req, env) : { devices: 0 }
+        return json({ ok: true, authenticated: signedIn, devices, scan: signedIn && !!env.ANTHROPIC_API_KEY })
+      }
+      const auth = await handleAuth(req, env, url.pathname)
+      if (auth) return auth
+
+      const denied = await authorize(req, env)
+      if (denied instanceof Response) return denied
 
       // POST /api/sync — push local changes, pull newer ones
       if (url.pathname === '/api/sync' && req.method === 'POST') {

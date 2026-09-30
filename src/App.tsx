@@ -10,6 +10,8 @@ import ImportPage from './pages/ImportPage'
 import JournalPage from './pages/JournalPage'
 import MorePage from './pages/MorePage'
 import ScanPage from './pages/ScanPage'
+import SignInPage from './pages/SignInPage'
+import { useSync } from './lib/sync'
 import SuggestPage from './pages/SuggestPage'
 import TastePage from './pages/TastePage'
 import WinePage from './pages/WinePage'
@@ -21,7 +23,17 @@ export default function App() {
   useEffect(() => {
     if (navType !== 'POP') window.scrollTo(0, 0)
   }, [loc.pathname, navType])
+  const sync = useSync()
   const hideNav = /\/(drink|edit)$|^\/add\/|^\/import/.test(loc.pathname)
+  // Setup links always show the setup screen; otherwise lock the app while the server says we're signed out.
+  // Offline (no server answer) the app keeps working on this device's own copy.
+  if (loc.pathname === '/setup' || (sync.available && !sync.authenticated))
+    return (
+      <div className="mx-auto max-w-2xl px-4">
+        <SignInPage />
+      </div>
+    )
+
   return (
     <div className="mx-auto min-h-dvh max-w-2xl px-4">
       <main className={cx(hideNav ? 'pb-10' : 'pb-28')}>

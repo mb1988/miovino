@@ -1,6 +1,7 @@
 import { createRemoteJWKSet, jwtVerify } from 'jose'
+import { hasSession, type PasskeyEnv } from './passkeys'
 
-export interface AuthEnv {
+export interface AuthEnv extends PasskeyEnv {
   /** e.g. "myteam.cloudflareaccess.com" */
   ACCESS_TEAM_DOMAIN?: string
   /** Application Audience (AUD) tag from the Access application */
@@ -14,14 +15,14 @@ export interface AuthEnv {
 const jwksCache = new Map<string, ReturnType<typeof createRemoteJWKSet>>()
 
 /**
- * Verifies the Cloudflare Access JWT on every API request. Access already blocks strangers at the edge;
- * this makes sure nobody can reach the Worker directly (e.g. via its workers.dev URL) without a valid token.
+ * Every API request must carry either a passkey session cookie (built-in login) or, when Cloudflare Access
+ * is configured, a valid Access JWT. Local dev can opt out with ALLOW_NO_AUTH=true in .dev.vars.
  */
 export async function authorize(req: Request, env: AuthEnv): Promise<{ email: string } | Response> {
   if (env.ALLOW_NO_AUTH === 'true') return { email: 'local-dev' }
-  if (!env.ACCESS_TEAM_DOMAIN || !env.ACCESS_AUD) return json({ error: 'Server not configured: set ACCESS_TEAM_DOMAIN and ACCESS_AUD' }, 500)
+  if (await hasSession(req, env)) return { email: 'owner' }
   const token = req.headers.get('cf-access-jwt-assertion')
-  if (!token) return json({ error: 'Not signed in' }, 401)
+  if (!token || !env.ACCESS_TEAM_DOMAIN || !env.ACCESS_AUD) return json({ error: 'Not signed in' }, 401)
   const issuer = `https://${env.ACCESS_TEAM_DOMAIN}`
   let jwks = jwksCache.get(issuer)
   if (!jwks) jwksCache.set(issuer, (jwks = createRemoteJWKSet(new URL(`${issuer}/cdn-cgi/access/certs`))))

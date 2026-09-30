@@ -14,12 +14,14 @@ import { KINDS, type Kind, type Wine } from './types'
 export interface SyncState {
   available: boolean // a MioVino server answered /api/health
   scan: boolean // server can scan labels (has an API key)
+  authenticated: boolean // this browser has a valid session (passkey or Cloudflare Access)
+  devices: number // passkeys registered on the server (0 = first-time setup)
   status: 'idle' | 'syncing' | 'error' | 'offline' | 'signed-out'
   lastSync?: number
   error?: string
 }
 
-let state: SyncState = { available: false, scan: false, status: 'idle' }
+let state: SyncState = { available: false, scan: false, authenticated: false, devices: 0, status: 'idle' }
 const listeners = new Set<() => void>()
 const set = (patch: Partial<SyncState>) => {
   state = { ...state, ...patch }
@@ -42,19 +44,21 @@ export function useCanScan(): boolean {
   return s.scan || !!settings.apiKey
 }
 
-let statusPromise: Promise<{ available: boolean; scan: boolean }> | undefined
-/** Checks once whether this app is served by the MioVino Worker (vs plain static hosting / offline). */
-export function serverStatus(force = false) {
+type Health = { available: boolean; scan: boolean; authenticated: boolean; devices: number }
+let statusPromise: Promise<Health> | undefined
+/** Asks the Worker (if any) what it can do and whether this browser is signed in. Cached until forced. */
+export function serverStatus(force = false): Promise<Health> {
   if (!statusPromise || force) {
-    statusPromise = fetch('/api/health', { headers: { accept: 'application/json' } })
+    const none: Health = { available: false, scan: false, authenticated: false, devices: 0 }
+    statusPromise = fetch('/api/health', { headers: { accept: 'application/json' }, credentials: 'same-origin' })
       .then(async (r) => {
-        if (!r.ok || !r.headers.get('content-type')?.includes('json')) return { available: false, scan: false }
-        const j = (await r.json()) as { ok?: boolean; scan?: boolean }
-        return { available: !!j.ok, scan: !!j.scan }
+        if (!r.ok || !r.headers.get('content-type')?.includes('json')) return none
+        const j = (await r.json()) as Partial<Health> & { ok?: boolean }
+        return { available: !!j.ok, scan: !!j.scan, authenticated: j.authenticated !== false, devices: j.devices ?? 0 }
       })
-      .catch(() => ({ available: false, scan: false }))
+      .catch(() => none)
       .then((s) => {
-        set({ available: s.available, scan: s.scan })
+        set({ available: s.available, scan: s.scan, authenticated: s.authenticated, devices: s.devices, ...(s.authenticated && state.status === 'signed-out' ? { status: 'idle', error: undefined } : {}) })
         return s
       })
   }
@@ -90,8 +94,9 @@ export function syncNow(): Promise<void> {
 }
 
 async function doSync() {
-  const { available } = await serverStatus()
+  const { available, authenticated } = await serverStatus()
   if (!available) return
+  if (!authenticated) return set({ status: 'signed-out' })
   if (navigator.onLine === false) return set({ status: 'offline' })
   set({ status: 'syncing', error: undefined })
   try {
@@ -144,7 +149,7 @@ async function doSync() {
     set({ status: 'idle', lastSync })
     void fetchMissingPhotos()
   } catch (e) {
-    if (e instanceof SignedOut) set({ status: 'signed-out', error: 'Your sign-in expired. Reload to sign in again.' })
+    if (e instanceof SignedOut) set({ status: 'signed-out', authenticated: false, error: 'Your sign-in expired — sign in again.' })
     else set({ status: navigator.onLine ? 'error' : 'offline', error: (e as Error).message })
   }
 }
@@ -185,7 +190,7 @@ export function startSync() {
   void db.meta.get('lastSync').then((m) => m && set({ lastSync: m.value as number }))
   void serverStatus().then(({ available }) => {
     if (!available) return
-    void syncNow()
+    void syncNow() // no-op until signed in; called again after sign-in
     let timer: ReturnType<typeof setTimeout> | undefined
     onLocalChange(() => {
       clearTimeout(timer)
