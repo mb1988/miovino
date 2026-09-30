@@ -3,6 +3,7 @@ import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod'
 import { labelPrompt, LabelSchema, SCAN_MODELS, tidyLabel } from '../src/shared/label'
 import { authorize, json, type AuthEnv } from './auth'
 import { authStatus, handleAuth } from './passkeys'
+import { handleAsk, type AskDb } from './ask'
 import { handlePush, monthlyReminder, type PushDb } from './push'
 import { BadRequest, sync, validate, type Db } from './sync'
 
@@ -11,6 +12,7 @@ interface Env extends AuthEnv {
   ASSETS: Fetcher
   ANTHROPIC_API_KEY?: string
   SCAN_MODEL?: string
+  ASK_MODEL?: string
 }
 
 const PHOTO_ID = /^[A-Za-z0-9-]{8,64}$/
@@ -100,6 +102,9 @@ export default {
           throw e
         }
       }
+
+      // POST /api/ask — "Ask my cellar" chat
+      if (url.pathname === '/api/ask' && req.method === 'POST') return handleAsk(req, env.DB as unknown as AskDb, env.ANTHROPIC_API_KEY, env.ASK_MODEL ?? 'claude-opus-5-5')
 
       if (url.pathname.startsWith('/api/push/')) {
         const res = await handlePush(req, env.DB as unknown as PushDb, url.pathname)
