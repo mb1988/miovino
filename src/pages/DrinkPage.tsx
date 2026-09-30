@@ -3,6 +3,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Button, Chip, cx, Label, PageHeader, StarInput } from '../components/ui'
 import { drinkBottle, today } from '../lib/db'
 import { useWine } from '../lib/hooks'
+import { classicPairing } from '../lib/pairing'
 import { OCCASIONS, type BuyAgain } from '../lib/types'
 
 export default function DrinkPage() {
@@ -87,6 +88,13 @@ export default function DrinkPage() {
           <label className="block">
             <Label hint="optional">Food</Label>
             <input className="field" value={food} onChange={(e) => setFood(e.target.value)} placeholder="What you ate" />
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {[...wine.external.map((e) => e.pairing).filter((p): p is string => !!p), ...(classicPairing(wine)?.dishes.slice(0, 3) ?? [])].map((d) => (
+                <Chip key={d} active={food === d} onClick={() => setFood(food === d ? '' : d)}>
+                  {d}
+                </Chip>
+              ))}
+            </div>
           </label>
         </div>
 
