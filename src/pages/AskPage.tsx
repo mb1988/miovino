@@ -1,4 +1,5 @@
 import { ArrowUp, RotateCcw, Sparkles } from 'lucide-react'
+import { getLang, t } from '../lib/i18n'
 import { useEffect, useRef, useState } from 'react'
 import { Markdown } from '../components/Markdown'
 import { Chip, cx, PageHeader } from '../components/ui'
@@ -54,7 +55,7 @@ export default function AskPage() {
     setBusy(true)
     try {
       await syncNow().catch(() => undefined) // so the answer sees the latest bottles
-      const res = await fetch('/api/ask', { method: 'POST', headers: { 'content-type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ messages: next }) })
+      const res = await fetch('/api/ask', { method: 'POST', headers: { 'content-type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ messages: next, lang: getLang() }) })
       const data = (await res.json().catch(() => ({}))) as { answer?: string; error?: string }
       if (!res.ok || !data.answer) throw new Error(data.error ?? `Server error ${res.status}`)
       setTurns([...next, { role: 'assistant', content: data.answer }])
@@ -72,12 +73,12 @@ export default function AskPage() {
   return (
     <div className="flex min-h-[calc(100dvh-8rem)] flex-col">
       <PageHeader
-        title="Ask my cellar"
-        subtitle="Claude, with your bottles and notes"
+        title={t('Ask my cellar')}
+        subtitle={t('Claude, with your bottles and notes')}
         back
         right={
           turns.length > 0 && (
-            <button aria-label="New conversation" onClick={() => (setTurns([]), setError(''))} className="rounded-full p-2 text-cream-300 hover:bg-ink-800">
+            <button aria-label={t('New conversation')} onClick={() => (setTurns([]), setError(''))} className="rounded-full p-2 text-cream-300 hover:bg-ink-800">
               <RotateCcw size={18} />
             </button>
           )
@@ -88,12 +89,12 @@ export default function AskPage() {
         {turns.length === 0 && (
           <div className="card p-4">
             <p className="mb-3 flex items-center gap-2 text-sm text-cream-200">
-              <Sparkles size={16} className="text-gold-400" /> Ask anything about your wines. Try:
+              <Sparkles size={16} className="text-gold-400" /> {t('Ask anything about your wines. Try:')}
             </p>
             <div className="flex flex-wrap gap-1.5">
               {STARTERS.map((s) => (
-                <Chip key={s} onClick={() => ask(s)} className="whitespace-normal text-left">
-                  {s}
+                <Chip key={s} onClick={() => ask(t(s))} className="whitespace-normal text-left">
+                  {t(s)}
                 </Chip>
               ))}
             </div>
@@ -109,7 +110,7 @@ export default function AskPage() {
         <div ref={endRef} />
       </div>
 
-      {offline && <p className="mt-4 text-sm text-cream-400">The chat runs on the cloud server — sign in on this device to use it.</p>}
+      {offline && <p className="mt-4 text-sm text-cream-400">{t('The chat runs on the cloud server — sign in on this device to use it.')}</p>}
       <form
         className="sticky bottom-24 mt-4 flex items-end gap-2 rounded-2xl bg-ink-900/90 py-2 backdrop-blur-md"
         onSubmit={(e) => {
@@ -120,7 +121,7 @@ export default function AskPage() {
         <textarea
           className="field max-h-40 min-h-11 flex-1 resize-none py-2.5"
           rows={1}
-          placeholder="Ask about your cellar…"
+          placeholder={t('Ask about your cellar…')}
           value={input}
           maxLength={4000}
           onChange={(e) => setInput(e.target.value)}
@@ -131,7 +132,7 @@ export default function AskPage() {
             }
           }}
         />
-        <button type="submit" aria-label="Send" disabled={busy || offline || !input.trim()} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-wine-600 text-cream-50 transition hover:bg-wine-500 disabled:opacity-40">
+        <button type="submit" aria-label={t('Send')} disabled={busy || offline || !input.trim()} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-wine-600 text-cream-50 transition hover:bg-wine-500 disabled:opacity-40">
           <ArrowUp size={20} />
         </button>
       </form>

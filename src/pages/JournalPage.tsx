@@ -1,4 +1,5 @@
 import { BookOpen } from 'lucide-react'
+import { t } from '../lib/i18n'
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Bottle, Chip, Empty, PageHeader, Stars } from '../components/ui'
@@ -27,7 +28,7 @@ export default function JournalPage() {
 
   return (
     <div>
-      <PageHeader title="Journal" subtitle="Every bottle you've opened" />
+      <PageHeader title={t('Journal')} subtitle={t('Every bottle you\'ve opened')} />
       <div className="mb-4 flex gap-1.5 overflow-x-auto no-scrollbar">
         {[0, 3, 4, 4.5].map((r) => (
           <Chip key={r} active={minRating === r} onClick={() => setMinRating(r)}>
@@ -36,8 +37,8 @@ export default function JournalPage() {
         ))}
       </div>
       {cellar && entries.length === 0 ? (
-        <Empty icon={<BookOpen size={28} />} title="No tastings yet">
-          Open a wine and tap <b>Drink a bottle</b> to start your journal.
+        <Empty icon={<BookOpen size={28} />} title={t('No tastings yet')}>
+          {t('Open a wine and tap')} <b>{t('Drink a bottle')}</b> {t('to start your journal.')}
         </Empty>
       ) : (
         byMonth.map(([month, list]) => (

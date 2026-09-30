@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { t } from '../lib/i18n'
 import { Link } from 'react-router-dom'
 import { Bottle, PageHeader, Section, Stars, TYPE_COLOR } from '../components/ui'
 import { useCellar } from '../lib/hooks'
@@ -36,15 +37,15 @@ export default function TastePage() {
 
   return (
     <div>
-      <PageHeader title="Your Wine DNA" subtitle={`${data.tastings} tastings · ${data.stats.bottles} bottles in cellar`} back />
+      <PageHeader title={t('Your Wine DNA')} subtitle={`${data.tastings} tastings · ${data.stats.bottles} bottles in cellar`} back />
 
       {data.summary ? (
         <p className="card mb-6 p-4 font-display text-lg text-cream-100">{data.summary}</p>
       ) : (
-        <p className="card mb-6 p-4 text-sm text-cream-400">Log a few tastings (with ratings) and this page starts telling you what you actually like — not just what you own.</p>
+        <p className="card mb-6 p-4 text-sm text-cream-400">{t('Log a few tastings (with ratings) and this page starts telling you what you actually like — not just what you own.')}</p>
       )}
 
-      <Section title="Styles">
+      <Section title={t('Styles')}>
         <div className="card space-y-2.5 p-4">
           {data.types.map(({ t, n, pct }) => (
             <div key={t} className="flex items-center gap-3 text-sm">
@@ -61,13 +62,13 @@ export default function TastePage() {
       </Section>
 
       <div className="grid gap-x-4 sm:grid-cols-2">
-        <RankList title="Grapes" items={byBottles(data.grapes)} />
-        <RankList title="Regions" items={byBottles(data.regions)} />
-        <RankList title="Countries" items={byBottles(data.countries)} />
-        <RankList title="Producers" items={byBottles(data.producers)} />
+        <RankList title={t('Grapes')} items={byBottles(data.grapes)} />
+        <RankList title={t('Regions')} items={byBottles(data.regions)} />
+        <RankList title={t('Countries')} items={byBottles(data.countries)} />
+        <RankList title={t('Producers')} items={byBottles(data.producers)} />
       </div>
 
-      <Section title="Vintages in cellar">
+      <Section title={t('Vintages in cellar')}>
         <div className="card flex h-32 items-end gap-1 p-4 pt-6">
           {data.vintages.map(([v, n]) => (
             <div key={v} className="flex flex-1 flex-col items-center gap-1" title={`${v}: ${n}`}>
@@ -79,25 +80,25 @@ export default function TastePage() {
         </div>
       </Section>
 
-      <Section title="Money">
+      <Section title={t('Money')}>
         <div className="card grid grid-cols-3 divide-x divide-ink-700 text-center">
           <div className="p-3">
             <p className="font-display text-xl text-cream-50">{formatMoney(data.stats.value)}</p>
-            <p className="text-[11px] text-cream-400 uppercase">in cellar</p>
+            <p className="text-[11px] text-cream-400 uppercase">{t('in cellar')}</p>
           </div>
           <div className="p-3">
             <p className="font-display text-xl text-cream-50">{formatMoney(data.stats.avgPrice)}</p>
-            <p className="text-[11px] text-cream-400 uppercase">avg bottle</p>
+            <p className="text-[11px] text-cream-400 uppercase">{t('avg bottle')}</p>
           </div>
           <div className="p-3">
             <p className="font-display text-xl text-cream-50">{data.avg ? data.avg.toFixed(1) : '–'}</p>
-            <p className="text-[11px] text-cream-400 uppercase">avg rating</p>
+            <p className="text-[11px] text-cream-400 uppercase">{t('avg rating')}</p>
           </div>
         </div>
       </Section>
 
-      <WineList title="Wines you loved (4.5★+)" wines={data.loved} empty="Rate a wine 4.5★ or more and it lands here." />
-      <WineList title="Wouldn't buy again" wines={data.notAgain} empty="Nothing here — good sign." />
+      <WineList title={t('Wines you loved (4.5★+)')} wines={data.loved} empty="Rate a wine 4.5★ or more and it lands here." />
+      <WineList title={t('Wouldn\'t buy again')} wines={data.notAgain} empty="Nothing here — good sign." />
     </div>
   )
 }

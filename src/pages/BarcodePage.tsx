@@ -1,4 +1,5 @@
 import { Camera, PenLine, Plus, ScanBarcode, Search, Wine as WineIcon } from 'lucide-react'
+import { t } from '../lib/i18n'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { BarcodeScanner } from '../components/BarcodeScanner'
@@ -26,20 +27,20 @@ export default function BarcodePage() {
 
   return (
     <div>
-      <PageHeader title="Scan barcode" back />
+      <PageHeader title={t('Scan barcode')} back />
       {/* Mounted fresh each time so the camera state starts clean. */}
       {scanning && <BarcodeScanner open onClose={() => (code ? setScanning(false) : nav(-1))} onDetected={onDetected} />}
 
       {!scanning && !code && (
         <Button className="w-full" onClick={() => setScanning(true)}>
-          <ScanBarcode size={18} /> Open the scanner
+          <ScanBarcode size={18} /> {t('Open the scanner')}
         </Button>
       )}
 
       {code && (
         <>
           <p className="mb-4 text-sm text-cream-400">
-            Barcode <span className="font-mono tracking-wider text-cream-100">{code}</span>
+            {t('Barcode')} <span className="font-mono tracking-wider text-cream-100">{code}</span>
           </p>
 
           {matches.length > 0 ? (
@@ -60,12 +61,12 @@ export default function BarcodePage() {
             />
           ) : (
             <div className="space-y-2">
-              <p className="mb-3 font-display text-xl text-cream-50">A new bottle</p>
+              <p className="mb-3 font-display text-xl text-cream-50">{t('A new bottle')}</p>
               <Button className="w-full" onClick={() => nav('/add/scan', { state: { barcode: code }, replace: true })}>
-                <Camera size={18} /> Scan the front label
+                <Camera size={18} /> {t('Scan the front label')}
               </Button>
               <Button variant="secondary" className="w-full" onClick={() => nav('/add/manual', { state: { draft: { barcode: code } }, replace: true })}>
-                <PenLine size={18} /> Add manually
+                <PenLine size={18} /> {t('Add manually')}
               </Button>
               <Button variant="ghost" className="w-full" onClick={() => setLinking(true)}>
                 It&rsquo;s a wine I already have
@@ -74,7 +75,7 @@ export default function BarcodePage() {
           )}
 
           <button className="mt-6 w-full py-2 text-sm text-cream-400" onClick={() => setScanning(true)}>
-            Scan another
+            {t('Scan another')}
           </button>
         </>
       )}
@@ -94,11 +95,11 @@ function MatchCard({ wine: w, onAdd, onDrink }: { wine: WineWithBottles; onAdd: 
       </div>
       <div className="flex flex-col gap-1.5">
         <Button className="px-3 py-1.5 text-xs" onClick={onAdd}>
-          <Plus size={14} /> Bottle
+          <Plus size={14} /> {t('Bottle')}
         </Button>
         {w.inCellar > 0 && (
           <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={onDrink}>
-            <WineIcon size={14} /> Drink
+            <WineIcon size={14} /> {t('Drink')}
           </Button>
         )}
       </div>
@@ -114,10 +115,10 @@ function LinkPicker({ cellar, q, setQ, onPick }: { cellar: WineWithBottles[]; q:
     .slice(0, 30)
   return (
     <div>
-      <p className="mb-2 text-sm text-cream-300">Which wine is it? Next time this barcode finds it straight away.</p>
+      <p className="mb-2 text-sm text-cream-300">{t('Which wine is it? Next time this barcode finds it straight away.')}</p>
       <div className="relative mb-3">
         <Search size={16} className="absolute top-1/2 left-3 -translate-y-1/2 text-cream-500" />
-        <input autoFocus className="field pl-9" placeholder="Search your wines" value={q} onChange={(e) => setQ(e.target.value)} />
+        <input autoFocus className="field pl-9" placeholder={t('Search your wines')} value={q} onChange={(e) => setQ(e.target.value)} />
       </div>
       <div className="card divide-y divide-ink-700">
         {list.map((w) => (
@@ -126,7 +127,7 @@ function LinkPicker({ cellar, q, setQ, onPick }: { cellar: WineWithBottles[]; q:
             <span className="min-w-0 flex-1 truncate text-sm text-cream-100">
               {w.producer} {w.name} {w.vintage ?? 'NV'}
             </span>
-            {w.barcode && <span className="text-[10px] text-cream-500">has a barcode</span>}
+            {w.barcode && <span className="text-[10px] text-cream-500">{t('has a barcode')}</span>}
           </button>
         ))}
       </div>

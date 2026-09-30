@@ -1,4 +1,5 @@
 import { Camera, ImageUp, Loader2, X } from 'lucide-react'
+import { t } from '../lib/i18n'
 import { useEffect, useRef, useState } from 'react'
 
 /**
@@ -52,8 +53,8 @@ export function LiveCamera({ open, onClose, onCapture, hint }: { open: boolean; 
   return (
     <div className="fixed inset-0 z-[60] flex flex-col bg-black">
       <div className="flex items-center justify-between p-4 pt-[calc(env(safe-area-inset-top)+1rem)] text-cream-50">
-        <span className="text-sm">{hint ?? 'Fill the frame with the front label'}</span>
-        <button aria-label="Close camera" onClick={onClose} className="rounded-full bg-white/10 p-2">
+        <span className="text-sm">{hint ?? t('Fill the frame with the front label')}</span>
+        <button aria-label={t('Close camera')} onClick={onClose} className="rounded-full bg-white/10 p-2">
           <X size={20} />
         </button>
       </div>
@@ -63,18 +64,18 @@ export function LiveCamera({ open, onClose, onCapture, hint }: { open: boolean; 
         {state === 'starting' && <Loader2 className="absolute animate-spin text-cream-200" size={32} />}
         {state === 'unavailable' && (
           <div className="absolute px-8 text-center text-cream-200">
-            <p className="mb-4">Live camera isn't available here (permission denied, or the page isn't on HTTPS).</p>
+            <p className="mb-4">{t('Live camera isn\'t available here (permission denied, or the page isn\'t on HTTPS).')}</p>
           </div>
         )}
       </div>
       <div className="flex items-center justify-around p-6 pb-[calc(env(safe-area-inset-bottom)+1.5rem)]">
-        <button onClick={() => fileRef.current?.click()} className="flex flex-col items-center gap-1 text-xs text-cream-200" aria-label="Choose from library">
+        <button onClick={() => fileRef.current?.click()} className="flex flex-col items-center gap-1 text-xs text-cream-200" aria-label={t('Choose from library')}>
           <ImageUp size={26} />
-          Library
+          {t('Library')}
         </button>
         <button
           onClick={state === 'live' ? shoot : () => fileRef.current?.click()}
-          aria-label="Take photo"
+          aria-label={t('Take photo')}
           className="flex h-20 w-20 items-center justify-center rounded-full border-4 border-white bg-white/20 active:bg-white/40"
         >
           <Camera size={30} className="text-white" />

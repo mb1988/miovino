@@ -1,4 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks'
+import { t } from '../lib/i18n'
 import { Check, Heart, Plus, ShoppingBag, Trash2, Wine as WineIcon } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
@@ -29,18 +30,18 @@ export default function WishlistPage() {
   return (
     <div>
       <PageHeader
-        title="Wishlist"
-        subtitle="Wines to buy"
+        title={t('Wishlist')}
+        subtitle={t('Wines to buy')}
         back
         right={
           <Button variant="secondary" onClick={() => setAdding(true)}>
-            <Plus size={16} /> Add
+            <Plus size={16} /> {t('Add')}
           </Button>
         }
       />
 
       {suggestions.length > 0 && (
-        <Section title="You said you'd buy again">
+        <Section title={t('You said you\'d buy again')}>
           <div className="card divide-y divide-ink-700">
             {suggestions.map((w) => (
               <div key={w.id} className="flex items-center gap-3 p-3.5">
@@ -54,7 +55,7 @@ export default function WishlistPage() {
                   </p>
                 </Link>
                 <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => addWish(wishFromWine(w, 'Buy again'))}>
-                  <Plus size={14} /> List
+                  <Plus size={14} /> {t('List')}
                 </Button>
               </div>
             ))}
@@ -62,10 +63,10 @@ export default function WishlistPage() {
         </Section>
       )}
 
-      <Section title={`To buy · ${open.length}`}>
+      <Section title={t('To buy · {n}', { n: open.length })}>
         {open.length === 0 ? (
-          <Empty icon={<ShoppingBag size={28} />} title="Nothing on the list">
-            Mark a tasting &ldquo;Buy again: yes&rdquo;, or tap <b>Add</b>.
+          <Empty icon={<ShoppingBag size={28} />} title={t('Nothing on the list')}>
+            Mark a tasting &ldquo;Buy again: yes&rdquo;, or tap <b>{t('Add')}</b>.
           </Empty>
         ) : (
           <div className="card divide-y divide-ink-700">
@@ -78,10 +79,10 @@ export default function WishlistPage() {
                   </p>
                   {i.note && <p className="truncate text-xs text-cream-400">{i.note}</p>}
                 </div>
-                <button aria-label="Bought" title="Bought — add to cellar" className="rounded-full bg-emerald-500/15 p-2 text-emerald-300" onClick={() => bought(i)}>
+                <button aria-label={t('Bought')} title={t('Bought — add to cellar')} className="rounded-full bg-emerald-500/15 p-2 text-emerald-300" onClick={() => bought(i)}>
                   <Check size={16} />
                 </button>
-                <button aria-label="Remove" className="p-2 text-cream-500 hover:text-rose-300" onClick={() => db.wishlist.delete(i.id!)}>
+                <button aria-label={t('Remove')} className="p-2 text-cream-500 hover:text-rose-300" onClick={() => db.wishlist.delete(i.id!)}>
                   <Trash2 size={16} />
                 </button>
               </div>
@@ -104,7 +105,7 @@ export default function WishlistPage() {
                 {i.producer} · {i.name}
               </span>
               <button className="text-xs underline" onClick={() => db.wishlist.update(i.id!, { done: false })}>
-                Undo
+                {t('Undo')}
               </button>
             </div>
           ))}
@@ -125,26 +126,26 @@ function AddSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
     onClose()
   }
   return (
-    <Sheet open={open} onClose={onClose} title="Add to wishlist">
+    <Sheet open={open} onClose={onClose} title={t('Add to wishlist')}>
       <div className="space-y-3">
         <label className="block">
-          <Label>Producer</Label>
+          <Label>{t('Producer')}</Label>
           <input className="field" value={f.producer} onChange={(e) => setF({ ...f, producer: e.target.value })} />
         </label>
         <label className="block">
-          <Label>Wine</Label>
+          <Label>{t('Wine')}</Label>
           <input className="field" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
         </label>
         <label className="block">
-          <Label hint="optional">Vintage</Label>
+          <Label hint="optional">{t('Vintage')}</Label>
           <input className="field" inputMode="numeric" value={f.vintage} onChange={(e) => setF({ ...f, vintage: e.target.value })} />
         </label>
         <label className="block">
-          <Label hint="optional">Note</Label>
-          <input className="field" placeholder="Where to buy, price seen, who recommended…" value={f.note} onChange={(e) => setF({ ...f, note: e.target.value })} />
+          <Label hint="optional">{t('Note')}</Label>
+          <input className="field" placeholder={t('Where to buy, price seen, who recommended…')} value={f.note} onChange={(e) => setF({ ...f, note: e.target.value })} />
         </label>
         <Button className="w-full" onClick={save}>
-          Add
+          {t('Add')}
         </Button>
       </div>
     </Sheet>

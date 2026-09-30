@@ -1,4 +1,5 @@
 import { BookOpen, ExternalLink, Grape, Grid3x3, Heart, MapPin, Pencil, Plus, Trash2, Utensils, Wine as WineIcon } from 'lucide-react'
+import { t } from '../lib/i18n'
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Bottle as BottleIcon, Button, cx, Flag, Label, PageHeader, Section, Sheet, Stars, StatusChip, WindowBar } from '../components/ui'
@@ -22,8 +23,8 @@ export default function WinePage() {
   if (wine === null)
     return (
       <div>
-        <PageHeader title="Not found" back />
-        <p className="text-cream-400">This wine no longer exists.</p>
+        <PageHeader title={t('Not found')} back />
+        <p className="text-cream-400">{t('This wine no longer exists.')}</p>
       </div>
     )
 
@@ -45,7 +46,7 @@ export default function WinePage() {
             >
               <Heart size={20} fill={wine.favourite ? 'currentColor' : 'none'} />
             </button>
-            <Link to={`/wine/${id}/edit`} aria-label="Edit" className="rounded-full p-2 text-cream-300 hover:bg-ink-800">
+            <Link to={`/wine/${id}/edit`} aria-label={t('Edit')} className="rounded-full p-2 text-cream-300 hover:bg-ink-800">
               <Pencil size={20} />
             </Link>
           </div>
@@ -62,7 +63,7 @@ export default function WinePage() {
           <h1 className="font-display text-2xl leading-tight font-semibold text-cream-50">{wine.name}</h1>
           <p className="font-display text-xl text-cream-200">{wine.vintage ?? 'NV'}</p>
           <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-cream-300">
-            <span>{WINE_TYPE_LABEL[wine.type]}</span>
+            <span>{t(WINE_TYPE_LABEL[wine.type])}</span>
             {wine.country && (
               <span>
                 <Flag country={wine.country} /> {wine.country}
@@ -75,7 +76,7 @@ export default function WinePage() {
 
       {wine.needsReview?.length ? (
         <div className="mb-4 rounded-xl bg-amber-400/10 p-3 text-sm text-amber-100 ring-1 ring-amber-400/30">
-          <p className="font-medium">Imported with notes to check:</p>
+          <p className="font-medium">{t('Imported with notes to check:')}</p>
           <ul className="mt-1 list-disc pl-5 text-amber-200/90">
             {wine.needsReview.map((r) => (
               <li key={r}>{r}</li>
@@ -83,10 +84,10 @@ export default function WinePage() {
           </ul>
           <div className="mt-2 flex gap-3">
             <Link to={`/wine/${id}/edit`} className="font-medium text-amber-100 underline">
-              Fix now
+              {t('Fix now')}
             </Link>
             <button className="text-amber-200/80 underline" onClick={() => updateWine(id, { needsReview: undefined })}>
-              Looks fine
+              {t('Looks fine')}
             </button>
           </div>
         </div>
@@ -95,14 +96,14 @@ export default function WinePage() {
       {/* Primary actions */}
       <div className="mb-6 grid grid-cols-2 gap-2">
         <Button disabled={!cellarBottles.length} onClick={() => nav(`/wine/${id}/drink`)}>
-          <WineIcon size={18} /> Drink a bottle
+          <WineIcon size={18} /> {t('Drink a bottle')}
         </Button>
         <Button variant="secondary" onClick={() => setEditing('new')}>
-          <Plus size={18} /> Add bottle
+          <Plus size={18} /> {t('Add bottle')}
         </Button>
       </div>
 
-      <Section title="Drinking window">
+      <Section title={t('Drinking window')}>
         <div className="card p-4">
           <div className="flex items-center justify-between">
             <StatusChip status={status} />
@@ -115,7 +116,7 @@ export default function WinePage() {
             <p className="mt-3 text-sm text-cream-400">
               No window yet.{' '}
               <Link className="text-wine-300 underline" to={`/wine/${id}/edit`}>
-                Add one
+                {t('Add one')}
               </Link>
             </p>
           ) : (
@@ -125,28 +126,28 @@ export default function WinePage() {
       </Section>
 
       <Section
-        title={`Your bottles · ${cellarBottles.length}`}
+        title={t('Your bottles · {n}', { n: cellarBottles.length })}
         action={
           cellarBottles.some((b) => b.slot) && (
             <Link to={`/rack?w=${id}`} className="flex items-center gap-1 text-xs text-wine-300">
-              <Grid3x3 size={13} /> Show in rack
+              <Grid3x3 size={13} /> {t('Show in rack')}
             </Link>
           )
         }
       >
         <div className="card divide-y divide-ink-700">
-          {cellarBottles.length === 0 && <p className="p-4 text-sm text-cream-400">None left in the cellar.</p>}
+          {cellarBottles.length === 0 && <p className="p-4 text-sm text-cream-400">{t('None left in the cellar.')}</p>}
           {cellarBottles.map((b, i) => (
             <button key={b.id} onClick={() => setEditing(b)} className="flex w-full items-center gap-3 p-3.5 text-left hover:bg-ink-800">
               <span className="flex h-8 w-8 items-center justify-center rounded-full bg-ink-700 text-xs font-semibold text-cream-200">#{i + 1}</span>
               <div className="min-w-0 flex-1">
                 <p className="flex items-center gap-1.5 text-sm text-cream-50">
                   <MapPin size={14} className="text-cream-400" />
-                  {b.location || <span className="text-cream-500">No location</span>}
+                  {b.location || <span className="text-cream-500">{t('No location')}</span>}
                   {b.slot && <span className="rounded bg-ink-700 px-1.5 text-[11px] font-semibold text-cream-200">{b.slot}</span>}
                 </p>
                 <p className="text-xs text-cream-400">
-                  {[b.purchasePrice != null ? formatMoney(b.purchasePrice) : null, b.seller, b.purchaseDate].filter(Boolean).join(' · ') || 'Tap to add details'}
+                  {[b.purchasePrice != null ? formatMoney(b.purchasePrice) : null, b.seller, b.purchaseDate].filter(Boolean).join(' · ') || t('Tap to add details')}
                 </p>
               </div>
               <Pencil size={14} className="text-cream-500" />
@@ -156,10 +157,10 @@ export default function WinePage() {
       </Section>
 
       <Section
-        title="Your notes"
+        title={t('Your notes')}
         action={
           <button className="text-xs text-wine-300" onClick={() => setNotesOpen(true)}>
-            Edit
+            {t('Edit')}
           </button>
         }
       >
@@ -172,15 +173,15 @@ export default function WinePage() {
               </span>
             </div>
           )}
-          {wine.personalNotes ? <p className="text-sm whitespace-pre-line text-cream-100">{wine.personalNotes}</p> : <p className="text-sm text-cream-500">No personal notes yet.</p>}
+          {wine.personalNotes ? <p className="text-sm whitespace-pre-line text-cream-100">{wine.personalNotes}</p> : <p className="text-sm text-cream-500">{t('No personal notes yet.')}</p>}
         </div>
       </Section>
 
-      <Section title={`Tasting history · ${wine.tastings.length}`}>
+      <Section title={t('Tasting history · {n}', { n: wine.tastings.length })}>
         {wine.tastings.length === 0 ? (
           <div className="card p-4 text-sm text-cream-400">
             <BookOpen size={16} className="mr-2 inline" />
-            When you drink a bottle, your impressions land here.
+            {t('When you drink a bottle, your impressions land here.')}
           </div>
         ) : (
           <div className="space-y-2">
@@ -201,12 +202,12 @@ export default function WinePage() {
 
       <FoodSection wine={wine} />
 
-      <Section title="Wine info">
+      <Section title={t('Wine info')}>
         <div className="card divide-y divide-ink-700 text-sm">
-          <InfoRow label="Appellation" value={wine.appellation} />
-          <InfoRow label="Grapes" value={wine.grapes.join(', ')} icon={<Grape size={14} />} />
-          <InfoRow label="Alcohol" value={wine.alcohol ? `${wine.alcohol}%` : undefined} />
-          <InfoRow label="Bottle" value={wine.bottleSize !== 750 ? `${wine.bottleSize} ml` : '750 ml'} />
+          <InfoRow label={t('Appellation')} value={wine.appellation} />
+          <InfoRow label={t('Grapes')} value={wine.grapes.join(', ')} icon={<Grape size={14} />} />
+          <InfoRow label={t('Alcohol')} value={wine.alcohol ? `${wine.alcohol}%` : undefined} />
+          <InfoRow label={t('Bottle')} value={wine.bottleSize !== 750 ? `${wine.bottleSize} ml` : '750 ml'} />
         </div>
       </Section>
 
@@ -220,13 +221,13 @@ export default function WinePage() {
             </div>
             {e.pairing && (
               <p className="mb-2 text-cream-200">
-                <span className="text-cream-400">Pairing: </span>
+                <span className="text-cream-400">{t('Pairing:')} </span>
                 {e.pairing}
               </p>
             )}
             {e.window && (
               <div className="mb-2 flex flex-wrap items-center gap-2">
-                <span className="text-cream-400">Drinking window:</span>
+                <span className="text-cream-400">{t('Drinking window:')}</span>
                 <span className="font-medium text-cream-50">{e.window}</span>
                 {(() => {
                   const w = parseWindow(e.window.split('/')[0])
@@ -249,7 +250,7 @@ export default function WinePage() {
             {e.note && <p className="mt-2 text-xs text-cream-400">{e.note}</p>}
             {e.url && (
               <a href={e.url} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-xs text-wine-300 underline">
-                Source <ExternalLink size={12} />
+                {t('Source')} <ExternalLink size={12} />
               </a>
             )}
           </div>
@@ -257,7 +258,7 @@ export default function WinePage() {
       ))}
 
       {pastBottles.length > 0 && (
-        <Section title="Past bottles">
+        <Section title={t('Past bottles')}>
           <div className="card divide-y divide-ink-700 text-sm">
             {pastBottles.map((b) => (
               <div key={b.id} className="flex items-center justify-between p-3 text-cream-300">
@@ -279,7 +280,7 @@ export default function WinePage() {
             }
           }}
         >
-          <Trash2 size={16} /> Delete wine
+          <Trash2 size={16} /> {t('Delete wine')}
         </button>
       </div>
 
@@ -294,7 +295,7 @@ function FoodSection({ wine }: { wine: Parameters<typeof classicPairing>[0] & { 
   const classic = classicPairing(wine)
   if (!guide.length && !classic) return null
   return (
-    <Section title="What to eat with it">
+    <Section title={t('What to eat with it')}>
       <div className="card space-y-3 p-4 text-sm">
         {guide.map((e) => (
           <p key={e.source} className="flex gap-2 text-cream-50">
@@ -342,8 +343,8 @@ export function fmtDate(d: string) {
 function NotesSheet({ open, initial, onClose, onSave }: { open: boolean; initial: string; onClose: () => void; onSave: (n: string) => void }) {
   const [text, setText] = useState(initial)
   return (
-    <Sheet open={open} onClose={onClose} title="Your notes">
-      <textarea value={text} onChange={(e) => setText(e.target.value)} rows={6} className="field" placeholder="Anything worth remembering about this wine…" />
+    <Sheet open={open} onClose={onClose} title={t('Your notes')}>
+      <textarea value={text} onChange={(e) => setText(e.target.value)} rows={6} className="field" placeholder={t('Anything worth remembering about this wine…')} />
       <Button
         className="mt-4 w-full"
         onClick={() => {
@@ -351,7 +352,7 @@ function NotesSheet({ open, initial, onClose, onSave }: { open: boolean; initial
           onClose()
         }}
       >
-        Save
+        {t('Save')}
       </Button>
     </Sheet>
   )
@@ -395,11 +396,11 @@ function BottleSheet({ wineId, bottle, onClose }: { wineId: string; bottle: Bott
   }
 
   return (
-    <Sheet open={bottle !== null} onClose={onClose} title={isNew ? 'Add bottles' : 'Bottle details'}>
+    <Sheet open={bottle !== null} onClose={onClose} title={isNew ? t('Add bottles') : t('Bottle details')}>
       <div className="space-y-4">
         {isNew && (
           <label className="block">
-            <Label>How many</Label>
+            <Label>{t('How many')}</Label>
             <div className="flex items-center gap-3">
               <Button variant="secondary" onClick={() => up({ count: Math.max(1, f.count - 1) })}>
                 −
@@ -412,8 +413,8 @@ function BottleSheet({ wineId, bottle, onClose }: { wineId: string; bottle: Bott
           </label>
         )}
         <label className="block">
-          <Label>Location</Label>
-          <input className="field" list="locations" value={f.location} onChange={(e) => up({ location: e.target.value })} placeholder="e.g. Rack A / Shelf 2" />
+          <Label>{t('Location')}</Label>
+          <input className="field" list="locations" value={f.location} onChange={(e) => up({ location: e.target.value })} placeholder={t('e.g. Rack A / Shelf 2')} />
           <datalist id="locations">{locations?.map((l) => <option key={l.id} value={l.name} />)}</datalist>
           {locations && locations.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1.5">
@@ -427,26 +428,26 @@ function BottleSheet({ wineId, bottle, onClose }: { wineId: string; bottle: Bott
         </label>
         <div className="grid grid-cols-2 gap-3">
           <label className="block">
-            <Label>Price</Label>
+            <Label>{t('Price')}</Label>
             <input className="field" inputMode="decimal" value={f.price} onChange={(e) => up({ price: e.target.value })} placeholder="0" />
           </label>
           <label className="block">
-            <Label>Purchase date</Label>
+            <Label>{t('Purchase date')}</Label>
             <input className="field" type="date" value={f.date} onChange={(e) => up({ date: e.target.value })} />
           </label>
         </div>
         <label className="block">
-          <Label>Bought from</Label>
-          <input className="field" value={f.seller} onChange={(e) => up({ seller: e.target.value })} placeholder="Wine shop, winery, gift…" />
+          <Label>{t('Bought from')}</Label>
+          <input className="field" value={f.seller} onChange={(e) => up({ seller: e.target.value })} placeholder={t('Wine shop, winery, gift…')} />
         </label>
         {!isNew && (
           <label className="block">
-            <Label>Status</Label>
+            <Label>{t('Status')}</Label>
             <select className="field" value={f.status} onChange={(e) => up({ status: e.target.value as BottleStatus })}>
-              <option value="cellar">In cellar</option>
-              <option value="drunk">Drunk</option>
-              <option value="gifted">Gifted</option>
-              <option value="lost">Lost / broken</option>
+              <option value="cellar">{t('In cellar')}</option>
+              <option value="drunk">{t('Drunk')}</option>
+              <option value="gifted">{t('Gifted')}</option>
+              <option value="lost">{t('Lost / broken')}</option>
             </select>
           </label>
         )}
@@ -455,7 +456,7 @@ function BottleSheet({ wineId, bottle, onClose }: { wineId: string; bottle: Bott
         </Button>
         {b?.status === 'cellar' && b.location && (
           <Link to={`/rack?b=${b.id}`} className="flex w-full items-center justify-center gap-1.5 py-2 text-sm text-wine-300">
-            <Grid3x3 size={15} /> {b.slot ? `Show slot ${b.slot} in the rack map` : 'Place in the rack map'}
+            <Grid3x3 size={15} /> {b.slot ? t('Show slot {slot} in the rack map', { slot: b.slot }) : t('Place in the rack map')}
           </Link>
         )}
         {b && (
@@ -468,7 +469,7 @@ function BottleSheet({ wineId, bottle, onClose }: { wineId: string; bottle: Bott
               }
             }}
           >
-            Remove bottle record
+            {t('Remove bottle record')}
           </button>
         )}
       </div>

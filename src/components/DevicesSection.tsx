@@ -1,4 +1,5 @@
 import { Copy, LogOut, Plus, Share2, Smartphone, Trash2 } from 'lucide-react'
+import { t } from '../lib/i18n'
 import { useEffect, useState } from 'react'
 import { createInviteLink, listDevices, removeDevice, signOut, type Device } from '../lib/auth'
 import { Button, Section } from './ui'
@@ -27,7 +28,7 @@ export function DevicesSection() {
   }
 
   return (
-    <Section title="Devices">
+    <Section title={t('Devices')}>
       <div className="card divide-y divide-ink-700">
         {devices?.map((d) => (
           <div key={d.id} className="flex items-center gap-3 px-4 py-3">
@@ -58,27 +59,27 @@ export function DevicesSection() {
         <div className="space-y-3 p-4">
           {link ? (
             <>
-              <p className="text-xs text-cream-400">Scan with the new device's camera, or send it the link. Valid 24 hours, works once.</p>
+              <p className="text-xs text-cream-400">{t('Scan with the new device\'s camera, or send it the link. Valid 24 hours, works once.')}</p>
               {qr && <img src={qr} alt="Setup QR code" className="mx-auto h-48 w-48 rounded-xl" />}
               <input readOnly className="field font-mono text-xs" value={link} onFocus={(e) => e.target.select()} />
               <div className="flex gap-2">
                 <Button variant="secondary" className="flex-1" onClick={() => navigator.clipboard.writeText(link).then(() => setMsg('Link copied'))}>
-                  <Copy size={16} /> Copy
+                  <Copy size={16} /> {t('Copy')}
                 </Button>
                 {'share' in navigator && (
                   <Button variant="secondary" className="flex-1" onClick={() => navigator.share({ title: 'MioVino setup link', url: link }).catch(() => {})}>
-                    <Share2 size={16} /> Share
+                    <Share2 size={16} /> {t('Share')}
                   </Button>
                 )}
               </div>
             </>
           ) : (
             <Button variant="secondary" className="w-full" onClick={newLink}>
-              <Plus size={16} /> Add a device
+              <Plus size={16} /> {t('Add a device')}
             </Button>
           )}
           <Button variant="ghost" className="w-full" onClick={() => signOut()}>
-            <LogOut size={16} /> Sign out on this device
+            <LogOut size={16} /> {t('Sign out on this device')}
           </Button>
           {msg && <p className="text-xs text-cream-300">{msg}</p>}
         </div>

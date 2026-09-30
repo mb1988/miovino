@@ -1,4 +1,5 @@
 import { Camera, ChevronRight, FileSpreadsheet, PenLine, ScanBarcode } from 'lucide-react'
+import { t } from '../lib/i18n'
 import { Link } from 'react-router-dom'
 import { PageHeader } from '../components/ui'
 
@@ -9,15 +10,15 @@ export default function AddPage() {
         <Icon />
       </span>
       <span className="flex-1">
-        <span className="block font-semibold text-cream-50">{title}</span>
-        <span className="text-sm text-cream-400">{desc}</span>
+        <span className="block font-semibold text-cream-50">{t(title)}</span>
+        <span className="text-sm text-cream-400">{t(desc)}</span>
       </span>
       <ChevronRight className="text-cream-500" />
     </Link>
   )
   return (
     <div>
-      <PageHeader title="Add wine" back />
+      <PageHeader title={t('Add wine')} back />
       <div className="grid gap-3">
         {opt('/add/scan', Camera, 'Scan label', 'Photo → the app reads producer, vintage, region, grapes and drinking window', true)}
         {opt('/add/barcode', ScanBarcode, 'Scan barcode', 'A bottle you’ve had before: +1 in one tap')}
