@@ -178,7 +178,7 @@ describe('passkey login gate', () => {
     const worker = ((await import(/* @vite-ignore */ workerPath)) as { default: { fetch: (req: Request, env: unknown) => Promise<Response> } }).default
     const env = { DB: db, SESSION_SECRET: 'test-secret-'.repeat(4), ASSETS: { fetch: async () => new Response('index') } }
     const call = (path: string, init?: RequestInit) => worker.fetch(new Request(origin + path, init), env)
-    const passkeys = await import('../../worker/passkeys')
+    const passkeys = (await import(/* @vite-ignore */ new URL('../../worker/passkeys.ts', import.meta.url).href)) as { createInvite: (env: unknown) => Promise<string> }
     return { db, env, call, passkeys }
   }
 
@@ -202,7 +202,7 @@ describe('passkey login gate', () => {
     const { call, env, passkeys, db } = await setup()
     const post = (body: unknown) => call('/api/auth/register/options', { method: 'POST', body: JSON.stringify(body) })
     expect((await post({ invite: 'x'.repeat(32) })).status).toBe(403)
-    const invite = await passkeys.createInvite(env as never)
+    const invite = await passkeys.createInvite(env)
     const ok = await post({ invite })
     expect(ok.status).toBe(200)
     expect((await ok.json()) as { challenge: string; rp: { id: string } }).toMatchObject({ rp: { id: 'cellar.test', name: 'MioVino' } })
