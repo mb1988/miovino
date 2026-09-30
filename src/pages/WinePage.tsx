@@ -1,4 +1,4 @@
-import { BookOpen, ExternalLink, Grape, Heart, MapPin, Pencil, Plus, Trash2, Utensils, Wine as WineIcon } from 'lucide-react'
+import { BookOpen, ExternalLink, Grape, Grid3x3, Heart, MapPin, Pencil, Plus, Trash2, Utensils, Wine as WineIcon } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Bottle as BottleIcon, Button, cx, Flag, Label, PageHeader, Section, Sheet, Stars, StatusChip, WindowBar } from '../components/ui'
@@ -124,7 +124,16 @@ export default function WinePage() {
         </div>
       </Section>
 
-      <Section title={`Your bottles · ${cellarBottles.length}`}>
+      <Section
+        title={`Your bottles · ${cellarBottles.length}`}
+        action={
+          cellarBottles.some((b) => b.slot) && (
+            <Link to={`/rack?w=${id}`} className="flex items-center gap-1 text-xs text-wine-300">
+              <Grid3x3 size={13} /> Show in rack
+            </Link>
+          )
+        }
+      >
         <div className="card divide-y divide-ink-700">
           {cellarBottles.length === 0 && <p className="p-4 text-sm text-cream-400">None left in the cellar.</p>}
           {cellarBottles.map((b, i) => (
@@ -134,6 +143,7 @@ export default function WinePage() {
                 <p className="flex items-center gap-1.5 text-sm text-cream-50">
                   <MapPin size={14} className="text-cream-400" />
                   {b.location || <span className="text-cream-500">No location</span>}
+                  {b.slot && <span className="rounded bg-ink-700 px-1.5 text-[11px] font-semibold text-cream-200">{b.slot}</span>}
                 </p>
                 <p className="text-xs text-cream-400">
                   {[b.purchasePrice != null ? formatMoney(b.purchasePrice) : null, b.seller, b.purchaseDate].filter(Boolean).join(' · ') || 'Tap to add details'}
@@ -377,7 +387,8 @@ function BottleSheet({ wineId, bottle, onClose }: { wineId: string; bottle: Bott
     }
     if (isNew) await addBottles(wineId, Math.max(1, f.count), data)
     else if (b) {
-      await db.bottles.update(b.id!, { ...data, status: f.status, consumedAt: f.status !== 'cellar' ? b.consumedAt ?? today() : undefined })
+      const keepSlot = f.status === 'cellar' && data.location === b.location
+      await db.bottles.update(b.id!, { ...data, status: f.status, consumedAt: f.status !== 'cellar' ? b.consumedAt ?? today() : undefined, slot: keepSlot ? b.slot : undefined })
       if (data.location) await ensureLocation(data.location)
     }
     onClose()
@@ -442,6 +453,11 @@ function BottleSheet({ wineId, bottle, onClose }: { wineId: string; bottle: Bott
         <Button className="w-full" onClick={save}>
           {isNew ? `Add ${f.count} bottle${f.count > 1 ? 's' : ''}` : 'Save'}
         </Button>
+        {b?.status === 'cellar' && b.location && (
+          <Link to={`/rack?b=${b.id}`} className="flex w-full items-center justify-center gap-1.5 py-2 text-sm text-wine-300">
+            <Grid3x3 size={15} /> {b.slot ? `Show slot ${b.slot} in the rack map` : 'Place in the rack map'}
+          </Link>
+        )}
         {b && (
           <button
             className="w-full py-2 text-sm text-rose-300/80"

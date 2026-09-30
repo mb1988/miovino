@@ -173,7 +173,7 @@ export async function drinkBottle(wineId: string, tasting: Omit<Tasting, 'id' | 
     let bottle = bottleId != null ? await db.bottles.get(bottleId) : undefined
     if (!bottle) bottle = await db.bottles.where({ wineId, status: 'cellar' }).first()
     const tastingId = (await db.tastings.add({ ...tasting, wineId, bottleId: bottle?.id, createdAt: now() })) as string
-    if (bottle) await db.bottles.update(bottle.id!, { status: 'drunk', consumedAt: tasting.date, tastingId })
+    if (bottle) await db.bottles.update(bottle.id!, { status: 'drunk', consumedAt: tasting.date, tastingId, slot: undefined })
     return tastingId
   })
 }
