@@ -1,4 +1,4 @@
-import { Camera, ChevronRight, FileSpreadsheet, PenLine } from 'lucide-react'
+import { Camera, ChevronRight, FileSpreadsheet, PenLine, ScanBarcode } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { PageHeader } from '../components/ui'
 
@@ -20,6 +20,7 @@ export default function AddPage() {
       <PageHeader title="Add wine" back />
       <div className="grid gap-3">
         {opt('/add/scan', Camera, 'Scan label', 'Photo → the app reads producer, vintage, region, grapes and drinking window', true)}
+        {opt('/add/barcode', ScanBarcode, 'Scan barcode', 'A bottle you’ve had before: +1 in one tap')}
         {opt('/add/manual', PenLine, 'Add manually', 'Type it in — auto-fills region and grapes from the appellation')}
         {opt('/import', FileSpreadsheet, 'Import spreadsheet', 'Excel or CSV, columns mapped automatically')}
       </div>

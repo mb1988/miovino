@@ -15,6 +15,7 @@ import { useSync } from './lib/sync'
 import SuggestPage from './pages/SuggestPage'
 import TastePage from './pages/TastePage'
 import AskPage from './pages/AskPage'
+import BarcodePage from './pages/BarcodePage'
 import RackPage from './pages/RackPage'
 import WishlistPage from './pages/WishlistPage'
 import WinePage from './pages/WinePage'
@@ -48,6 +49,7 @@ export default function App() {
           <Route path="/add" element={<AddPage />} />
           <Route path="/add/manual" element={<EditWinePage />} />
           <Route path="/add/scan" element={<ScanPage />} />
+          <Route path="/add/barcode" element={<BarcodePage />} />
           <Route path="/import" element={<ImportPage />} />
           <Route path="/suggest" element={<SuggestPage />} />
           <Route path="/journal" element={<JournalPage />} />

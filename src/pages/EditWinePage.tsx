@@ -7,6 +7,7 @@ import { addWineWithBottles, db, today, updateWine } from '../lib/db'
 import { useBlobUrl, useLocations } from '../lib/hooks'
 import { tidyName } from '../lib/importer'
 import { enrich } from '../lib/knowledge'
+import { normalizeBarcode } from '../lib/barcode'
 import { imageToBase64 } from '../lib/image'
 import { useCanScan } from '../lib/sync'
 import type { LabelResult } from '../lib/scanner'
@@ -27,6 +28,7 @@ export interface WineDraft {
   drinkTo: string
   peakYear: string
   personalNotes: string
+  barcode: string
   external: ExternalInfo[]
   photo?: Blob
 }
@@ -75,6 +77,7 @@ const EMPTY: WineDraft = {
   drinkTo: '',
   peakYear: '',
   personalNotes: '',
+  barcode: '',
   external: [],
 }
 
@@ -94,6 +97,7 @@ function fromWine(w: Wine): WineDraft {
     drinkTo: w.drinkTo?.toString() ?? '',
     peakYear: w.peakYear?.toString() ?? '',
     personalNotes: w.personalNotes ?? '',
+    barcode: w.barcode ?? '',
     external: w.external,
     photo: w.photo,
   }
@@ -186,6 +190,7 @@ export default function EditWinePage() {
       drinkTo: int(draft.drinkTo),
       peakYear: int(draft.peakYear),
       personalNotes: draft.personalNotes.trim() || undefined,
+      barcode: normalizeBarcode(draft.barcode) ?? undefined,
       external: draft.external,
       photo: draft.photo,
       hasPhoto: !!draft.photo,
@@ -383,6 +388,10 @@ export default function EditWinePage() {
 
       <Section title="Your notes">
         <textarea className="field" rows={3} value={draft.personalNotes} onChange={(e) => up({ personalNotes: e.target.value })} placeholder="Why you bought it, who recommended it…" />
+        <label className="mt-3 block">
+          <Label hint="scan it from Add → Scan barcode">Barcode</Label>
+          <input className="field" inputMode="numeric" value={draft.barcode} onChange={(e) => up({ barcode: e.target.value })} placeholder="EAN on the back label" />
+        </label>
       </Section>
 
       {draft.external.length > 0 && (

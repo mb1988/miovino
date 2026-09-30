@@ -52,6 +52,7 @@ export interface Wine extends Synced {
   hasPhoto?: boolean
   favourite: boolean
   personalNotes?: string
+  barcode?: string // EAN/UPC from the back label, normalised to 13 digits
   tags: string[]
   needsReview?: string[] // import warnings still to confirm
   createdAt: number
