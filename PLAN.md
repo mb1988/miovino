@@ -115,21 +115,31 @@ Bottom nav: **Cellar · Drink · ＋Add (big) · Journal · More**
 - [x] Export JSON/CSV/XLSX + restore
 - [x] Verify in browser (desktop + mobile viewport)
 
-### Phase 2 — after you've used it a few weeks
-- Cloud sync / multi-device (Neon or Drive), serverless API proxy
-- Drinking-window reminders (push notifications / monthly report)
-- Visual rack map (grid of slots)
-- "Ask my cellar" chat (AI over your data), food pairing
-- Bottle photos gallery, barcode scan
-- Italian UI translation
+### Phase 1.5 — done (2026-09-30)
+- [x] Data review against critics → `data/data-review.md` + `data/Wine.enriched.xlsx` (local only, not in git)
+- [x] Critic windows shown per wine with "use this window"; disagreements flagged for review
+- [x] Food pairing both ways (wine → dishes; dish → wine, free text EN/IT)
+- [x] Live camera + "scan label" on the edit screen (fills empty fields only)
+- [x] Vintage filter + vintage picker; currency £
+- [x] Git repo, feature branches, CI workflow
 
-### Phase 3 — only if wanted
-Market value tracking, partner/shared cellar, multiple cellars, restaurant list scanner.
+### Phase 2 — release (see docs/RELEASE.md)
+- Cloudflare: Worker + D1 + R2 + Access; sync; AI proxy; nightly backups
 
-## 7. Open questions for you
-1. Currency — assumed **EUR** for "Prezzo 2025". Correct?
-2. UI language — English for now (data stays in Italian). Want Italian UI?
-3. Where do you want it hosted? (Vercel/Netlify/GitHub Pages free static hosting to use it from your phone.)
-4. Physical storage layout — racks/shelves/fridge names, so I can pre-create locations.
-5. OK to use your Anthropic API key for the scanner (entered in Settings, stored only on-device)?
-6. Cloud sync priority — needed soon (phone + laptop) or phone-only is fine for now?
+### Phase 3 — next features, in suggested order
+1. **Drinking reminders**: monthly "ready now / closing soon" push notification + email digest
+2. **Visual rack map**: tap a slot to see the bottle; "where is it?" highlight
+3. **Ask my cellar** (AI chat over your own data): "what goes with ossobuco?", "what do I have from Piedmont ready this year?"
+4. **Barcode scan**: instant re-add of a bottle you already own
+5. **Wishlist / shopping list**: wines to buy again ("buy again = yes" feeds it)
+6. **Stats over time**: spend per year, bottles in/out, value
+7. **Italian UI**
+8. **Share a wine card**: image of the bottle + your note, to send to friends
+
+### Later, only if wanted
+Market value tracking, partner/shared cellar, multiple cellars, restaurant wine-list scanner.
+
+## 7. Decisions
+- Currency: **£** ✅
+- Hosting: **Cloudflare** recommended (docs/RELEASE.md) — awaiting your go-ahead
+- Still open: UI language, rack/shelf names, cloud sync timing
