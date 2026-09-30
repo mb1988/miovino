@@ -8,7 +8,8 @@ import { matchCellar } from '../lib/match'
 import type { LabelResult } from '../lib/scanner'
 import { useSettings } from '../lib/settings'
 import type { WineWithBottles } from '../lib/types'
-import type { AddState } from './EditWinePage'
+import { labelToDraft } from './EditWinePage'
+import { LiveCamera } from '../components/LiveCamera'
 
 type Phase = { k: 'idle' } | { k: 'reading'; preview: string } | { k: 'error'; msg: string; preview?: string } | { k: 'matched'; result: LabelResult; thumb: Blob; matches: WineWithBottles[]; preview: string }
 
@@ -16,31 +17,11 @@ export default function ScanPage() {
   const settings = useSettings()
   const cellar = useCellar()
   const nav = useNavigate()
-  const camRef = useRef<HTMLInputElement>(null)
+  const [camOpen, setCamOpen] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const [phase, setPhase] = useState<Phase>({ k: 'idle' })
 
-  const toDraft = (r: LabelResult, thumb: Blob): AddState => ({
-    confidence: r.confidence,
-    draft: {
-      producer: r.producer,
-      name: r.name,
-      vintage: r.vintage == null ? 'NV' : String(r.vintage),
-      type: r.type,
-      country: r.country ?? '',
-      region: r.region ?? '',
-      appellation: r.appellation ?? '',
-      grapes: r.grapes.join(', '),
-      alcohol: r.alcohol?.toString() ?? '',
-      bottleSize: String(r.bottleSizeMl ?? 750),
-      drinkFrom: r.drinkFrom?.toString() ?? '',
-      drinkTo: r.drinkTo?.toString() ?? '',
-      external: r.tastingNote || r.pairing ? [{ source: 'AI (label scan)', description: r.tastingNote ?? undefined, pairing: r.pairing ?? undefined }] : [],
-      photo: thumb,
-    },
-  })
-
-  const onFile = async (f?: File) => {
+  const onFile = async (f?: Blob) => {
     if (!f) return
     const preview = URL.createObjectURL(f)
     setPhase({ k: 'reading', preview })
@@ -50,7 +31,7 @@ export default function ScanPage() {
       if (!result.isWineLabel) return setPhase({ k: 'error', msg: "That doesn't look like a wine label. Try again with the front label filling the frame.", preview })
       const matches = matchCellar(cellar ?? [], result)
       if (matches.length) setPhase({ k: 'matched', result, thumb: thumbnail, matches, preview })
-      else nav('/add/manual', { state: toDraft(result, thumbnail), replace: true })
+      else nav('/add/manual', { state: labelToDraft(result, thumbnail), replace: true })
     } catch (e) {
       setPhase({ k: 'error', msg: (e as Error).name === 'ScanError' ? (e as Error).message : `Something went wrong: ${(e as Error).message}`, preview })
     }
@@ -59,7 +40,7 @@ export default function ScanPage() {
   return (
     <div>
       <PageHeader title="Scan label" back />
-      <input ref={camRef} type="file" accept="image/*" capture="environment" hidden onChange={(e) => onFile(e.target.files?.[0])} />
+      <LiveCamera open={camOpen} onClose={() => setCamOpen(false)} onCapture={onFile} />
       <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => onFile(e.target.files?.[0])} />
 
       {!settings.apiKey && (
@@ -84,7 +65,7 @@ export default function ScanPage() {
             </div>
           </div>
           <div className="grid w-full max-w-xs gap-2">
-            <Button className="py-3.5 text-base" disabled={!settings.apiKey} onClick={() => camRef.current?.click()}>
+            <Button className="py-3.5 text-base" disabled={!settings.apiKey} onClick={() => setCamOpen(true)}>
               <Camera size={20} /> Take photo
             </Button>
             <Button variant="secondary" disabled={!settings.apiKey} onClick={() => fileRef.current?.click()}>
@@ -112,7 +93,7 @@ export default function ScanPage() {
           {phase.preview && <img src={phase.preview} alt="" className="mb-6 max-h-60 rounded-2xl object-contain opacity-60" />}
           <p className="mb-5 text-rose-200">{phase.msg}</p>
           <div className="grid w-full max-w-xs gap-2">
-            <Button onClick={() => camRef.current?.click()}>
+            <Button onClick={() => setCamOpen(true)}>
               <Camera size={18} /> Try again
             </Button>
             <Button variant="secondary" onClick={() => nav('/add/manual', { replace: true })}>
@@ -157,7 +138,7 @@ export default function ScanPage() {
               </div>
             ))}
           </div>
-          <Button variant="secondary" className="mt-4 w-full" onClick={() => nav('/add/manual', { state: toDraft(phase.result, phase.thumb), replace: true })}>
+          <Button variant="secondary" className="mt-4 w-full" onClick={() => nav('/add/manual', { state: labelToDraft(phase.result, phase.thumb), replace: true })}>
             No — it's a different wine
           </Button>
         </div>

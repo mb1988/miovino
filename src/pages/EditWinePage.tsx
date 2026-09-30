@@ -1,12 +1,15 @@
-import { Camera, ImagePlus, Trash2, Wand2 } from 'lucide-react'
+import { Camera, ImagePlus, Loader2, ScanLine, Trash2, Wand2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import { LiveCamera } from '../components/LiveCamera'
 import { Button, Chip, cx, Label, PageHeader, Section } from '../components/ui'
 import { addWineWithBottles, db, today, updateWine } from '../lib/db'
 import { useBlobUrl, useLocations } from '../lib/hooks'
 import { tidyName } from '../lib/importer'
 import { enrich } from '../lib/knowledge'
 import { imageToBase64 } from '../lib/image'
+import { useSettings } from '../lib/settings'
+import type { LabelResult } from '../lib/scanner'
 import { WINE_TYPE_LABEL, WINE_TYPES, type ExternalInfo, type Wine, type WineType } from '../lib/types'
 
 export interface WineDraft {
@@ -32,6 +35,29 @@ export interface WineDraft {
 export interface AddState {
   draft?: Partial<WineDraft>
   confidence?: string
+}
+
+/** Scanner result → form draft (used by the Scan page and by "Scan label" while editing). */
+export function labelToDraft(r: LabelResult, thumb: Blob): AddState {
+  return {
+    confidence: r.confidence,
+    draft: {
+      producer: r.producer,
+      name: r.name,
+      vintage: r.vintage == null ? 'NV' : String(r.vintage),
+      type: r.type,
+      country: r.country ?? '',
+      region: r.region ?? '',
+      appellation: r.appellation ?? '',
+      grapes: r.grapes.join(', '),
+      alcohol: r.alcohol?.toString() ?? '',
+      bottleSize: String(r.bottleSizeMl ?? 750),
+      drinkFrom: r.drinkFrom?.toString() ?? '',
+      drinkTo: r.drinkTo?.toString() ?? '',
+      external: r.tastingNote || r.pairing ? [{ source: 'AI (label scan)', description: r.tastingNote ?? undefined, pairing: r.pairing ?? undefined }] : [],
+      photo: thumb,
+    },
+  }
 }
 
 const EMPTY: WineDraft = {
@@ -94,6 +120,41 @@ export default function EditWinePage() {
   const [error, setError] = useState('')
   const photoUrl = useBlobUrl(draft.photo)
   const fileRef = useRef<HTMLInputElement>(null)
+  const settings = useSettings()
+  const [camera, setCamera] = useState<'photo' | 'scan' | null>(null)
+  const [scanMsg, setScanMsg] = useState('')
+  const [scanning, setScanning] = useState(false)
+
+  /** Reads the label and fills only the fields that are still empty — never overwrites what you typed. */
+  const scanInto = async (photo: Blob) => {
+    setScanning(true)
+    setScanMsg('')
+    try {
+      const { scanLabel } = await import('../lib/scanner')
+      const { result, thumbnail } = await scanLabel(photo)
+      if (!result.isWineLabel) return setScanMsg("That doesn't look like a wine label.")
+      const found = labelToDraft(result, thumbnail).draft!
+      const filled: string[] = []
+      setDraft((d) => {
+        const next = { ...d }
+        for (const k of ['producer', 'name', 'vintage', 'country', 'region', 'appellation', 'grapes', 'alcohol', 'drinkFrom', 'drinkTo'] as const) {
+          if (!String(d[k] ?? '').trim() && found[k]) {
+            next[k] = found[k] as string
+            filled.push(k)
+          }
+        }
+        if (!d.photo) next.photo = thumbnail
+        const ai = found.external ?? []
+        if (ai.length && !d.external.some((e) => e.source === ai[0].source)) next.external = [...d.external, ...ai]
+        return next
+      })
+      setScanMsg(filled.length ? `Filled from label: ${filled.join(', ')}. Nothing you typed was changed.` : 'Label read — all fields were already filled, nothing changed.')
+    } catch (e) {
+      setScanMsg((e as Error).message)
+    } finally {
+      setScanning(false)
+    }
+  }
 
   useEffect(() => {
     if (editId == null) return
@@ -142,7 +203,7 @@ export default function EditWinePage() {
     }
   }
 
-  const pickPhoto = async (f?: File) => {
+  const pickPhoto = async (f?: Blob) => {
     if (!f) return
     const { blob } = await imageToBase64(f, 600)
     up({ photo: blob })
@@ -160,17 +221,26 @@ export default function EditWinePage() {
       )}
 
       <div className="mb-5 flex items-center gap-4">
-        <button type="button" onClick={() => fileRef.current?.click()} className="flex h-24 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-ink-850 text-cream-400 ring-1 ring-ink-700">
+        <button type="button" onClick={() => setCamera('photo')} className="flex h-24 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-ink-850 text-cream-400 ring-1 ring-ink-700">
           {photoUrl ? <img src={photoUrl} alt="Label" className="h-full w-full object-cover" /> : <ImagePlus />}
         </button>
-        <div className="text-sm text-cream-400">
-          <p>Bottle photo (optional)</p>
-          <div className="mt-2 flex gap-2">
-            <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => fileRef.current?.click()}>
-              <Camera size={14} /> {photoUrl ? 'Replace' : 'Add photo'}
+        <div className="min-w-0 text-sm text-cream-400">
+          <p>Bottle photo</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => setCamera('photo')}>
+              <Camera size={14} /> {photoUrl ? 'Retake' : 'Take photo'}
+            </Button>
+            <Button
+              variant="secondary"
+              className="px-3 py-1.5 text-xs"
+              disabled={scanning || !settings.apiKey}
+              title={settings.apiKey ? 'Read the label and fill empty fields' : 'Add an API key in Settings to scan'}
+              onClick={() => setCamera('scan')}
+            >
+              {scanning ? <Loader2 size={14} className="animate-spin" /> : <ScanLine size={14} />} Scan label
             </Button>
             {photoUrl && (
-              <Button variant="ghost" className="px-3 py-1.5 text-xs" onClick={() => up({ photo: undefined })}>
+              <Button variant="ghost" className="px-3 py-1.5 text-xs" aria-label="Remove photo" onClick={() => up({ photo: undefined })}>
                 <Trash2 size={14} />
               </Button>
             )}
@@ -178,13 +248,32 @@ export default function EditWinePage() {
         </div>
         <input ref={fileRef} type="file" accept="image/*" capture="environment" hidden onChange={(e) => pickPhoto(e.target.files?.[0])} />
       </div>
+      {scanMsg && <p className="mb-4 rounded-xl bg-ink-850 p-3 text-sm text-cream-200 ring-1 ring-ink-700">{scanMsg}</p>}
+      <LiveCamera
+        open={camera !== null}
+        hint={camera === 'scan' ? 'Front label — the app fills empty fields' : 'Take a photo of the bottle'}
+        onClose={() => setCamera(null)}
+        onCapture={(b) => (camera === 'scan' ? scanInto(b) : pickPhoto(b))}
+      />
 
       <Section title="The wine">
         <div className="space-y-3">
           <Field label="Producer" value={draft.producer} onChange={(v) => up({ producer: v })} placeholder="e.g. Giacomo Fenocchio" />
           <Field label="Wine" value={draft.name} onChange={(v) => up({ name: v })} placeholder="e.g. Barolo Villero" />
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Vintage" value={draft.vintage} onChange={(v) => up({ vintage: v })} placeholder="2019 or NV" inputMode="numeric" />
+            <label className="block">
+              <Label>Vintage</Label>
+              <select className="field" value={draft.vintage.trim().toUpperCase() === 'NV' ? 'NV' : draft.vintage} onChange={(e) => up({ vintage: e.target.value })}>
+                <option value="">Select…</option>
+                <option value="NV">NV (non-vintage)</option>
+                {Array.from({ length: new Date().getFullYear() - 1949 }, (_, i) => String(new Date().getFullYear() - i)).map((y) => (
+                  <option key={y} value={y}>
+                    {y}
+                  </option>
+                ))}
+                {/^\d{4}$/.test(draft.vintage) && Number(draft.vintage) < 1950 && <option value={draft.vintage}>{draft.vintage}</option>}
+              </select>
+            </label>
             <label className="block">
               <Label>Type</Label>
               <select className="field" value={draft.type} onChange={(e) => up({ type: e.target.value as WineType })}>

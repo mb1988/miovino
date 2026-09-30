@@ -32,6 +32,7 @@ export default function CellarPage() {
   const country = params.get('country')
   const region = params.get('region')
   const location = params.get('loc')
+  const vintage = params.get('vintage')
   const fav = params.get('fav') === '1'
   const showGone = params.get('gone') === '1'
   const sort = (params.get('sort') as SortKey) ?? 'urgency'
@@ -49,14 +50,18 @@ export default function CellarPage() {
     const c = new Map<string, number>()
     const r = new Map<string, number>()
     const l = new Map<string, number>()
+    const v = new Map<string, number>()
     for (const w of cellar ?? []) {
       if (!w.inCellar) continue
+      const vk = w.vintage == null ? 'NV' : String(w.vintage)
+      v.set(vk, (v.get(vk) ?? 0) + w.inCellar)
       if (w.country) c.set(w.country, (c.get(w.country) ?? 0) + w.inCellar)
       if (w.region) r.set(w.region, (r.get(w.region) ?? 0) + w.inCellar)
       for (const b of w.bottles) if (b.status === 'cellar' && b.location) l.set(b.location, (l.get(b.location) ?? 0) + 1)
     }
     const sorted = (m: Map<string, number>) => [...m.entries()].sort((a, b) => b[1] - a[1])
-    return { countries: sorted(c), regions: sorted(r), locations: sorted(l) }
+    const vintages = [...v.entries()].sort((a, b) => (a[0] === 'NV' ? 1 : b[0] === 'NV' ? -1 : Number(a[0]) - Number(b[0])))
+    return { countries: sorted(c), regions: sorted(r), locations: sorted(l), vintages }
   }, [cellar])
 
   const list = useMemo(() => {
@@ -69,6 +74,7 @@ export default function CellarPage() {
       if (country && w.country !== country) return false
       if (region && w.region !== region) return false
       if (location && !locationsOf(w).includes(location)) return false
+      if (vintage && (w.vintage == null ? 'NV' : String(w.vintage)) !== vintage) return false
       if (fav && !w.favourite) return false
       if (terms.length) {
         const hay = normalizeText(
@@ -79,10 +85,10 @@ export default function CellarPage() {
       return true
     })
     return sortWines(filtered, sort)
-  }, [cellar, q, type, status, country, region, location, fav, showGone, sort])
+  }, [cellar, q, type, status, country, region, location, vintage, fav, showGone, sort])
 
   if (!cellar) return null
-  const activeFilters = [type, status, country, region, location, fav ? '1' : null, showGone ? '1' : null].filter(Boolean).length
+  const activeFilters = [type, status, country, region, location, vintage, fav ? '1' : null, showGone ? '1' : null].filter(Boolean).length
 
   if (cellar.length === 0) return <Welcome name={settings.cellarName} />
 
@@ -163,13 +169,25 @@ export default function CellarPage() {
         <span>
           {list.length} {list.length === 1 ? 'wine' : 'wines'} · {list.reduce((s, w) => s + w.inCellar, 0)} bottles
         </span>
-        <select className="rounded-lg bg-transparent py-1 text-right text-cream-200 outline-none" value={sort} onChange={(e) => set('sort', e.target.value === 'urgency' ? null : e.target.value)}>
+        <span className="flex items-center gap-2">
+        <select aria-label="Vintage" className="rounded-lg bg-transparent py-1 text-right text-cream-200 outline-none" value={vintage ?? ''} onChange={(e) => set('vintage', e.target.value || null)}>
+          <option value="" className="bg-ink-850">
+            All vintages
+          </option>
+          {facets.vintages.map(([v, n]) => (
+            <option key={v} value={v} className="bg-ink-850">
+              {v} ({n})
+            </option>
+          ))}
+        </select>
+        <select aria-label="Sort" className="rounded-lg bg-transparent py-1 text-right text-cream-200 outline-none" value={sort} onChange={(e) => set('sort', e.target.value === 'urgency' ? null : e.target.value)}>
           {Object.entries(SORTS).map(([k, v]) => (
             <option key={k} value={k} className="bg-ink-850">
               {v}
             </option>
           ))}
         </select>
+        </span>
       </div>
 
       {list.length === 0 ? (
@@ -197,6 +215,13 @@ export default function CellarPage() {
           {(Object.keys(STATUS_META) as DrinkStatus[]).map((s) => (
             <Chip key={s} active={status === s} onClick={() => set('status', status === s ? null : s)}>
               {STATUS_META[s].label}
+            </Chip>
+          ))}
+        </FilterGroup>
+        <FilterGroup label="Vintage">
+          {facets.vintages.map(([v, n]) => (
+            <Chip key={v} active={vintage === v} onClick={() => set('vintage', vintage === v ? null : v)}>
+              {v} <span className="opacity-60">{n}</span>
             </Chip>
           ))}
         </FilterGroup>
