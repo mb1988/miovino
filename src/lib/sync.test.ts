@@ -9,9 +9,11 @@ import type { Db, Stmt } from '../../worker/sync'
 /** node:sqlite wrapped in the slice of the D1 API the Worker uses. */
 function sqliteD1(): Db & { raw: DatabaseSync } {
   const raw = new DatabaseSync(':memory:')
-  raw.exec(readFileSync(new URL('../../migrations/0001_init.sql', import.meta.url), 'utf8'))
-  const stmt = (sql: string, params: unknown[] = []): Stmt => ({
-    bind: (...v: unknown[]) => stmt(sql, v),
+  for (const f of ['0001_init.sql', '0002_photos.sql']) raw.exec(readFileSync(new URL(`../../migrations/${f}`, import.meta.url), 'utf8'))
+  const stmt = (sql: string, params: unknown[] = []): Stmt & { first: () => Promise<unknown> } => ({
+    // D1 takes ArrayBuffer for BLOBs; node:sqlite wants a typed array.
+    bind: (...v: unknown[]) => stmt(sql, v.map((x) => (x instanceof ArrayBuffer ? new Uint8Array(x) : x))),
+    first: async () => raw.prepare(sql).get(...(params as never[])) ?? null,
     all: async <T,>() => ({ results: raw.prepare(sql).all(...(params as never[])) as T[] }),
     run: async () => ({ meta: { changes: Number(raw.prepare(sql).run(...(params as never[])).changes) } }),
   })
@@ -91,11 +93,9 @@ describe('server sync (D1 schema on SQLite)', async () => {
 
 describe('two devices syncing through the Worker', () => {
   let server: ReturnType<typeof sqliteD1>
-  const photos = new Map<string, ArrayBuffer>()
 
   beforeEach(async () => {
     server = sqliteD1()
-    photos.clear()
     // Loaded by path so the browser tsconfig doesn't typecheck Worker-only globals (D1Database, R2Bucket…).
     const workerPath = new URL('../../worker/index.ts', import.meta.url).href
     const worker = ((await import(/* @vite-ignore */ workerPath)) as { default: { fetch: (req: Request, env: unknown) => Promise<Response> } }).default
@@ -103,11 +103,6 @@ describe('two devices syncing through the Worker', () => {
       DB: server,
       ALLOW_NO_AUTH: 'true',
       ASSETS: { fetch: async () => new Response('index') },
-      PHOTOS: {
-        put: async (k: string, v: ArrayBuffer) => void photos.set(k, v),
-        get: async (k: string) => (photos.has(k) ? { body: photos.get(k), httpEtag: '"1"' } : null),
-        delete: async (keys: string[]) => keys.forEach((k) => photos.delete(k)),
-      },
     }
     vi.stubGlobal('fetch', async (input: string, init?: RequestInit) => {
       const res = await worker.fetch(new Request(new URL(input, 'https://cellar.test'), init), env)
@@ -145,6 +140,17 @@ describe('two devices syncing through the Worker', () => {
     const phoneBottles = await phone.db.bottles.where('wineId').equals(id).toArray()
     expect(phoneBottles.filter((b) => b.status === 'drunk')).toHaveLength(1)
     expect((await phone.db.tastings.toArray())[0]).toMatchObject({ rating: 4.5, notes: 'Lovely' })
+  })
+
+  it('stores and serves label photos, and drops them when the wine is deleted', async () => {
+    const id = 'wine-photo-0001'
+    const jpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 4, 0xff, 0xd9])
+    expect((await fetch(`/api/photo/${id}`, { method: 'PUT', body: jpeg })).status).toBe(200)
+    const got = await fetch(`/api/photo/${id}`)
+    expect(got.headers.get('content-type')).toBe('image/jpeg')
+    expect(new Uint8Array(await got.arrayBuffer())).toEqual(jpeg)
+    await fetch('/api/sync', { method: 'POST', body: JSON.stringify({ cursor: 0, changes: [{ kind: 'wines', id, updatedAt: 1, deleted: true, data: null }] }) })
+    expect((await fetch(`/api/photo/${id}`)).status).toBe(404)
   })
 
   it('deleting a wine removes it on the other device', async () => {

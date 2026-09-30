@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// One-time Cloudflare setup, safe to re-run: creates D1 databases and R2 buckets (production + preview + backups),
+// One-time Cloudflare setup, safe to re-run: creates the D1 databases (production + preview),
 // writes the database IDs into wrangler.jsonc and applies migrations. Run after `npx wrangler login`.
 import { execFileSync } from 'node:child_process'
 import { readFileSync, writeFileSync } from 'node:fs'
@@ -20,18 +20,6 @@ for (const name of ['miovino', 'miovino-preview']) {
 }
 const ids = Object.fromEntries(listD1().map((d) => [d.name, d.uuid]))
 
-step('R2 buckets')
-const buckets = wrangler(['r2', 'bucket', 'list'])
-for (const name of ['miovino-photos', 'miovino-photos-preview', 'miovino-backups']) {
-  if (buckets.includes(`name:           ${name}`) || buckets.includes(name + '\n') || buckets.includes(` ${name}`)) console.log(`${name} exists`)
-  else wrangler(['r2', 'bucket', 'create', name], { stdio: 'inherit' })
-}
-try {
-  wrangler(['r2', 'bucket', 'lifecycle', 'add', 'miovino-backups', 'expire-90-days', 'd1/', '--expire-days', '90', '--force'], { stdio: 'inherit' })
-} catch {
-  console.log('(lifecycle rule not added — add "delete after 90 days" on miovino-backups in the dashboard)')
-}
-
 step('Writing database IDs into wrangler.jsonc')
 let cfg = readFileSync('wrangler.jsonc', 'utf8')
 cfg = cfg.replace(/("database_name": "miovino", "database_id": ")[^"]*"/, `$1${ids['miovino']}"`)
@@ -49,6 +37,6 @@ console.log(`
   2. npx wrangler secret put ANTHROPIC_API_KEY       (paste your key; enables server-side scanning)
   3. Dashboard → Workers → miovino → Settings → Domains & Routes → workers.dev → "Enable Cloudflare Access"
      then copy the team domain + AUD tag into wrangler.jsonc vars (ACCESS_TEAM_DOMAIN, ACCESS_AUD) and deploy again.
-  4. For CI/CD: create an API token (template "Edit Cloudflare Workers" + D1 Edit + R2 Edit) and add GitHub secrets
+  4. For CI/CD: create an API token (template "Edit Cloudflare Workers" + D1 Edit) and add GitHub secrets
      CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID, then repo variable CF_DEPLOY=true.
 `)

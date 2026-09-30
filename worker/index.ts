@@ -6,14 +6,13 @@ import { BadRequest, sync, validate, type Db } from './sync'
 
 interface Env extends AuthEnv {
   DB: D1Database
-  PHOTOS: R2Bucket
   ASSETS: Fetcher
   ANTHROPIC_API_KEY?: string
   SCAN_MODEL?: string
 }
 
 const PHOTO_ID = /^[A-Za-z0-9-]{8,64}$/
-const MAX_PHOTO = 3 * 1024 * 1024
+const MAX_PHOTO = 1_500_000 // D1 rows max out at 2 MB; the app sends ~600px JPEGs
 
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
@@ -32,29 +31,32 @@ export default {
         const body = validate(await req.json())
         const res = await sync(env.DB as unknown as Db, body)
         // A wine that no longer has a photo: drop the stored image.
-        const dropped = body.changes.filter((c) => c.kind === 'wines' && (c.deleted || c.data?.hasPhoto === false)).map((c) => `photos/${c.id}.jpg`)
-        if (dropped.length) await env.PHOTOS.delete(dropped)
+        const dropped = body.changes.filter((c) => c.kind === 'wines' && (c.deleted || c.data?.hasPhoto === false)).map((c) => c.id)
+        if (dropped.length) await env.DB.batch(dropped.map((id) => env.DB.prepare('DELETE FROM photos WHERE id = ?1').bind(id)))
         return json(res)
       }
 
-      // GET/PUT /api/photo/:wineId — label photos in R2
+      // GET/PUT /api/photo/:wineId — label photos (stored in D1)
       const photo = url.pathname.match(/^\/api\/photo\/([^/]+)$/)
       if (photo) {
         const id = photo[1]
         if (!PHOTO_ID.test(id)) return json({ error: 'Bad id' }, 400)
-        const key = `photos/${id}.jpg`
         if (req.method === 'PUT') {
           const size = Number(req.headers.get('content-length') ?? 0)
           if (size > MAX_PHOTO) return json({ error: 'Photo too large' }, 413)
           const body = await req.arrayBuffer()
           if (body.byteLength > MAX_PHOTO) return json({ error: 'Photo too large' }, 413)
-          await env.PHOTOS.put(key, body, { httpMetadata: { contentType: 'image/jpeg' } })
+          await env.DB.prepare('INSERT INTO photos (id, data, updated_at) VALUES (?1, ?2, ?3) ON CONFLICT (id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at')
+            .bind(id, body, Date.now())
+            .run()
           return json({ ok: true })
         }
         if (req.method === 'GET') {
-          const obj = await env.PHOTOS.get(key)
-          if (!obj) return json({ error: 'Not found' }, 404)
-          return new Response(obj.body, { headers: { 'content-type': 'image/jpeg', 'cache-control': 'private, max-age=86400', etag: obj.httpEtag } })
+          const row = await env.DB.prepare('SELECT data, updated_at FROM photos WHERE id = ?1').bind(id).first<{ data: ArrayBuffer | number[]; updated_at: number }>()
+          if (!row) return json({ error: 'Not found' }, 404)
+          // D1 returns BLOBs as number arrays; SQLite drivers may return bytes directly.
+          const bytes = row.data instanceof ArrayBuffer || ArrayBuffer.isView(row.data) ? row.data : new Uint8Array(row.data)
+          return new Response(bytes as BodyInit, { headers: { 'content-type': 'image/jpeg', 'cache-control': 'private, max-age=86400', etag: `"${row.updated_at}"` } })
         }
       }
 

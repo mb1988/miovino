@@ -23,7 +23,7 @@ jobs:
       - run: npm test
       - run: npx vite build
 
-  # Pull requests → miovino-preview (own D1 + R2, never touches real data)
+  # Pull requests → miovino-preview (own D1 database, never touches real data)
   deploy-preview:
     if: github.event_name == 'pull_request' && vars.CF_DEPLOY == 'true'
     needs: check
@@ -64,7 +64,11 @@ jobs:
         run: |
           npx wrangler d1 export miovino --remote --output pre-deploy.sql
           gzip pre-deploy.sql
-          npx wrangler r2 object put "miovino-backups/d1/pre-deploy-$(date -u +%Y%m%dT%H%M%SZ)-${GITHUB_SHA::7}.sql.gz" --file pre-deploy.sql.gz --remote
+      - uses: actions/upload-artifact@v4
+        with:
+          name: d1-pre-deploy-${{ github.sha }}
+          path: pre-deploy.sql.gz
+          retention-days: 90
       - run: npx wrangler d1 migrations apply miovino --remote
       - run: npx vite build
       - run: npx wrangler deploy

@@ -8,7 +8,7 @@
 | Keep it **private** (only you) | **Cloudflare Access**: email one-time code in front of the whole site, no auth code to write, free up to 50 users | Hobby can't protect the production domain. Needs Pro ($20/mo) or hand-written auth |
 | Database | **D1** (SQLite) free | **Neon** Postgres free |
 | Built-in backups | D1 **Time Travel: restore to any minute of the last 7 days** (free) | Neon free: **6 hours** of history |
-| Photos | **R2** (10 GB free, no egress fees) | Vercel Blob (paid beyond small quota) |
+| Photos | stored in **D1** (no card needed; R2 optional later) | Vercel Blob (paid beyond small quota) |
 | AI proxy (keep the key off the phone) | Worker holds the Claude key; optional free Workers AI | Vercel Function |
 | Preview per branch / PR | ✅ | ✅ (excellent) |
 
@@ -21,7 +21,7 @@ Phone / laptop (PWA, offline-first; IndexedDB stays as the local cache)
    │  HTTPS, behind Cloudflare Access (email OTP)
    ▼
 Cloudflare Worker ── /api/sync   → D1 (wines, bottles, tastings, locations)
-                  ── /api/photo  → R2 (label photos)
+                  ── /api/photo  → D1 photos table
                   └─ /api/scan   → Claude API (key stored as a Worker secret)
 ```
 
@@ -38,7 +38,7 @@ Cloudflare Worker ── /api/sync   → D1 (wines, bottles, tastings, locations
 ## Backups: three layers
 
 1. **D1 Time Travel**: restore to any minute of the last 7 days (automatic, free).
-2. **Nightly GitHub Action**: `wrangler d1 export` → uploaded to an R2 `backups/` bucket with a 90-day lifecycle rule.
+2. **Nightly GitHub Action**: `wrangler d1 export` → saved as a private artifact on the repo, kept 90 days (plus one before every production deploy).
 3. **In-app JSON export** (already built): a portable, human-readable copy you own.
 
 Plus a restore drill: once a month, restore the latest export into the preview DB (the Action can do this) to prove backups actually work.
@@ -62,7 +62,7 @@ Plus a restore drill: once a month, restore the latest export into the preview D
 - The phone keeps a full copy of the cellar in the browser (IndexedDB). The app always reads from this copy, so it's instant and works offline.
 - Every change (add, edit, drink, delete) is stamped with a time and pushed to D1 by the Worker, about 2 seconds after the edit, on opening the app, and every 5 minutes.
 - Other devices pull whatever changed. If the same record was edited on two devices, the **most recent edit wins**.
-- Label photos are stored as files in R2 (`photos/<wineId>.jpg`), not in the database.
+- Label photos (~100 KB each) live in a `photos` table in the same database, so no card-requiring R2 bucket is needed.
 
 **Schema** (`migrations/0001_init.sql`): one `records` table (kind, id, JSON data, updated_at, deleted, rev), plus readable views:
 `wines`, `bottles`, `tastings`, `locations` and `cellar` (what's in the cellar now). Query it yourself:
@@ -76,11 +76,11 @@ npm run db:query -- "SELECT producer, name, vintage, bottles, drink_from, drink_
 ## Setup (one time)
 
 1. `npx wrangler login` (opens the browser, approve)
-2. `npm run cf:setup` creates the D1 databases (prod + preview), the R2 buckets (photos, preview photos, backups with 90-day expiry), writes the IDs into `wrangler.jsonc` and applies migrations
+2. `npm run cf:setup` creates the D1 databases (prod + preview), writes the IDs into `wrangler.jsonc` and applies migrations
 3. `npm run deploy` (first deploy prints `https://miovino.<you>.workers.dev`)
 4. `npx wrangler secret put ANTHROPIC_API_KEY` (paste your key yourself; enables scanning on the server)
 5. **Lock it:** Dashboard → Workers → miovino → Settings → Domains & Routes → workers.dev → *Enable Cloudflare Access*. Copy the team domain and AUD tag into `wrangler.jsonc` → `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`, then `npm run deploy`. Until then, the API refuses every request.
-6. **CI/CD:** create an API token (Workers Scripts Edit, D1 Edit, Workers R2 Storage Edit, Account Settings Read). In GitHub → Settings → Secrets add `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`; under Variables add `CF_DEPLOY=true`.
+6. **CI/CD:** create an API token (Workers Scripts Edit, D1 Edit, Account Settings Read). In GitHub → Settings → Secrets add `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`; under Variables add `CF_DEPLOY=true`.
 7. On your phone: open the URL, sign in with the email code, then **Add to Home Screen**.
 
 ## Day-to-day

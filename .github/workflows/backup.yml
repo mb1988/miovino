@@ -24,12 +24,18 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - name: Export D1 → R2 (kept 90 days by lifecycle rule)
+      - name: Export D1 (records + photos)
         run: |
           npx wrangler d1 export miovino --remote --output backup.sql
           gzip -k backup.sql
-          npx wrangler r2 object put "miovino-backups/d1/$(date -u +%Y-%m-%d).sql.gz" --file backup.sql.gz --remote
           echo "rows: $(grep -c '^INSERT' backup.sql)" >> "$GITHUB_STEP_SUMMARY"
+          echo "DATE=$(date -u +%Y-%m-%d)" >> "$GITHUB_ENV"
+      # Private to this repo; download from the Actions run page. Kept 90 days.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: d1-backup-${{ env.DATE }}
+          path: backup.sql.gz
+          retention-days: 90
 
       # First of each month (or on demand): prove the backup restores into a throwaway database.
       - name: Restore drill
