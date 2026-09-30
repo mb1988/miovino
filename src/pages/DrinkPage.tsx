@@ -4,6 +4,7 @@ import { Button, Chip, cx, Label, PageHeader, StarInput } from '../components/ui
 import { drinkBottle, today } from '../lib/db'
 import { useWine } from '../lib/hooks'
 import { classicPairing } from '../lib/pairing'
+import { addWish, wishFromWine } from '../lib/wishlist'
 import { OCCASIONS, type BuyAgain } from '../lib/types'
 
 export default function DrinkPage() {
@@ -38,6 +39,7 @@ export default function DrinkPage() {
       },
       bottleId,
     )
+    if (buyAgain === 'yes') await addWish(wishFromWine(wine, 'Buy again'))
     nav(`/wine/${id}`, { replace: true })
   }
 
@@ -121,6 +123,7 @@ export default function DrinkPage() {
               >
                 <span className="block text-xl">{e}</span>
                 {l}
+                {v === 'yes' && buyAgain === 'yes' && <span className="block text-[10px] opacity-70">→ wishlist</span>}
               </button>
             ))}
           </div>

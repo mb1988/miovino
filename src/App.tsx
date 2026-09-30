@@ -14,6 +14,7 @@ import SignInPage from './pages/SignInPage'
 import { useSync } from './lib/sync'
 import SuggestPage from './pages/SuggestPage'
 import TastePage from './pages/TastePage'
+import WishlistPage from './pages/WishlistPage'
 import WinePage from './pages/WinePage'
 
 export default function App() {
@@ -50,6 +51,7 @@ export default function App() {
           <Route path="/journal" element={<JournalPage />} />
           <Route path="/taste" element={<TastePage />} />
           <Route path="/more" element={<MorePage />} />
+          <Route path="/wishlist" element={<WishlistPage />} />
           <Route path="*" element={<CellarPage />} />
         </Routes>
       </main>

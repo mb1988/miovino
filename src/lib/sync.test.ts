@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { DatabaseSync } from 'node:sqlite'
 import Dexie from 'dexie'
 import { IDBFactory, IDBKeyRange } from 'fake-indexeddb'
@@ -9,7 +9,7 @@ import type { Db, Stmt } from '../../worker/sync'
 /** node:sqlite wrapped in the slice of the D1 API the Worker uses. */
 function sqliteD1(): Db & { raw: DatabaseSync } {
   const raw = new DatabaseSync(':memory:')
-  for (const f of ['0001_init.sql', '0002_photos.sql', '0003_auth.sql']) raw.exec(readFileSync(new URL(`../../migrations/${f}`, import.meta.url), 'utf8'))
+  for (const f of readdirSync(new URL('../../migrations/', import.meta.url)).sort()) raw.exec(readFileSync(new URL(`../../migrations/${f}`, import.meta.url), 'utf8'))
   const stmt = (sql: string, params: unknown[] = []): Stmt & { first: () => Promise<unknown> } => ({
     // D1 takes ArrayBuffer for BLOBs; node:sqlite wants a typed array.
     bind: (...v: unknown[]) => stmt(sql, v.map((x) => (x instanceof ArrayBuffer ? new Uint8Array(x) : x))),
@@ -151,6 +151,18 @@ describe('two devices syncing through the Worker', () => {
     expect(new Uint8Array(await got.arrayBuffer())).toEqual(jpeg)
     await fetch('/api/sync', { method: 'POST', body: JSON.stringify({ cursor: 0, changes: [{ kind: 'wines', id, updatedAt: 1, deleted: true, data: null }] }) })
     expect((await fetch(`/api/photo/${id}`)).status).toBe(404)
+  })
+
+  it('syncs wishlist items and their "bought" state', async () => {
+    const a = await device()
+    const { addWish } = await import('./wishlist')
+    await addWish({ producer: 'Burlotto', name: 'Monvigliero', vintage: 2019, note: 'Try at Hedonism' })
+    await a.syncNow()
+    const b = await device()
+    await b.syncNow()
+    const [item] = await b.db.wishlist.toArray()
+    expect(item).toMatchObject({ producer: 'Burlotto', name: 'Monvigliero', note: 'Try at Hedonism' })
+    expect(server.raw.prepare('SELECT producer, bought FROM wishlist').all()).toEqual([{ producer: 'Burlotto', bought: null }])
   })
 
   it('deleting a wine removes it on the other device', async () => {

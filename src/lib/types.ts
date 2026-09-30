@@ -59,6 +59,7 @@ export interface Wine extends Synced {
 
 export interface Bottle extends Synced {
   wineId: string
+  slot?: string // position in a rack grid, e.g. "B3"
   status: BottleStatus
   location?: string
   purchasePrice?: number
@@ -88,6 +89,19 @@ export interface Tasting extends Synced {
 export interface Location extends Synced {
   name: string // "Rack A / Shelf 2"
   order: number
+  rows?: number // rack grid size (optional)
+  cols?: number
+}
+
+/** Something to buy: added by hand, or from a tasting marked "buy again". */
+export interface WishItem extends Synced {
+  producer: string
+  name: string
+  vintage?: number | null
+  note?: string
+  wineId?: string // the cellar wine it came from, if any
+  done?: boolean // bought
+  createdAt: number
 }
 
 export interface WineWithBottles extends Wine {
@@ -98,7 +112,7 @@ export interface WineWithBottles extends Wine {
   avgRating?: number
 }
 
-export const KINDS = ['wines', 'bottles', 'tastings', 'locations'] as const
+export const KINDS = ['wines', 'bottles', 'tastings', 'locations', 'wishlist'] as const
 export type Kind = (typeof KINDS)[number]
 
 export interface Tombstone {
