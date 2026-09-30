@@ -1,6 +1,7 @@
 import { Camera, FileSpreadsheet, LayoutList, PenLine, Rows3, Search, SlidersHorizontal, Sparkles, Wine as WineIcon, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
+import { MonthlyDigest } from '../components/MonthlyDigest'
 import { locationsOf, WineCard, WineRow } from '../components/WineCard'
 import { Button, Chip, cx, Empty, Sheet } from '../components/ui'
 import { useCellar } from '../lib/hooks'
@@ -122,6 +123,8 @@ export default function CellarPage() {
           </div>
         </div>
       )}
+
+      <MonthlyDigest cellar={cellar} />
 
       <Link to="/suggest" className="mb-4 flex items-center gap-3 rounded-2xl bg-gradient-to-r from-wine-700 to-wine-600 p-4 shadow-lg shadow-wine-900/30 transition hover:from-wine-600 hover:to-wine-500">
         <Sparkles className="text-gold-400" />

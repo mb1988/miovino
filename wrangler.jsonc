@@ -9,6 +9,8 @@
     "run_worker_first": ["/api/*"]
   },
   "observability": { "enabled": true },
+  // Monthly drinking reminder: 1st of the month, 08:00 UTC.
+  "triggers": { "crons": ["0 8 1 * *"] },
   "d1_databases": [{ "binding": "DB", "database_name": "miovino", "database_id": "758175e6-7bb3-43f9-97fa-e7fbbf298957", "migrations_dir": "migrations" }],
   "vars": {
     "ACCESS_TEAM_DOMAIN": "",

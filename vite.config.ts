@@ -29,6 +29,9 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        globIgnores: ['push-sw.js'],
+        // Push notifications (monthly drinking reminder).
+        importScripts: ['push-sw.js'],
         // Pages always try the network first, so an expired Cloudflare Access session can redirect to login;
         // the cached shell is used only when offline. The API is never cached.
         navigateFallback: null,
