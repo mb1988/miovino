@@ -1,8 +1,8 @@
 import { Camera, ImageUp, KeyRound, Loader2, Plus, Wine as WineIcon } from 'lucide-react'
 import { useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Bottle, Button, PageHeader } from '../components/ui'
-import { addBottles } from '../lib/db'
+import { addBottles, updateWine } from '../lib/db'
 import { useCellar } from '../lib/hooks'
 import { matchCellar } from '../lib/match'
 import type { LabelResult } from '../lib/scanner'
@@ -17,6 +17,9 @@ export default function ScanPage() {
   const canScan = useCanScan()
   const cellar = useCellar()
   const nav = useNavigate()
+  // Arriving from the barcode scanner with a code nobody knows yet: attach it to whatever wine this becomes.
+  const barcode = (useLocation().state as { barcode?: string } | null)?.barcode
+  const withBarcode = (s: ReturnType<typeof labelToDraft>) => (barcode ? { ...s, draft: { ...s.draft, barcode } } : s)
   const [camOpen, setCamOpen] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const [phase, setPhase] = useState<Phase>({ k: 'idle' })
@@ -31,7 +34,7 @@ export default function ScanPage() {
       if (!result.isWineLabel) return setPhase({ k: 'error', msg: "That doesn't look like a wine label. Try again with the front label filling the frame.", preview })
       const matches = matchCellar(cellar ?? [], result)
       if (matches.length) setPhase({ k: 'matched', result, thumb: thumbnail, matches, preview })
-      else nav('/add/manual', { state: labelToDraft(result, thumbnail), replace: true })
+      else nav('/add/manual', { state: withBarcode(labelToDraft(result, thumbnail)), replace: true })
     } catch (e) {
       setPhase({ k: 'error', msg: (e as Error).name === 'ScanError' ? (e as Error).message : `Something went wrong: ${(e as Error).message}`, preview })
     }
@@ -96,7 +99,7 @@ export default function ScanPage() {
             <Button onClick={() => setCamOpen(true)}>
               <Camera size={18} /> Try again
             </Button>
-            <Button variant="secondary" onClick={() => nav('/add/manual', { replace: true })}>
+            <Button variant="secondary" onClick={() => nav('/add/manual', { state: withBarcode({}), replace: true })}>
               Add manually
             </Button>
           </div>
@@ -123,6 +126,7 @@ export default function ScanPage() {
                   <Button
                     className="px-3 py-1.5 text-xs"
                     onClick={async () => {
+                      if (barcode) await updateWine(w.id, { barcode })
                       await addBottles(w.id, 1)
                       nav(`/wine/${w.id}`, { replace: true })
                     }}
@@ -130,7 +134,10 @@ export default function ScanPage() {
                     <Plus size={14} /> Bottle
                   </Button>
                   {w.inCellar > 0 && (
-                    <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => nav(`/wine/${w.id}/drink`, { replace: true })}>
+                    <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={async () => {
+                      if (barcode) await updateWine(w.id, { barcode })
+                      nav(`/wine/${w.id}/drink`, { replace: true })
+                    }}>
                       <WineIcon size={14} /> Drink
                     </Button>
                   )}
@@ -138,7 +145,7 @@ export default function ScanPage() {
               </div>
             ))}
           </div>
-          <Button variant="secondary" className="mt-4 w-full" onClick={() => nav('/add/manual', { state: labelToDraft(phase.result, phase.thumb), replace: true })}>
+          <Button variant="secondary" className="mt-4 w-full" onClick={() => nav('/add/manual', { state: withBarcode(labelToDraft(phase.result, phase.thumb)), replace: true })}>
             No — it's a different wine
           </Button>
         </div>
