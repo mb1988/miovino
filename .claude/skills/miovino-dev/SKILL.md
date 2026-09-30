@@ -27,6 +27,7 @@ The owner has asked for autonomous progress: merge your own green PRs and contin
 - Worker-only code is imported in tests **by URL path** (`await import(new URL('../../worker/x.ts', import.meta.url).href)`) so Worker types stay out of the app build; don't `typeof import()` worker files from `src/`.
 - Claude calls live in the Worker (key never in the browser): `claude-opus-5-5`, `@anthropic-ai/sdk`, typed errors, check `stop_reason === 'refusal'`. Chat uses `betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default'` and caches the cellar snapshot in `system`.
 - UI: dark wine theme tokens in `src/index.css` (`ink-*`, `cream-*`, `wine-*`, `gold-*`); reuse `src/components/ui.tsx` (Button, Chip, Sheet, Section, PageHeader, StatusChip). Mobile first (390px). Per-device conveniences may use localStorage wrapped in try/catch; anything that must sync goes in Dexie.
+- **Every visible string goes through `t()`** (`src/lib/i18n.ts`; English text is the key, `{placeholders}` for values, `plural(n, one, many)` for counts) and gets an Italian entry in `src/lib/i18n-it.ts`. `src/lib/i18n.test.ts` fails on any `t('…')` without a translation. Don't name a loop variable `t` in files that translate.
 - Commit messages: `feat: …` / `fix: …` / `test: …`, body explains what the owner gets.
 
 ## Browser check (no Cloudflare needed)

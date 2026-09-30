@@ -1,4 +1,5 @@
 import { AlertTriangle, Check, FileSpreadsheet, Loader2 } from 'lucide-react'
+import { t } from '../lib/i18n'
 import { useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Bottle, Button, cx, PageHeader, Section } from '../components/ui'
@@ -73,15 +74,15 @@ export default function ImportPage() {
 
   return (
     <div>
-      <PageHeader title="Import spreadsheet" subtitle={sheet?.fileName} back />
+      <PageHeader title={t('Import spreadsheet')} subtitle={sheet?.fileName} back />
 
       {step === 'pick' && (
         <div>
-          <p className="mb-4 text-sm text-cream-300">Excel (.xlsx/.xls) or CSV. The first row must be the column headers. Italian and English headers are recognised automatically (Produttore, Vino, Anno, Tipo, Prezzo, Qty, Best to Drink, Vitae…).</p>
+          <p className="mb-4 text-sm text-cream-300">{t('Excel (.xlsx/.xls) or CSV. The first row must be the column headers. Italian and English headers are recognised automatically (Produttore, Vino, Anno, Tipo, Prezzo, Qty, Best to Drink, Vitae…).')}</p>
           <button onClick={() => fileRef.current?.click()} className="flex w-full flex-col items-center rounded-3xl border-2 border-dashed border-ink-600 bg-ink-850 px-6 py-12 text-cream-300 hover:border-wine-500">
             <FileSpreadsheet size={40} className="mb-3 text-wine-300" />
-            <span className="font-medium text-cream-50">Choose a file</span>
-            <span className="text-sm">e.g. Wine.xlsx</span>
+            <span className="font-medium text-cream-50">{t('Choose a file')}</span>
+            <span className="text-sm">{t('e.g. Wine.xlsx')}</span>
           </button>
           <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv,.ods" hidden onChange={(e) => onFile(e.target.files?.[0])} />
           {error && <p className="mt-3 text-sm text-rose-300">{error}</p>}
@@ -91,7 +92,7 @@ export default function ImportPage() {
       {step === 'map' && sheet && (
         <div>
           <p className="mb-4 text-sm text-cream-300">
-            Found <span className="font-semibold text-cream-50">{parsed.length} wines</span> in {sheet.rows.length} rows. Check how columns map to the app:
+            {t('Found')} <span className="font-semibold text-cream-50">{parsed.length} wines</span> in {sheet.rows.length} rows. Check how columns map to the app:
           </p>
           <div className="card divide-y divide-ink-700">
             {sheet.headers.map((h) => (
@@ -105,7 +106,7 @@ export default function ImportPage() {
                   value={mapping[h] ?? ''}
                   onChange={(e) => setMapping({ ...mapping, [h]: e.target.value as ImportField | '' })}
                 >
-                  <option value="">— ignore —</option>
+                  <option value="">{t('— ignore —')}</option>
                   {Object.entries(IMPORT_FIELDS).map(([k, v]) => (
                     <option key={k} value={k}>
                       {v}
@@ -117,7 +118,7 @@ export default function ImportPage() {
           </div>
           <div className="mt-5 flex gap-2">
             <Button variant="secondary" onClick={() => setStep('pick')}>
-              Back
+              {t('Back')}
             </Button>
             <Button className="flex-1" onClick={() => setStep('preview')} disabled={!Object.values(mapping).includes('producer') && !Object.values(mapping).includes('name')}>
               Preview {parsed.length} wines
@@ -131,18 +132,18 @@ export default function ImportPage() {
           <div className="card mb-4 grid grid-cols-3 divide-x divide-ink-700 text-center">
             <Mini value={parsed.length} label="wines" />
             <Mini value={parsed.length - issues.length} label="ready" tone="text-emerald-300" />
-            <Mini value={issues.length} label="to review" tone={issues.length ? 'text-amber-300' : undefined} />
+            <Mini value={issues.length} label={t('to review')} tone={issues.length ? 'text-amber-300' : undefined} />
           </div>
           <p className="mb-3 text-xs text-cream-400">
-            Country, region and grapes are filled in from the appellation where possible. Rows with notes still import — you can fix them later from the wine page. Untick anything you don't want.
+            {t('Country, region and grapes are filled in from the appellation where possible. Rows with notes still import — you can fix them later from the wine page. Untick anything you don\'t want.')}
           </p>
           <div className="mb-3 flex items-center justify-between text-xs">
             <button className={cx('rounded-full px-3 py-1 ring-1', onlyIssues ? 'bg-cream-100 text-ink-900 ring-cream-100' : 'text-cream-300 ring-ink-600')} onClick={() => setOnlyIssues(!onlyIssues)}>
-              Only rows to review
+              {t('Only rows to review')}
             </button>
             <span className="text-cream-400">{selected.reduce((s, p) => s + p.quantity, 0)} bottles selected</span>
           </div>
-          <Section title="Wines">
+          <Section title={t('Wines')}>
             <div className="card divide-y divide-ink-700">
               {parsed
                 .filter((p) => !onlyIssues || p.wine.needsReview)
@@ -172,7 +173,7 @@ export default function ImportPage() {
                             .filter(Boolean)
                             .join(' · ')}
                         </p>
-                        {dup && <p className="mt-1 text-xs text-sky-300">Already in cellar — bottles will be added to it</p>}
+                        {dup && <p className="mt-1 text-xs text-sky-300">{t('Already in cellar — bottles will be added to it')}</p>}
                         {p.warnings.map((w) => (
                           <p key={w} className={cx('mt-1 flex items-center gap-1 text-xs', p.wine.needsReview?.includes(w) ? 'text-amber-300' : 'text-cream-500')}>
                             <AlertTriangle size={12} /> {w}
@@ -186,7 +187,7 @@ export default function ImportPage() {
           </Section>
           <div className="pb-[max(env(safe-area-inset-bottom),0.75rem)] sticky bottom-0 -mx-4 flex gap-2 bg-gradient-to-t from-ink-900 via-ink-900 to-transparent px-4 pt-6">
             <Button variant="secondary" onClick={() => setStep('map')}>
-              Mapping
+              {t('Mapping')}
             </Button>
             <Button className="flex-1 py-3.5" onClick={doImport} disabled={busy || selected.length === 0}>
               {busy ? <Loader2 className="animate-spin" size={18} /> : null} Import {selected.length} wines
@@ -200,13 +201,13 @@ export default function ImportPage() {
           <span className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-300">
             <Check size={32} />
           </span>
-          <p className="font-display text-2xl text-cream-50">Imported!</p>
+          <p className="font-display text-2xl text-cream-50">{t('Imported!')}</p>
           <p className="mt-2 text-cream-300">
             {result.wines} new wines · {result.bottles} bottles
             {result.merged ? ` · ${result.merged} merged into existing wines` : ''}
           </p>
           <Button className="mt-8 w-full max-w-xs" onClick={() => nav('/', { replace: true })}>
-            Open my cellar
+            {t('Open my cellar')}
           </Button>
         </div>
       )}

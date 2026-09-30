@@ -1,7 +1,8 @@
 import { ChevronRight, Dna, Grid3x3, ShoppingBag, Download, Eye, EyeOff, FileJson, FileSpreadsheet, GripVertical, MapPin, Trash2, Upload } from 'lucide-react'
+import { LANGS, locale, setLang, t, useLang } from '../lib/i18n'
 import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Button, cx, Label, PageHeader, Section } from '../components/ui'
+import { Button, Chip, cx, Label, PageHeader, Section } from '../components/ui'
 import { exportCsv, exportJson, exportXlsx, restoreBackup } from '../lib/backup'
 import { db, deleteAllData, ensureLocation } from '../lib/db'
 import { useLocations } from '../lib/hooks'
@@ -12,6 +13,7 @@ import { RemindersSection } from '../components/RemindersSection'
 
 export default function MorePage() {
   const s = useSettings()
+  const lang = useLang()
   const sync = useSync()
   const locations = useLocations()
   const [showKey, setShowKey] = useState(false)
@@ -35,7 +37,7 @@ export default function MorePage() {
 
   return (
     <div>
-      <PageHeader title="More" />
+      <PageHeader title={t('More')} />
       {msg && <div className="animate-rise fixed inset-x-4 top-4 z-50 mx-auto max-w-md rounded-xl bg-cream-100 px-4 py-3 text-sm text-ink-900 shadow-xl">{msg}</div>}
 
       <Link to="/taste" className="card mb-6 flex items-center gap-4 p-4 hover:ring-ink-600">
@@ -43,39 +45,39 @@ export default function MorePage() {
           <Dna />
         </span>
         <span className="flex-1">
-          <span className="block font-semibold text-cream-50">Your Wine DNA</span>
-          <span className="text-sm text-cream-400">Styles, grapes, regions and what you loved</span>
+          <span className="block font-semibold text-cream-50">{t('Your Wine DNA')}</span>
+          <span className="text-sm text-cream-400">{t('Styles, grapes, regions and what you loved')}</span>
         </span>
         <ChevronRight className="text-cream-500" />
       </Link>
 
-      <Section title="Sync">
+      <Section title={t('Sync')}>
         <div className="card flex items-center gap-3 p-4">
           <span className={cx('h-2.5 w-2.5 shrink-0 rounded-full', !sync.available ? 'bg-stone-500' : sync.status === 'error' || sync.status === 'signed-out' ? 'bg-rose-500' : sync.status === 'syncing' ? 'animate-pulse bg-amber-400' : 'bg-emerald-400')} />
           <div className="min-w-0 flex-1 text-sm">
             <p className="text-cream-50">
               {!sync.available
-                ? 'This device only (no server)'
+                ? t('This device only (no server)')
                 : sync.status === 'syncing'
-                  ? 'Syncing…'
+                  ? t('Syncing…')
                   : sync.status === 'offline'
-                    ? 'Offline — changes will sync later'
+                    ? t('Offline — changes will sync later')
                     : sync.status === 'signed-out'
-                      ? 'Signed out'
+                      ? t('Signed out')
                       : sync.status === 'error'
-                        ? 'Sync problem'
-                        : 'Synced to the cloud'}
+                        ? t('Sync problem')
+                        : t('Synced to the cloud')}
             </p>
-            <p className="truncate text-xs text-cream-400">{sync.error ?? (sync.lastSync ? `Last sync ${new Date(sync.lastSync).toLocaleString()}` : sync.available ? 'Not synced yet' : 'Data lives only in this browser')}</p>
+            <p className="truncate text-xs text-cream-400">{sync.error ?? (sync.lastSync ? t('Last sync {when}', { when: new Date(sync.lastSync).toLocaleString(locale()) }) : sync.available ? t('Not synced yet') : t('Data lives only in this browser'))}</p>
           </div>
           {sync.status === 'signed-out' ? (
             <Button variant="secondary" onClick={() => location.reload()}>
-              Sign in
+              {t('Sign in')}
             </Button>
           ) : (
             sync.available && (
               <Button variant="secondary" disabled={sync.status === 'syncing'} onClick={() => syncNow()}>
-                Sync now
+                {t('Sync now')}
               </Button>
             )
           )}
@@ -87,7 +89,7 @@ export default function MorePage() {
           <ShoppingBag />
         </span>
         <span className="flex-1">
-          <span className="block font-semibold text-cream-50">Wishlist</span>
+          <span className="block font-semibold text-cream-50">{t('Wishlist')}</span>
           <span className="text-sm text-cream-400">Wines to buy, and ones you said you&rsquo;d buy again</span>
         </span>
         <ChevronRight className="text-cream-500" />
@@ -98,8 +100,8 @@ export default function MorePage() {
           <Grid3x3 />
         </span>
         <span className="flex-1">
-          <span className="block font-semibold text-cream-50">Rack map</span>
-          <span className="text-sm text-cream-400">See which bottle sits in which slot</span>
+          <span className="block font-semibold text-cream-50">{t('Rack map')}</span>
+          <span className="text-sm text-cream-400">{t('See which bottle sits in which slot')}</span>
         </span>
         <ChevronRight className="text-cream-500" />
       </Link>
@@ -108,7 +110,7 @@ export default function MorePage() {
 
       {sync.available && sync.authenticated && <DevicesSection />}
 
-      <Section title="Cellar locations">
+      <Section title={t('Cellar locations')}>
         <div className="card divide-y divide-ink-700">
           {locations?.map((l) => (
             <div key={l.id} className="flex items-center gap-3 px-4 py-2.5">
@@ -142,22 +144,22 @@ export default function MorePage() {
               setNewLoc('')
             }}
           >
-            <input className="field py-2" placeholder="Add e.g. Rack A / Shelf 1, Wine fridge / Top" value={newLoc} onChange={(e) => setNewLoc(e.target.value)} />
+            <input className="field py-2" placeholder={t('Add e.g. Rack A / Shelf 1, Wine fridge / Top')} value={newLoc} onChange={(e) => setNewLoc(e.target.value)} />
             <Button type="submit" variant="secondary" disabled={!newLoc.trim()}>
-              Add
+              {t('Add')}
             </Button>
           </form>
         </div>
-        <p className="mt-2 text-xs text-cream-500">Tap a location to rename it — bottles move with it.</p>
+        <p className="mt-2 text-xs text-cream-500">{t('Tap a location to rename it — bottles move with it.')}</p>
       </Section>
 
-      <Section title="Import & export">
+      <Section title={t('Import & export')}>
         <div className="card divide-y divide-ink-700">
-          <Row icon={<Upload size={18} />} title="Import spreadsheet" desc="Excel / CSV" to="/import" />
-          <Row icon={<FileSpreadsheet size={18} />} title="Export to Excel" desc="Cellar + tastings sheets" onClick={() => exportXlsx().then(() => flash('Excel file downloaded'))} />
-          <Row icon={<Download size={18} />} title="Export CSV" desc="One row per wine" onClick={() => exportCsv().then(() => flash('CSV downloaded'))} />
-          <Row icon={<FileJson size={18} />} title="Full backup (JSON)" desc="Everything incl. photos — restorable" onClick={() => exportJson().then(() => flash('Backup downloaded'))} />
-          <Row icon={<Upload size={18} />} title="Restore backup" desc="Replaces all current data" onClick={() => restoreRef.current?.click()} />
+          <Row icon={<Upload size={18} />} title={t('Import spreadsheet')} desc={t('Excel / CSV')} to="/import" />
+          <Row icon={<FileSpreadsheet size={18} />} title={t('Export to Excel')} desc={t('Cellar + tastings sheets')} onClick={() => exportXlsx().then(() => flash('Excel file downloaded'))} />
+          <Row icon={<Download size={18} />} title={t('Export CSV')} desc={t('One row per wine')} onClick={() => exportCsv().then(() => flash('CSV downloaded'))} />
+          <Row icon={<FileJson size={18} />} title={t('Full backup (JSON)')} desc={t('Everything incl. photos — restorable')} onClick={() => exportJson().then(() => flash('Backup downloaded'))} />
+          <Row icon={<Upload size={18} />} title={t('Restore backup')} desc={t('Replaces all current data')} onClick={() => restoreRef.current?.click()} />
         </div>
         <input
           ref={restoreRef}
@@ -178,18 +180,28 @@ export default function MorePage() {
           }}
         />
         <p className="mt-2 text-xs text-cream-500">
-          {sync.available ? 'Your cellar is synced to the cloud database (with 7-day point-in-time restore). A JSON backup is still a good portable copy.' : 'Data lives only in this browser. Export a backup now and then.'}
+          {sync.available ? t('Your cellar is synced to the cloud database (with 7-day point-in-time restore). A JSON backup is still a good portable copy.') : t('Data lives only in this browser. Export a backup now and then.')}
         </p>
       </Section>
 
-      <Section title="Settings">
+      <Section title={t('Settings')}>
         <div className="card space-y-4 p-4">
+          <div>
+            <Label>{t('Language')}</Label>
+            <div className="flex gap-1.5">
+              {LANGS.map((l) => (
+                <Chip key={l.id} active={lang === l.id} onClick={() => setLang(l.id)}>
+                  {l.label}
+                </Chip>
+              ))}
+            </div>
+          </div>
           <label className="block">
-            <Label>Cellar name</Label>
+            <Label>{t('Cellar name')}</Label>
             <input className="field" value={s.cellarName} onChange={(e) => saveSettings({ cellarName: e.target.value })} />
           </label>
           <label className="block">
-            <Label>Currency</Label>
+            <Label>{t('Currency')}</Label>
             <select className="field" value={s.currency} onChange={(e) => saveSettings({ currency: e.target.value })}>
               {['GBP', 'EUR', 'USD', 'CHF'].map((c) => (
                 <option key={c}>{c}</option>
@@ -199,20 +211,20 @@ export default function MorePage() {
         </div>
       </Section>
 
-      <Section title="AI label scanner" className="scroll-mt-20">
+      <Section title={t('AI label scanner')} className="scroll-mt-20">
         <div id="ai" className="card space-y-4 p-4">
           <label className="block">
-            {sync.scan && <p className="mb-3 rounded-lg bg-emerald-500/10 p-2.5 text-xs text-emerald-200 ring-1 ring-emerald-500/30">Scanning runs on your MioVino server — no key needed on this device.</p>}
-            <Label hint="optional · stored on this device only">Anthropic API key</Label>
+            {sync.scan && <p className="mb-3 rounded-lg bg-emerald-500/10 p-2.5 text-xs text-emerald-200 ring-1 ring-emerald-500/30">{t('Scanning runs on your MioVino server — no key needed on this device.')}</p>}
+            <Label hint={t('optional · stored on this device only')}>{t('Anthropic API key')}</Label>
             <div className="flex gap-2">
-              <input className="field font-mono text-xs" type={showKey ? 'text' : 'password'} value={s.apiKey} onChange={(e) => saveSettings({ apiKey: e.target.value.trim() })} placeholder="sk-ant-…" autoComplete="off" />
-              <Button variant="secondary" aria-label={showKey ? 'Hide key' : 'Show key'} onClick={() => setShowKey(!showKey)}>
+              <input className="field font-mono text-xs" type={showKey ? 'text' : 'password'} value={s.apiKey} onChange={(e) => saveSettings({ apiKey: e.target.value.trim() })} placeholder={t('sk-ant-…')} autoComplete="off" />
+              <Button variant="secondary" aria-label={showKey ? t('Hide key') : t('Show key')} onClick={() => setShowKey(!showKey)}>
                 {showKey ? <EyeOff size={16} /> : <Eye size={16} />}
               </Button>
             </div>
           </label>
           <label className="block">
-            <Label>Model</Label>
+            <Label>{t('Model')}</Label>
             <select className="field" value={s.model} onChange={(e) => saveSettings({ model: e.target.value })}>
               <option value="claude-opus-5-5">Claude Opus 5.5 (best)</option>
               <option value="claude-sonnet-5-5">Claude Sonnet 5.5 (cheaper)</option>
@@ -220,12 +232,12 @@ export default function MorePage() {
             </select>
           </label>
           <p className="text-xs text-cream-500">
-            Label photos are sent to the Anthropic API to be read. Get a key at console.anthropic.com. A scan costs roughly a cent.
+            {t('Label photos are sent to the Anthropic API to be read. Get a key at console.anthropic.com. A scan costs roughly a cent.')}
           </p>
         </div>
       </Section>
 
-      <Section title="Danger zone">
+      <Section title={t('Danger zone')}>
         <Button
           variant="danger"
           className="w-full"
@@ -236,10 +248,10 @@ export default function MorePage() {
             flash('All data deleted')
           }}
         >
-          <Trash2 size={16} /> Delete all data
+          <Trash2 size={16} /> {t('Delete all data')}
         </Button>
       </Section>
-      <p className="pb-4 text-center text-xs text-cream-500">MioVino · v0.1</p>
+      <p className="pb-4 text-center text-xs text-cream-500">{t('MioVino · v0.1')}</p>
     </div>
   )
 }

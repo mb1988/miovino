@@ -1,4 +1,5 @@
 import { Keyboard, Loader2, X } from 'lucide-react'
+import { t } from '../lib/i18n'
 import { useEffect, useRef, useState } from 'react'
 import { createDetector, normalizeBarcode } from '../lib/barcode'
 
@@ -69,8 +70,8 @@ export function BarcodeScanner({ open, onClose, onDetected }: { open: boolean; o
   return (
     <div className="fixed inset-0 z-[60] flex flex-col bg-black">
       <div className="flex items-center justify-between p-4 pt-[calc(env(safe-area-inset-top)+1rem)] text-cream-50">
-        <span className="text-sm">Point at the barcode on the back label</span>
-        <button aria-label="Close scanner" onClick={onClose} className="rounded-full bg-white/10 p-2">
+        <span className="text-sm">{t('Point at the barcode on the back label')}</span>
+        <button aria-label={t('Close scanner')} onClick={onClose} className="rounded-full bg-white/10 p-2">
           <X size={20} />
         </button>
       </div>
@@ -82,7 +83,7 @@ export function BarcodeScanner({ open, onClose, onDetected }: { open: boolean; o
           </div>
         )}
         {state === 'starting' && <Loader2 className="absolute animate-spin text-cream-200" size={32} />}
-        {state === 'unavailable' && <p className="absolute px-8 text-center text-cream-200">The camera isn&rsquo;t available here. Type the numbers under the barcode instead.</p>}
+        {state === 'unavailable' && <p className="absolute px-8 text-center text-cream-200">{t('The camera isn’t available here. Type the numbers under the barcode instead.')}</p>}
       </div>
       <div className="p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)]">
         {typing ? (
@@ -93,17 +94,17 @@ export function BarcodeScanner({ open, onClose, onDetected }: { open: boolean; o
               if (typedCode) onDetected(typedCode)
             }}
           >
-            <input autoFocus className="field flex-1 text-center tracking-widest" inputMode="numeric" placeholder="8 or 13 digits" value={typed} onChange={(e) => setTyped(e.target.value)} />
+            <input autoFocus className="field flex-1 text-center tracking-widest" inputMode="numeric" placeholder={t('8 or 13 digits')} value={typed} onChange={(e) => setTyped(e.target.value)} />
             <button type="submit" disabled={!typedCode} className="rounded-xl bg-wine-600 px-4 text-sm font-medium text-cream-50 disabled:opacity-40">
-              Find
+              {t('Find')}
             </button>
           </form>
         ) : (
           <button onClick={() => setTyping(true)} className="mx-auto flex items-center gap-2 text-sm text-cream-200">
-            <Keyboard size={18} /> Type the number instead
+            <Keyboard size={18} /> {t('Type the number instead')}
           </button>
         )}
-        {typing && typed.replace(/\D/g, '').length >= 8 && !typedCode && <p className="mt-2 text-center text-xs text-rose-300">That number doesn&rsquo;t check out — look again at the digits.</p>}
+        {typing && typed.replace(/\D/g, '').length >= 8 && !typedCode && <p className="mt-2 text-center text-xs text-rose-300">{t('That number doesn’t check out — look again at the digits.')}</p>}
       </div>
     </div>
   )

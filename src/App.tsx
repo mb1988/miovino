@@ -1,4 +1,5 @@
 import { BookOpen, Home, MoreHorizontal, Plus, Sparkles } from 'lucide-react'
+import { t } from './lib/i18n'
 import { useEffect } from 'react'
 import { NavLink, Route, Routes, useLocation, useNavigationType } from 'react-router-dom'
 import { cx } from './components/ui'
@@ -12,6 +13,7 @@ import MorePage from './pages/MorePage'
 import ScanPage from './pages/ScanPage'
 import SignInPage from './pages/SignInPage'
 import { useSync } from './lib/sync'
+import { useLang } from './lib/i18n'
 import SuggestPage from './pages/SuggestPage'
 import TastePage from './pages/TastePage'
 import AskPage from './pages/AskPage'
@@ -28,6 +30,7 @@ export default function App() {
     if (navType !== 'POP') window.scrollTo(0, 0)
   }, [loc.pathname, navType])
   const sync = useSync()
+  const lang = useLang()
   const hideNav = /\/(drink|edit)$|^\/add\/|^\/import/.test(loc.pathname)
   // Setup links always show the setup screen; otherwise lock the app while the server says we're signed out.
   // Offline (no server answer) the app keeps working on this device's own copy.
@@ -39,7 +42,8 @@ export default function App() {
     )
 
   return (
-    <div className="mx-auto min-h-dvh max-w-2xl px-4">
+    // key={lang}: switching language re-renders every screen in the new language.
+    <div key={lang} className="mx-auto min-h-dvh max-w-2xl px-4">
       <main className={cx(hideNav ? 'pb-10' : 'pb-28')}>
         <Routes>
           <Route path="/" element={<CellarPage />} />
@@ -74,7 +78,7 @@ function BottomNav() {
       className={({ isActive }) => cx('flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium transition', isActive ? 'text-cream-50' : 'text-cream-500 hover:text-cream-300')}
     >
       <Icon size={22} strokeWidth={1.8} />
-      {label}
+      {t(label)}
     </NavLink>
   )
   return (
@@ -82,7 +86,7 @@ function BottomNav() {
       <div className="mx-auto flex max-w-2xl items-end px-2">
         {item('/', 'Cellar', Home)}
         {item('/suggest', 'Drink', Sparkles)}
-        <NavLink to="/add" aria-label="Add wine" className="flex flex-1 justify-center">
+        <NavLink to="/add" aria-label={t('Add wine')} className="flex flex-1 justify-center">
           <span className="-mt-6 flex h-14 w-14 items-center justify-center rounded-full bg-wine-600 text-cream-50 shadow-xl shadow-wine-900/50 ring-4 ring-ink-900 transition hover:bg-wine-500">
             <Plus size={28} />
           </span>

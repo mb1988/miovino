@@ -1,4 +1,5 @@
 import { Camera, ImageUp, KeyRound, Loader2, Plus, Wine as WineIcon } from 'lucide-react'
+import { t } from '../lib/i18n'
 import { useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Bottle, Button, PageHeader } from '../components/ui'
@@ -42,18 +43,18 @@ export default function ScanPage() {
 
   return (
     <div>
-      <PageHeader title="Scan label" back />
+      <PageHeader title={t('Scan label')} back />
       <LiveCamera open={camOpen} onClose={() => setCamOpen(false)} onCapture={onFile} />
       <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => onFile(e.target.files?.[0])} />
 
       {!canScan && (
         <div className="card mb-5 p-4 text-sm">
           <p className="flex items-center gap-2 font-medium text-cream-50">
-            <KeyRound size={16} /> Scanner needs an Anthropic API key
+            <KeyRound size={16} /> {t('Scanner needs an Anthropic API key')}
           </p>
-          <p className="mt-1 text-cream-400">The photo is read by Claude (vision). The key stays on this device only.</p>
+          <p className="mt-1 text-cream-400">{t('The photo is read by Claude (vision). The key stays on this device only.')}</p>
           <Link to="/more#ai" className="mt-3 inline-block text-wine-300 underline">
-            Add key in Settings
+            {t('Add key in Settings')}
           </Link>
         </div>
       )}
@@ -64,18 +65,18 @@ export default function ScanPage() {
             <div className="absolute inset-8 rounded-2xl border border-cream-500/30" />
             <div className="text-center text-cream-400">
               <Camera size={40} className="mx-auto mb-3 text-cream-300" />
-              <p className="px-6 text-sm">Fill the frame with the front label, in good light.</p>
+              <p className="px-6 text-sm">{t('Fill the frame with the front label, in good light.')}</p>
             </div>
           </div>
           <div className="grid w-full max-w-xs gap-2">
             <Button className="py-3.5 text-base" disabled={!canScan} onClick={() => setCamOpen(true)}>
-              <Camera size={20} /> Take photo
+              <Camera size={20} /> {t('Take photo')}
             </Button>
             <Button variant="secondary" disabled={!canScan} onClick={() => fileRef.current?.click()}>
-              <ImageUp size={18} /> Choose from library
+              <ImageUp size={18} /> {t('Choose from library')}
             </Button>
             <Link to="/add/manual" className="mt-2 text-center text-sm text-cream-400 underline">
-              Add manually instead
+              {t('Add manually instead')}
             </Link>
           </div>
         </div>
@@ -85,9 +86,9 @@ export default function ScanPage() {
         <div className="flex flex-col items-center pt-4">
           <img src={phase.preview} alt="" className="mb-6 max-h-80 rounded-2xl object-contain opacity-70" />
           <p className="flex items-center gap-2 text-cream-200">
-            <Loader2 className="animate-spin" size={18} /> Reading the label…
+            <Loader2 className="animate-spin" size={18} /> {t('Reading the label…')}
           </p>
-          <p className="mt-1 text-xs text-cream-500">Usually takes a few seconds</p>
+          <p className="mt-1 text-xs text-cream-500">{t('Usually takes a few seconds')}</p>
         </div>
       )}
 
@@ -97,10 +98,10 @@ export default function ScanPage() {
           <p className="mb-5 text-rose-200">{phase.msg}</p>
           <div className="grid w-full max-w-xs gap-2">
             <Button onClick={() => setCamOpen(true)}>
-              <Camera size={18} /> Try again
+              <Camera size={18} /> {t('Try again')}
             </Button>
             <Button variant="secondary" onClick={() => nav('/add/manual', { state: withBarcode({}), replace: true })}>
-              Add manually
+              {t('Add manually')}
             </Button>
           </div>
         </div>
@@ -108,9 +109,9 @@ export default function ScanPage() {
 
       {phase.k === 'matched' && (
         <div>
-          <p className="mb-1 font-display text-xl text-cream-50">Already in your cellar?</p>
+          <p className="mb-1 font-display text-xl text-cream-50">{t('Already in your cellar?')}</p>
           <p className="mb-4 text-sm text-cream-400">
-            The label reads <span className="text-cream-100">{phase.result.producer} {phase.result.name} {phase.result.vintage ?? 'NV'}</span>.
+            {t('The label reads')} <span className="text-cream-100">{phase.result.producer} {phase.result.name} {phase.result.vintage ?? 'NV'}</span>.
           </p>
           <div className="space-y-2">
             {phase.matches.map((w) => (
@@ -131,14 +132,14 @@ export default function ScanPage() {
                       nav(`/wine/${w.id}`, { replace: true })
                     }}
                   >
-                    <Plus size={14} /> Bottle
+                    <Plus size={14} /> {t('Bottle')}
                   </Button>
                   {w.inCellar > 0 && (
                     <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={async () => {
                       if (barcode) await updateWine(w.id, { barcode })
                       nav(`/wine/${w.id}/drink`, { replace: true })
                     }}>
-                      <WineIcon size={14} /> Drink
+                      <WineIcon size={14} /> {t('Drink')}
                     </Button>
                   )}
                 </div>
@@ -146,7 +147,7 @@ export default function ScanPage() {
             ))}
           </div>
           <Button variant="secondary" className="mt-4 w-full" onClick={() => nav('/add/manual', { state: withBarcode(labelToDraft(phase.result, phase.thumb)), replace: true })}>
-            No — it's a different wine
+            {t('No — it\'s a different wine')}
           </Button>
         </div>
       )}

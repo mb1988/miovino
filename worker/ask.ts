@@ -37,7 +37,7 @@ const INSTRUCTIONS = `You are the sommelier inside MioVino, a private wine-cella
 - Prefer bottles that are ready or closing soon; mention when something is past its window or still needs time.
 - Their own ratings and tasting notes matter more than general reputation.
 - For food pairing, pick from what they own first; suggest buying only when nothing fits.
-- Be concise and warm: a short answer, a few bullet points at most. Use British English and the currency shown.
+- Be concise and warm: a short answer, a few bullet points at most. Use British English (unless told otherwise below) and the currency shown.
 - If the data doesn't say, say so rather than inventing details about their bottles. General wine knowledge is fine when labelled as such.`
 
 type Rec = Record<string, unknown>
@@ -101,7 +101,8 @@ export async function cellarSnapshot(db: AskDb, now = new Date()) {
 
 export async function handleAsk(req: Request, db: AskDb, apiKey: string | undefined, model: string) {
   if (!apiKey) return json({ error: 'The chat needs a Claude API key on the server (ANTHROPIC_API_KEY).' }, 501)
-  const turns = validateTurns(await req.json())
+  const body = (await req.json()) as { lang?: unknown }
+  const turns = validateTurns(body)
   if (!turns) return json({ error: 'Send {messages: [{role, content}, …]} alternating, ending with the user.' }, 400)
 
   const client = new Anthropic({ apiKey })
@@ -117,6 +118,8 @@ export async function handleAsk(req: Request, db: AskDb, apiKey: string | undefi
         { type: 'text', text: INSTRUCTIONS },
         // The cellar changes rarely, so cache it: follow-up questions reuse it at a fraction of the cost.
         { type: 'text', text: await cellarSnapshot(db), cache_control: { type: 'ephemeral' } },
+        // After the cached block, so switching language doesn't invalidate the cache.
+        ...(body.lang === 'it' ? [{ type: 'text' as const, text: 'The owner is using the app in Italian: reply in Italian.' }] : []),
       ],
       messages: turns,
     })

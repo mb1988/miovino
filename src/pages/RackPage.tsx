@@ -1,4 +1,5 @@
 import { Grid3x3, MapPin, Move, Search, Wine as WineIcon, X } from 'lucide-react'
+import { t } from '../lib/i18n'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
@@ -60,7 +61,7 @@ export default function RackPage() {
       await placeBottle(b.id!, loc!.name, slot)
       setMoving(null)
       setSp({ loc: loc!.id!, b: b.id! }, { replace: true })
-      flash(`Placed in ${slot}`)
+      flash(t('Placed in {slot}', { slot }))
     } catch (e) {
       flash((e as Error).message)
     }
@@ -71,17 +72,17 @@ export default function RackPage() {
     setOpen({ slot, bottle })
   }
 
-  const header = <PageHeader title="Rack map" subtitle={loc?.name} back />
+  const header = <PageHeader title={t('Rack map')} subtitle={loc?.name} back />
   if (!locations.length)
     return (
       <div>
         {header}
-        <Empty icon={<Grid3x3 size={32} />} title="No locations yet">
+        <Empty icon={<Grid3x3 size={32} />} title={t('No locations yet')}>
           Add one in{' '}
           <Link to="/more" className="text-wine-300 underline">
-            More → Cellar locations
+            {t('More → Cellar locations')}
           </Link>
-          , e.g. &ldquo;Rack A&rdquo;, then come back to lay out its grid.
+          {t(', e.g. “Rack A”, then come back to lay out its grid.')}
         </Empty>
       </div>
     )
@@ -113,9 +114,9 @@ export default function RackPage() {
               <div className="card mb-3 flex items-center gap-3 p-3 ring-gold-400/50">
                 <Move size={18} className="shrink-0 text-gold-400" />
                 <p className="flex-1 text-sm text-cream-100">
-                  Tap an empty slot for <span className="font-semibold">{wineLabel(wines.get(moving.wineId))}</span>
+                  {t('Tap an empty slot for')} <span className="font-semibold">{wineLabel(wines.get(moving.wineId))}</span>
                 </p>
-                <button aria-label="Cancel" className="rounded-full p-1.5 text-cream-300 hover:bg-ink-700" onClick={() => setMoving(null)}>
+                <button aria-label={t('Cancel')} className="rounded-full p-1.5 text-cream-300 hover:bg-ink-700" onClick={() => setMoving(null)}>
                   <X size={18} />
                 </button>
               </div>
@@ -123,17 +124,17 @@ export default function RackPage() {
             <RackGrid loc={loc} slots={grid.slots} wines={wines} moving={!!moving} isHighlighted={isHighlighted} onTap={tap} />
             <div className="mt-3 flex items-center justify-between text-xs text-cream-500">
               <span>
-                {grid.slots.size} of {loc.rows! * loc.cols!} slots filled
+                {t('{a} of {b} slots filled', { a: grid.slots.size, b: loc.rows! * loc.cols! })}
               </span>
               <button className="text-wine-300" onClick={() => setResizing(true)}>
-                Change grid size
+                {t('Change grid size')}
               </button>
             </div>
             <Legend />
 
             {grid.unplaced.length > 0 && (
               <section className="mt-6">
-                <h2 className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-cream-400">Not on the grid yet · {grid.unplaced.length}</h2>
+                <h2 className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-cream-400">{t('Not on the grid yet · {n}', { n: grid.unplaced.length })}</h2>
                 <div className="card divide-y divide-ink-700">
                   {grid.unplaced.map((b) => {
                     const w = wines.get(b.wineId)
@@ -141,7 +142,7 @@ export default function RackPage() {
                       <button key={b.id} onClick={() => setMoving(b)} className={cx('flex w-full items-center gap-3 p-3 text-left hover:bg-ink-800', moving?.id === b.id && 'bg-ink-800')}>
                         {w && <BottleIcon type={w.type} className="h-8 w-3.5" />}
                         <span className="min-w-0 flex-1 truncate text-sm text-cream-100">{wineLabel(w)}</span>
-                        <span className="text-xs text-wine-300">{moving?.id === b.id ? 'Tap a slot' : 'Place'}</span>
+                        <span className="text-xs text-wine-300">{moving?.id === b.id ? t('Tap a slot') : t('Place')}</span>
                       </button>
                     )
                   })}
@@ -248,7 +249,7 @@ function Legend() {
       {(['ready', 'soon', 'approaching', 'hold', 'past'] as const).map((s) => (
         <span key={s} className="inline-flex items-center gap-1">
           <span className={cx('h-2 w-2 rounded-full', STATUS_META[s].dot)} />
-          {STATUS_META[s].label}
+          {t(STATUS_META[s].label)}
         </span>
       ))}
     </p>
@@ -277,7 +278,7 @@ function GridSetup({ loc, bottles, canCancel, onDone }: { loc: Location; bottles
   return (
     <div className="card space-y-4 p-4">
       <div>
-        <p className="font-display text-lg text-cream-50">{canCancel ? 'Grid size' : 'Lay out this rack'}</p>
+        <p className="font-display text-lg text-cream-50">{canCancel ? t('Grid size') : t('Lay out this rack')}</p>
         <p className="text-sm text-cream-400">
           How many shelves (rows) and bottles per shelf (columns)? {here.length} bottle{here.length === 1 ? ' is' : 's are'} in {loc.name}.
         </p>
@@ -290,7 +291,7 @@ function GridSetup({ loc, bottles, canCancel, onDone }: { loc: Location; bottles
       <div className="flex gap-2">
         {canCancel && (
           <Button variant="secondary" className="flex-1" onClick={onDone}>
-            Cancel
+            {t('Cancel')}
           </Button>
         )}
         <Button
@@ -300,7 +301,7 @@ function GridSetup({ loc, bottles, canCancel, onDone }: { loc: Location; bottles
             onDone()
           }}
         >
-          Save
+          {t('Save')}
         </Button>
       </div>
     </div>
@@ -331,7 +332,7 @@ function SlotSheet({
   const b = open?.bottle
   if (b)
     return (
-      <Sheet open onClose={onClose} title={`Slot ${open.slot}`}>
+      <Sheet open onClose={onClose} title={t('Slot {slot}', { slot: open.slot })}>
         <div className="mb-5 flex gap-3">
           {wine && <BottleIcon type={wine.type} className="h-14 w-6 shrink-0" />}
           <div className="min-w-0">
@@ -345,17 +346,17 @@ function SlotSheet({
         <div className="space-y-2">
           {wine && (
             <Button className="w-full" onClick={() => nav(`/wine/${wine.id}/drink?bottle=${b.id}`)}>
-              <WineIcon size={18} /> Drink this bottle
+              <WineIcon size={18} /> {t('Drink this bottle')}
             </Button>
           )}
           <div className="grid grid-cols-2 gap-2">
             {wine && (
               <Button variant="secondary" onClick={() => nav(`/wine/${wine.id}`)}>
-                Open wine
+                {t('Open wine')}
               </Button>
             )}
             <Button variant="secondary" onClick={() => onMove(b)}>
-              <Move size={16} /> Move
+              <Move size={16} /> {t('Move')}
             </Button>
           </div>
           <button
@@ -378,13 +379,13 @@ function SlotSheet({
     .filter(({ w }) => w && (!needle || wineLabel(w).toLowerCase().includes(needle)))
     .sort((x, y) => Number(y.b.location === loc?.name) - Number(x.b.location === loc?.name) || wineLabel(x.w).localeCompare(wineLabel(y.w)))
   return (
-    <Sheet open={!!open} onClose={onClose} title={`Put a bottle in ${open?.slot}`}>
+    <Sheet open={!!open} onClose={onClose} title={t('Put a bottle in {slot}', { slot: open?.slot ?? '' })}>
       <div className="relative mb-3">
         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-cream-500" />
-        <input className="field pl-9" placeholder="Search your bottles" value={q} onChange={(e) => setQ(e.target.value)} />
+        <input className="field pl-9" placeholder={t('Search your bottles')} value={q} onChange={(e) => setQ(e.target.value)} />
       </div>
       {list.length === 0 ? (
-        <p className="py-6 text-center text-sm text-cream-400">{needle ? 'No match.' : 'Every cellar bottle already has a slot.'}</p>
+        <p className="py-6 text-center text-sm text-cream-400">{needle ? t('No match.') : t('Every cellar bottle already has a slot.')}</p>
       ) : (
         <div className="card divide-y divide-ink-700">
           {list.map(({ b: c, w }) => (

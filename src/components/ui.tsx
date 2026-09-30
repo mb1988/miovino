@@ -1,4 +1,5 @@
 import { ChevronLeft, Star, X } from 'lucide-react'
+import { t } from '../lib/i18n'
 import { useEffect, type ButtonHTMLAttributes, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { COUNTRY_FLAG } from '../lib/knowledge'
@@ -42,7 +43,7 @@ export function PageHeader({ title, subtitle, back, right }: { title: ReactNode;
     <header className="sticky top-0 z-20 -mx-4 mb-3 bg-ink-900/85 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] backdrop-blur-md">
       <div className="flex items-center gap-2">
         {back && (
-          <button aria-label="Back" onClick={() => (history.length > 1 ? nav(-1) : nav('/'))} className="-ml-2 rounded-full p-2 text-cream-200 hover:bg-ink-800">
+          <button aria-label={t('Back')} onClick={() => (history.length > 1 ? nav(-1) : nav('/'))} className="-ml-2 rounded-full p-2 text-cream-200 hover:bg-ink-800">
             <ChevronLeft size={22} />
           </button>
         )}
@@ -77,7 +78,7 @@ export function StatusChip({ status, className }: { status: DrinkStatus; classNa
   return (
     <span className={cx('inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium ring-1', m.chip, className)}>
       <span className={cx('h-1.5 w-1.5 rounded-full', m.dot)} />
-      {m.label}
+      {t(m.label)}
     </span>
   )
 }
@@ -166,7 +167,7 @@ export function WindowBar({ wine, compact }: { wine: Pick<Wine, 'vintage' | 'dri
         {!compact && (
           <>
             <span className="absolute -top-6 -translate-x-1/2 text-[11px] font-semibold text-cream-50" style={{ left: `${pos(year) * 100}%` }}>
-              Today
+              {t('Today')}
             </span>
             <span className="absolute top-4 text-[11px] text-cream-400" style={{ left: 0 }}>
               {start}
@@ -197,7 +198,7 @@ export function Sheet({ open, onClose, title, children }: { open: boolean; onClo
       <div className="animate-sheet pb-[calc(env(safe-area-inset-bottom)+1.25rem)] max-h-[88dvh] w-full max-w-xl overflow-y-auto rounded-t-3xl bg-ink-850 p-5 ring-1 ring-ink-700 sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
         <div className="mb-4 flex items-center justify-between">
           <h2 className="font-display text-xl font-semibold text-cream-50">{title}</h2>
-          <button aria-label="Close" onClick={onClose} className="rounded-full p-1.5 text-cream-300 hover:bg-ink-700">
+          <button aria-label={t('Close')} onClick={onClose} className="rounded-full p-1.5 text-cream-300 hover:bg-ink-700">
             <X size={20} />
           </button>
         </div>

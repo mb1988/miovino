@@ -1,4 +1,5 @@
 import { MapPin, MessageCircle, RefreshCw, Sparkles, Wine as WineIcon } from 'lucide-react'
+import { t } from '../lib/i18n'
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { locationsOf } from '../components/WineCard'
@@ -25,41 +26,41 @@ export default function SuggestPage() {
 
   return (
     <div>
-      <PageHeader title="What should I drink?" subtitle="Picks from your own cellar" />
+      <PageHeader title={t('What should I drink?')} subtitle={t('Picks from your own cellar')} />
 
       <Link to="/ask" className="card mb-4 flex items-center gap-3 p-4 hover:ring-ink-600">
         <MessageCircle className="text-gold-400" />
         <span className="flex-1">
-          <span className="block font-semibold text-cream-50">Ask my cellar</span>
+          <span className="block font-semibold text-cream-50">{t('Ask my cellar')}</span>
           <span className="text-sm text-cream-400">&ldquo;What goes with lamb?&rdquo; &mdash; answers from your own bottles</span>
         </span>
       </Link>
 
       <div className="card mb-5 space-y-4 p-4">
         <div>
-          <Label>Style</Label>
+          <Label>{t('Style')}</Label>
           <div className="flex flex-wrap gap-1.5">
             <Chip active={opts.type === 'any'} onClick={() => up({ type: 'any' })}>
-              Any
+              {t('Any')}
             </Chip>
-            {types.map((t) => (
-              <Chip key={t} active={opts.type === t} onClick={() => up({ type: t as WineType })}>
-                {WINE_TYPE_LABEL[t]}
+            {types.map((ty) => (
+              <Chip key={ty} active={opts.type === ty} onClick={() => up({ type: ty as WineType })}>
+                {t(WINE_TYPE_LABEL[ty])}
               </Chip>
             ))}
           </div>
         </div>
         <div>
-          <Label>What are you eating?</Label>
+          <Label>{t('What are you eating?')}</Label>
           <input
             className="field mb-2"
-            placeholder="e.g. lamb chops, risotto ai funghi, cinghiale…"
+            placeholder={t('e.g. lamb chops, risotto ai funghi, cinghiale…')}
             value={opts.dish ?? ''}
             onChange={(e) => up({ dish: e.target.value || undefined })}
           />
           <div className="flex flex-wrap gap-1.5">
             <Chip active={!opts.food} onClick={() => up({ food: undefined })}>
-              Nothing / anything
+              {t('Nothing / anything')}
             </Chip>
             {FOODS.map((f) => (
               <Chip key={f} active={opts.food === f} onClick={() => up({ food: opts.food === f ? undefined : (f as Food) })}>
@@ -69,7 +70,7 @@ export default function SuggestPage() {
           </div>
         </div>
         <div>
-          <Label>Occasion</Label>
+          <Label>{t('Occasion')}</Label>
           <div className="flex flex-wrap gap-1.5">
             {(
               [
@@ -87,10 +88,10 @@ export default function SuggestPage() {
         <div className="flex flex-wrap items-center gap-3">
           <label className="flex items-center gap-2 text-sm text-cream-200">
             <input type="checkbox" className="accent-wine-500" checked={opts.readyOnly} onChange={(e) => up({ readyOnly: e.target.checked })} />
-            Ready to drink only
+            {t('Ready to drink only')}
           </label>
           <label className="ml-auto flex items-center gap-2 text-sm text-cream-300">
-            Max
+            {t('Max')}
             <input
               className="field w-20 py-1.5"
               inputMode="numeric"
@@ -103,7 +104,7 @@ export default function SuggestPage() {
       </div>
 
       {cellar && results.length === 0 ? (
-        <Empty icon={<WineIcon size={28} />} title="Nothing fits">
+        <Empty icon={<WineIcon size={28} />} title={t('Nothing fits')}>
           Try loosening the filters{opts.readyOnly ? ' or include wines not yet ready' : ''}.
         </Empty>
       ) : (
@@ -148,7 +149,7 @@ export default function SuggestPage() {
           })}
           {results.length > 3 && (
             <Button variant="secondary" className="w-full" onClick={() => setPage((p) => ((p + 1) * 3 >= results.length ? 0 : p + 1))}>
-              <RefreshCw size={16} /> Show other picks
+              <RefreshCw size={16} /> {t('Show other picks')}
             </Button>
           )}
         </div>

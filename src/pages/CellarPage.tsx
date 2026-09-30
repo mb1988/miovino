@@ -1,4 +1,5 @@
 import { ArrowUpDown, Camera, FileSpreadsheet, LayoutList, PenLine, Rows3, Search, SlidersHorizontal, Sparkles, Wine as WineIcon, X } from 'lucide-react'
+import { plural, t } from '../lib/i18n'
 import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { MonthlyDigest } from '../components/MonthlyDigest'
@@ -96,7 +97,7 @@ export default function CellarPage() {
   return (
     <div>
       <header className="pt-[calc(env(safe-area-inset-top)+1.5rem)] pb-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-wine-300">MioVino</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-wine-300">{t('MioVino')}</p>
         <h1 className="font-display text-3xl font-semibold text-cream-50">{settings.cellarName}</h1>
       </header>
 
@@ -104,7 +105,7 @@ export default function CellarPage() {
         <div className="card mb-4 overflow-hidden">
           <div className="grid grid-cols-3 divide-x divide-ink-700">
             <Stat value={stats.bottles} label="bottles" />
-            <Stat value={formatMoney(stats.value)} label="cellar value" />
+            <Stat value={formatMoney(stats.value)} label={t('cellar value')} />
             <Stat value={stats.wines} label="wines" />
           </div>
           <div className="flex gap-1.5 overflow-x-auto border-t border-ink-700 px-3 py-3 no-scrollbar">
@@ -117,7 +118,7 @@ export default function CellarPage() {
                   className={cx('flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs ring-1 transition', status === s ? STATUS_META[s].chip : 'text-cream-300 ring-ink-700 hover:ring-ink-600')}
                 >
                   <span className={cx('h-2 w-2 rounded-full', STATUS_META[s].dot)} />
-                  <span className="font-semibold text-cream-50">{stats.byStatus[s]}</span> {STATUS_META[s].label}
+                  <span className="font-semibold text-cream-50">{stats.byStatus[s]}</span> {t(STATUS_META[s].label)}
                 </button>
               ))}
           </div>
@@ -129,8 +130,8 @@ export default function CellarPage() {
       <Link to="/suggest" className="mb-4 flex items-center gap-3 rounded-2xl bg-gradient-to-r from-wine-700 to-wine-600 p-4 shadow-lg shadow-wine-900/30 transition hover:from-wine-600 hover:to-wine-500">
         <Sparkles className="text-gold-400" />
         <div className="flex-1">
-          <p className="font-display text-lg font-semibold text-cream-50">What should I drink tonight?</p>
-          <p className="text-xs text-cream-200">3 picks from your cellar, with reasons</p>
+          <p className="font-display text-lg font-semibold text-cream-50">{t('What should I drink tonight?')}</p>
+          <p className="text-xs text-cream-200">{t('3 picks from your cellar, with reasons')}</p>
         </div>
       </Link>
 
@@ -138,44 +139,44 @@ export default function CellarPage() {
         <div className="flex gap-2">
           <label className="relative flex-1">
             <Search size={16} className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-cream-500" />
-            <input className="field pl-9" placeholder="Search wine, producer, grape, rack…" value={q} onChange={(e) => set('q', e.target.value)} />
+            <input className="field pl-9" placeholder={t('Search wine, producer, grape, rack…')} value={q} onChange={(e) => set('q', e.target.value)} />
             {q && (
-              <button aria-label="Clear search" onClick={() => set('q', null)} className="absolute top-1/2 right-2 -translate-y-1/2 rounded-full p-1 text-cream-400">
+              <button aria-label={t('Clear search')} onClick={() => set('q', null)} className="absolute top-1/2 right-2 -translate-y-1/2 rounded-full p-1 text-cream-400">
                 <X size={16} />
               </button>
             )}
           </label>
-          <button onClick={() => setFiltersOpen(true)} className="relative rounded-xl bg-ink-800 px-3 text-cream-200 ring-1 ring-ink-600" aria-label="Filters">
+          <button onClick={() => setFiltersOpen(true)} className="relative rounded-xl bg-ink-800 px-3 text-cream-200 ring-1 ring-ink-600" aria-label={t('Filters')}>
             <SlidersHorizontal size={18} />
             {activeFilters > 0 && <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-wine-500 text-[10px] font-bold">{activeFilters}</span>}
           </button>
-          <button onClick={() => set('view', view === 'cards' ? 'list' : null)} className="rounded-xl bg-ink-800 px-3 text-cream-200 ring-1 ring-ink-600" aria-label="Toggle view">
+          <button onClick={() => set('view', view === 'cards' ? 'list' : null)} className="rounded-xl bg-ink-800 px-3 text-cream-200 ring-1 ring-ink-600" aria-label={t('Toggle view')}>
             {view === 'cards' ? <LayoutList size={18} /> : <Rows3 size={18} />}
           </button>
         </div>
         <div className="mt-2 flex gap-1.5 overflow-x-auto no-scrollbar">
           <Chip active={!type} onClick={() => set('type', null)}>
-            All
+            {t('All')}
           </Chip>
-          {(Object.keys(stats?.byType ?? {}) as WineType[]).map((t) => (
-            <Chip key={t} active={type === t} onClick={() => set('type', type === t ? null : t)}>
-              {WINE_TYPE_LABEL[t]} <span className="opacity-60">{stats?.byType[t]}</span>
+          {(Object.keys(stats?.byType ?? {}) as WineType[]).map((ty) => (
+            <Chip key={ty} active={type === ty} onClick={() => set('type', type === ty ? null : ty)}>
+              {t(WINE_TYPE_LABEL[ty])} <span className="opacity-60">{stats?.byType[ty]}</span>
             </Chip>
           ))}
           <Chip active={fav} onClick={() => set('fav', fav ? null : '1')}>
-            ♥ Favourites
+            {t('♥ Favourites')}
           </Chip>
         </div>
       </div>
 
       <div className="mt-2 mb-2 flex items-center justify-between text-xs text-cream-400">
         <span>
-          {list.length} {list.length === 1 ? 'wine' : 'wines'} · {list.reduce((s, w) => s + w.inCellar, 0)} bottles
+          {plural(list.length, '{n} wine', '{n} wines')} · {plural(list.reduce((s, w) => s + w.inCellar, 0), '{n} bottle', '{n} bottles')}
         </span>
         <span className="flex items-center gap-2">
-        <select aria-label="Vintage" className="rounded-lg bg-transparent py-1 text-right text-cream-200 outline-none" value={vintage ?? ''} onChange={(e) => set('vintage', e.target.value || null)}>
+        <select aria-label={t('Vintage')} className="rounded-lg bg-transparent py-1 text-right text-cream-200 outline-none" value={vintage ?? ''} onChange={(e) => set('vintage', e.target.value || null)}>
           <option value="" className="bg-ink-850">
-            All vintages
+            {t('All vintages')}
           </option>
           {facets.vintages.map(([v, n]) => (
             <option key={v} value={v} className="bg-ink-850">
@@ -186,11 +187,11 @@ export default function CellarPage() {
         {/* A visible pill; the native select on top keeps the phone's own picker. */}
         <label className="relative flex items-center gap-1.5 rounded-full bg-ink-800 px-3 py-1.5 font-medium text-cream-100 ring-1 ring-ink-600">
           <ArrowUpDown size={13} className="text-cream-400" />
-          Sort: {SORTS[sort] ?? SORTS.urgency}
-          <select aria-label="Sort" className="absolute inset-0 cursor-pointer opacity-0" value={sort} onChange={(e) => set('sort', e.target.value === 'urgency' ? null : e.target.value)}>
+          {t('Sort: {s}', { s: t(SORTS[sort] ?? SORTS.urgency) })}
+          <select aria-label={t('Sort')} className="absolute inset-0 cursor-pointer opacity-0" value={sort} onChange={(e) => set('sort', e.target.value === 'urgency' ? null : e.target.value)}>
             {Object.entries(SORTS).map(([k, v]) => (
               <option key={k} value={k}>
-                {v}
+                {t(v)}
               </option>
             ))}
           </select>
@@ -199,9 +200,9 @@ export default function CellarPage() {
       </div>
 
       {list.length === 0 ? (
-        <Empty icon={<Search size={28} />} title="Nothing matches">
+        <Empty icon={<Search size={28} />} title={t('Nothing matches')}>
           <button className="text-wine-300 underline" onClick={() => setParams({}, { replace: true })}>
-            Clear search and filters
+            {t('Clear search and filters')}
           </button>
         </Empty>
       ) : view === 'cards' ? (
@@ -218,29 +219,29 @@ export default function CellarPage() {
         </div>
       )}
 
-      <Sheet open={filtersOpen} onClose={() => setFiltersOpen(false)} title="Filters">
-        <FilterGroup label="Drinking status">
+      <Sheet open={filtersOpen} onClose={() => setFiltersOpen(false)} title={t('Filters')}>
+        <FilterGroup label={t('Drinking status')}>
           {(Object.keys(STATUS_META) as DrinkStatus[]).map((s) => (
             <Chip key={s} active={status === s} onClick={() => set('status', status === s ? null : s)}>
-              {STATUS_META[s].label}
+              {t(STATUS_META[s].label)}
             </Chip>
           ))}
         </FilterGroup>
-        <FilterGroup label="Vintage">
+        <FilterGroup label={t('Vintage')}>
           {facets.vintages.map(([v, n]) => (
             <Chip key={v} active={vintage === v} onClick={() => set('vintage', vintage === v ? null : v)}>
               {v} <span className="opacity-60">{n}</span>
             </Chip>
           ))}
         </FilterGroup>
-        <FilterGroup label="Country">
+        <FilterGroup label={t('Country')}>
           {facets.countries.map(([c, n]) => (
             <Chip key={c} active={country === c} onClick={() => set('country', country === c ? null : c)}>
               {c} <span className="opacity-60">{n}</span>
             </Chip>
           ))}
         </FilterGroup>
-        <FilterGroup label="Region">
+        <FilterGroup label={t('Region')}>
           {facets.regions.map(([r, n]) => (
             <Chip key={r} active={region === r} onClick={() => set('region', region === r ? null : r)}>
               {r} <span className="opacity-60">{n}</span>
@@ -248,7 +249,7 @@ export default function CellarPage() {
           ))}
         </FilterGroup>
         {facets.locations.length > 0 && (
-          <FilterGroup label="Location">
+          <FilterGroup label={t('Location')}>
             {facets.locations.map(([l, n]) => (
               <Chip key={l} active={location === l} onClick={() => set('loc', location === l ? null : l)}>
                 {l} <span className="opacity-60">{n}</span>
@@ -256,9 +257,9 @@ export default function CellarPage() {
             ))}
           </FilterGroup>
         )}
-        <FilterGroup label="Other">
+        <FilterGroup label={t('Other')}>
           <Chip active={showGone} onClick={() => set('gone', showGone ? null : '1')}>
-            Include finished wines
+            {t('Include finished wines')}
           </Chip>
         </FilterGroup>
         <div className="mt-5 flex gap-2">
@@ -271,10 +272,10 @@ export default function CellarPage() {
               setParams(p, { replace: true })
             }}
           >
-            Reset
+            {t('Reset')}
           </Button>
           <Button className="flex-1" onClick={() => setFiltersOpen(false)}>
-            Show {list.length}
+            {t('Show {n}', { n: list.length })}
           </Button>
         </div>
       </Sheet>
@@ -305,7 +306,7 @@ function Stat({ value, label }: { value: React.ReactNode; label: string }) {
   return (
     <div className="px-3 py-4 text-center">
       <p className="font-display text-2xl font-semibold text-cream-50">{value}</p>
-      <p className="text-[11px] tracking-wide text-cream-400 uppercase">{label}</p>
+      <p className="text-[11px] tracking-wide text-cream-400 uppercase">{t(label)}</p>
     </div>
   )
 }
@@ -322,17 +323,17 @@ function FilterGroup({ label, children }: { label: string; children: React.React
 function Welcome({ name }: { name: string }) {
   return (
     <div className="pt-[calc(env(safe-area-inset-top)+2.5rem)]">
-      <p className="text-xs font-semibold tracking-[0.2em] text-wine-300 uppercase">MioVino</p>
+      <p className="text-xs font-semibold tracking-[0.2em] text-wine-300 uppercase">{t('MioVino')}</p>
       <h1 className="font-display mt-1 text-4xl font-semibold text-cream-50">{name}</h1>
-      <p className="mt-2 text-cream-300">Your private digital wine cellar. Let's fill it.</p>
+      <p className="mt-2 text-cream-300">{t('Your private digital wine cellar. Let\'s fill it.')}</p>
       <div className="mt-8 grid gap-3">
         <Link to="/import" className="card flex items-center gap-4 p-5 ring-wine-600 hover:ring-2">
           <span className="rounded-xl bg-wine-600/20 p-3 text-wine-300">
             <FileSpreadsheet />
           </span>
           <span>
-            <span className="block font-semibold text-cream-50">Import your spreadsheet</span>
-            <span className="text-sm text-cream-400">Excel or CSV — columns are mapped automatically</span>
+            <span className="block font-semibold text-cream-50">{t('Import your spreadsheet')}</span>
+            <span className="text-sm text-cream-400">{t('Excel or CSV — columns are mapped automatically')}</span>
           </span>
         </Link>
         <Link to="/add/scan" className="card flex items-center gap-4 p-5 hover:ring-ink-600">
@@ -340,8 +341,8 @@ function Welcome({ name }: { name: string }) {
             <Camera />
           </span>
           <span>
-            <span className="block font-semibold text-cream-50">Scan a label</span>
-            <span className="text-sm text-cream-400">Take a photo, confirm, done</span>
+            <span className="block font-semibold text-cream-50">{t('Scan a label')}</span>
+            <span className="text-sm text-cream-400">{t('Take a photo, confirm, done')}</span>
           </span>
         </Link>
         <Link to="/add/manual" className="card flex items-center gap-4 p-5 hover:ring-ink-600">
@@ -349,8 +350,8 @@ function Welcome({ name }: { name: string }) {
             <PenLine />
           </span>
           <span>
-            <span className="block font-semibold text-cream-50">Add manually</span>
-            <span className="text-sm text-cream-400">Type in a bottle</span>
+            <span className="block font-semibold text-cream-50">{t('Add manually')}</span>
+            <span className="text-sm text-cream-400">{t('Type in a bottle')}</span>
           </span>
         </Link>
       </div>
