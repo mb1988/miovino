@@ -8,12 +8,12 @@ See [PLAN.md](PLAN.md) for the product plan, research and roadmap.
 
 ```bash
 npm install
-npm run dev      # http://localhost:5173
-npm test         # unit tests (parsers, import of Wine.xlsx, status, recommender)
-npm run build    # production build in dist/ (static, host anywhere)
+npm run db:migrate:local   # first time: create the local D1 database
+npm run dev                # app + Worker API + local D1/R2 on http://localhost:5173
+npm test                   # unit + sync tests (server logic runs on real SQLite)
 ```
 
-To use it on your phone, deploy `dist/` to any static host (Vercel, Netlify, GitHub Pages, Cloudflare Pages). Open the URL and choose **Add to Home Screen**.
+`.dev.vars` (copy from `.dev.vars.example`) sets `ALLOW_NO_AUTH=true` for local dev. Deployment, the database and backups are covered in [docs/RELEASE.md](docs/RELEASE.md).
 
 ## Features (v0.1)
 - **Cellar**: stats, drinking-status counts, search (producer, name, grape, region, location…), filters, 6 sort orders, card/list views
@@ -36,4 +36,7 @@ To use it on your phone, deploy `dist/` to any static host (Vercel, Netlify, Git
 | `src/lib/recommend.ts` | "What should I drink" scoring |
 | `src/lib/scanner.ts` | Claude vision label reader (lazy-loaded) |
 | `src/lib/backup.ts` | Export / backup / restore |
+| `src/lib/sync.ts` | Offline-first sync client |
+| `worker/` | Cloudflare Worker: `/api/sync`, `/api/photo`, `/api/scan`, Access JWT check |
+| `migrations/` | D1 schema |
 | `src/pages/*` | Screens |

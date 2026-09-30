@@ -5,10 +5,10 @@
 | Need | Cloudflare | Vercel + Neon |
 |---|---|---|
 | Host the PWA | Workers static assets ✅ free | ✅ free (Hobby) |
-| Keep it **private** (only you) | **Cloudflare Access**: email one-time code in front of the whole site, no auth code to write, free up to 50 users | Hobby can't protect the production domain. Needs Pro ($20/mo) or hand-written auth |
+| Keep it **private** (only you) | **Built-in passkey login** (Face ID / fingerprint). Cloudflare Access is supported too, but its free plan needs a card on file | Hobby can't protect the production domain. Needs Pro ($20/mo) or hand-written auth |
 | Database | **D1** (SQLite) free | **Neon** Postgres free |
 | Built-in backups | D1 **Time Travel: restore to any minute of the last 7 days** (free) | Neon free: **6 hours** of history |
-| Photos | **R2** (10 GB free, no egress fees) | Vercel Blob (paid beyond small quota) |
+| Photos | stored in **D1** (no card needed; R2 optional later) | Vercel Blob (paid beyond small quota) |
 | AI proxy (keep the key off the phone) | Worker holds the Claude key; optional free Workers AI | Vercel Function |
 | Preview per branch / PR | ✅ | ✅ (excellent) |
 
@@ -18,10 +18,10 @@
 
 ```
 Phone / laptop (PWA, offline-first; IndexedDB stays as the local cache)
-   │  HTTPS, behind Cloudflare Access (email OTP)
+   │  HTTPS, passkey session cookie (or Cloudflare Access)
    ▼
 Cloudflare Worker ── /api/sync   → D1 (wines, bottles, tastings, locations)
-                  ── /api/photo  → R2 (label photos)
+                  ── /api/photo  → D1 photos table
                   └─ /api/scan   → Claude API (key stored as a Worker secret)
 ```
 
@@ -31,14 +31,14 @@ Cloudflare Worker ── /api/sync   → D1 (wines, bottles, tastings, locations
 ## Environments: no separate staging
 
 - `main` = production. Work happens on branches, then a PR, then **CI** (typecheck, tests, build; already in `.github/workflows/ci.yml`).
-- Every PR gets a **preview URL** (also behind Access) wired to a separate `miovino-preview` D1 database, so tests never touch real data.
+- Every PR gets a **preview URL** (own passkey login) wired to a separate `miovino-preview` D1 database, so tests never touch real data.
 - Merging deploys automatically. **Rollback** is one click (or `wrangler rollback`) to the previous version.
 - A staging environment would add cost and chores and bring no benefit for a single-user app. Preview deployments + CI + rollback cover it.
 
 ## Backups: three layers
 
 1. **D1 Time Travel**: restore to any minute of the last 7 days (automatic, free).
-2. **Nightly GitHub Action**: `wrangler d1 export` → uploaded to an R2 `backups/` bucket with a 90-day lifecycle rule.
+2. **Nightly GitHub Action**: `wrangler d1 export` → saved as a private artifact on the repo, kept 90 days (plus one before every production deploy).
 3. **In-app JSON export** (already built): a portable, human-readable copy you own.
 
 Plus a restore drill: once a month, restore the latest export into the preview DB (the Action can do this) to prove backups actually work.
@@ -54,14 +54,37 @@ Plus a restore drill: once a month, restore the latest export into the preview D
 
 **Recommendation:** Claude through the Worker proxy (default Sonnet 5.5, switchable). It's pennies a year at this volume and the most accurate. Adding a free fallback (Workers AI) is easy, about an hour, because the scanner is isolated in `src/lib/scanner.ts`.
 
-## Release checklist
+## The database (Cloudflare D1)
 
-- [ ] Create a private GitHub repo and push (`main` protected: PR + green CI required)
-- [ ] Cloudflare account → `wrangler login`
-- [ ] Worker + static assets, D1 `miovino` + `miovino-preview`, R2 bucket
-- [ ] Cloudflare Access policy: allow your email only
-- [ ] `/api/sync`, `/api/photo`, `/api/scan` + secrets (`ANTHROPIC_API_KEY`)
-- [ ] Sync in the app (push/pull, conflict = newest wins), migration of the current local data
-- [ ] Nightly backup Action + monthly restore drill
-- [ ] Custom domain (optional, e.g. `cellar.yourdomain.com`)
-- [ ] Install the PWA on your phone and test the live camera over HTTPS
+**What it is:** SQLite managed by Cloudflare. It runs next to the Worker, is free at this size (5 GB, 5M reads/day), and can restore to any minute of the last 7 days.
+
+**How data flows:**
+- The phone keeps a full copy of the cellar in the browser (IndexedDB). The app always reads from this copy, so it's instant and works offline.
+- Every change (add, edit, drink, delete) is stamped with a time and pushed to D1 by the Worker, about 2 seconds after the edit, on opening the app, and every 5 minutes.
+- Other devices pull whatever changed. If the same record was edited on two devices, the **most recent edit wins**.
+- Label photos (~100 KB each) live in a `photos` table in the same database, so no card-requiring R2 bucket is needed.
+
+**Schema** (`migrations/0001_init.sql`): one `records` table (kind, id, JSON data, updated_at, deleted, rev), plus readable views:
+`wines`, `bottles`, `tastings`, `locations` and `cellar` (what's in the cellar now). Query it yourself:
+
+```bash
+npm run db:query -- "SELECT producer, name, vintage, bottles, drink_from, drink_to FROM cellar"
+```
+
+**Schema changes** go in new numbered files in `migrations/`. CI backs up the database, applies migrations, then deploys.
+
+## Setup (one time)
+
+1. `npx wrangler login` (opens the browser, approve)
+2. `npm run cf:setup` creates the D1 databases (prod + preview), writes the IDs into `wrangler.jsonc` and applies migrations
+3. `npm run deploy` (first deploy prints `https://miovino.<you>.workers.dev`)
+4. `npx wrangler secret put ANTHROPIC_API_KEY` (paste your key yourself; enables scanning on the server)
+5. **Login (passkeys, built in):** `npm run auth:invite` prints a QR code and a one-time link (24 h). Open it on your phone, tap *Create passkey*, then approve with Face ID / fingerprint. Add more devices later from More → Devices → *Add a device* (shows a QR). Sessions last 180 days. Optional: Cloudflare Access also works (set `ACCESS_TEAM_DOMAIN` / `ACCESS_AUD`), but Zero Trust's free plan asks for a payment card.
+6. **CI/CD:** create an API token (Workers Scripts Edit, D1 Edit, Account Settings Read). In GitHub → Settings → Secrets add `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`; under Variables add `CF_DEPLOY=true`.
+7. On your phone, after creating the passkey: **Share → Add to Home Screen**.
+
+## Day-to-day
+
+- Work on a branch, open a PR. CI tests it and deploys it to `miovino-preview` (its own database).
+- Merge to `main`: CI backs up the DB, migrates, then deploys production.
+- Something broke? `npx wrangler rollback` (code), or D1 → Time Travel (data).

@@ -1,14 +1,17 @@
 import { ChevronRight, Dna, Download, Eye, EyeOff, FileJson, FileSpreadsheet, GripVertical, MapPin, Trash2, Upload } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Button, Label, PageHeader, Section } from '../components/ui'
+import { Button, cx, Label, PageHeader, Section } from '../components/ui'
 import { exportCsv, exportJson, exportXlsx, restoreBackup } from '../lib/backup'
-import { db, ensureLocation } from '../lib/db'
+import { db, deleteAllData, ensureLocation } from '../lib/db'
 import { useLocations } from '../lib/hooks'
 import { saveSettings, useSettings } from '../lib/settings'
+import { syncNow, useSync } from '../lib/sync'
+import { DevicesSection } from '../components/DevicesSection'
 
 export default function MorePage() {
   const s = useSettings()
+  const sync = useSync()
   const locations = useLocations()
   const [showKey, setShowKey] = useState(false)
   const [newLoc, setNewLoc] = useState('')
@@ -20,7 +23,7 @@ export default function MorePage() {
     setTimeout(() => setMsg(''), 3500)
   }
 
-  const renameLocation = async (id: number, oldName: string) => {
+  const renameLocation = async (id: string, oldName: string) => {
     const name = prompt('Rename location', oldName)?.trim()
     if (!name || name === oldName) return
     await db.transaction('rw', db.locations, db.bottles, async () => {
@@ -44,6 +47,41 @@ export default function MorePage() {
         </span>
         <ChevronRight className="text-cream-500" />
       </Link>
+
+      <Section title="Sync">
+        <div className="card flex items-center gap-3 p-4">
+          <span className={cx('h-2.5 w-2.5 shrink-0 rounded-full', !sync.available ? 'bg-stone-500' : sync.status === 'error' || sync.status === 'signed-out' ? 'bg-rose-500' : sync.status === 'syncing' ? 'animate-pulse bg-amber-400' : 'bg-emerald-400')} />
+          <div className="min-w-0 flex-1 text-sm">
+            <p className="text-cream-50">
+              {!sync.available
+                ? 'This device only (no server)'
+                : sync.status === 'syncing'
+                  ? 'Syncing…'
+                  : sync.status === 'offline'
+                    ? 'Offline — changes will sync later'
+                    : sync.status === 'signed-out'
+                      ? 'Signed out'
+                      : sync.status === 'error'
+                        ? 'Sync problem'
+                        : 'Synced to the cloud'}
+            </p>
+            <p className="truncate text-xs text-cream-400">{sync.error ?? (sync.lastSync ? `Last sync ${new Date(sync.lastSync).toLocaleString()}` : sync.available ? 'Not synced yet' : 'Data lives only in this browser')}</p>
+          </div>
+          {sync.status === 'signed-out' ? (
+            <Button variant="secondary" onClick={() => location.reload()}>
+              Sign in
+            </Button>
+          ) : (
+            sync.available && (
+              <Button variant="secondary" disabled={sync.status === 'syncing'} onClick={() => syncNow()}>
+                Sync now
+              </Button>
+            )
+          )}
+        </div>
+      </Section>
+
+      {sync.available && sync.authenticated && <DevicesSection />}
 
       <Section title="Cellar locations">
         <div className="card divide-y divide-ink-700">
@@ -110,7 +148,9 @@ export default function MorePage() {
             }
           }}
         />
-        <p className="mt-2 text-xs text-cream-500">Data lives only on this device. Export a backup now and then — cloud sync is planned.</p>
+        <p className="mt-2 text-xs text-cream-500">
+          {sync.available ? 'Your cellar is synced to the cloud database (with 7-day point-in-time restore). A JSON backup is still a good portable copy.' : 'Data lives only in this browser. Export a backup now and then.'}
+        </p>
       </Section>
 
       <Section title="Settings">
@@ -133,7 +173,8 @@ export default function MorePage() {
       <Section title="AI label scanner" className="scroll-mt-20">
         <div id="ai" className="card space-y-4 p-4">
           <label className="block">
-            <Label hint="stored on this device only">Anthropic API key</Label>
+            {sync.scan && <p className="mb-3 rounded-lg bg-emerald-500/10 p-2.5 text-xs text-emerald-200 ring-1 ring-emerald-500/30">Scanning runs on your MioVino server — no key needed on this device.</p>}
+            <Label hint="optional · stored on this device only">Anthropic API key</Label>
             <div className="flex gap-2">
               <input className="field font-mono text-xs" type={showKey ? 'text' : 'password'} value={s.apiKey} onChange={(e) => saveSettings({ apiKey: e.target.value.trim() })} placeholder="sk-ant-…" autoComplete="off" />
               <Button variant="secondary" aria-label={showKey ? 'Hide key' : 'Show key'} onClick={() => setShowKey(!showKey)}>
@@ -162,7 +203,7 @@ export default function MorePage() {
           onClick={async () => {
             if (!confirm('Delete ALL wines, bottles, tastings and locations from this device?')) return
             if (!confirm('Really? Export a backup first if unsure.')) return
-            await Promise.all([db.wines.clear(), db.bottles.clear(), db.tastings.clear(), db.locations.clear()])
+            await deleteAllData()
             flash('All data deleted')
           }}
         >

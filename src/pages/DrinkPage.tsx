@@ -7,7 +7,7 @@ import { classicPairing } from '../lib/pairing'
 import { OCCASIONS, type BuyAgain } from '../lib/types'
 
 export default function DrinkPage() {
-  const id = Number(useParams().id)
+  const id = useParams().id!
   const [sp] = useSearchParams()
   const wine = useWine(id)
   const nav = useNavigate()
@@ -18,7 +18,7 @@ export default function DrinkPage() {
   const [food, setFood] = useState('')
   const [notes, setNotes] = useState('')
   const [buyAgain, setBuyAgain] = useState<BuyAgain>()
-  const [bottleId, setBottleId] = useState<number | undefined>(sp.get('bottle') ? Number(sp.get('bottle')) : undefined)
+  const [bottleId, setBottleId] = useState<string | undefined>(sp.get('bottle') ?? undefined)
 
   if (!wine) return null
   const inCellar = wine.bottles.filter((b) => b.status === 'cellar')

@@ -1,0 +1,215 @@
+import { readFileSync } from 'node:fs'
+import { DatabaseSync } from 'node:sqlite'
+import Dexie from 'dexie'
+import { IDBFactory, IDBKeyRange } from 'fake-indexeddb'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { SyncChange } from '../shared/sync'
+import type { Db, Stmt } from '../../worker/sync'
+
+/** node:sqlite wrapped in the slice of the D1 API the Worker uses. */
+function sqliteD1(): Db & { raw: DatabaseSync } {
+  const raw = new DatabaseSync(':memory:')
+  for (const f of ['0001_init.sql', '0002_photos.sql', '0003_auth.sql']) raw.exec(readFileSync(new URL(`../../migrations/${f}`, import.meta.url), 'utf8'))
+  const stmt = (sql: string, params: unknown[] = []): Stmt & { first: () => Promise<unknown> } => ({
+    // D1 takes ArrayBuffer for BLOBs; node:sqlite wants a typed array.
+    bind: (...v: unknown[]) => stmt(sql, v.map((x) => (x instanceof ArrayBuffer ? new Uint8Array(x) : x))),
+    first: async () => raw.prepare(sql).get(...(params as never[])) ?? null,
+    all: async <T,>() => ({ results: raw.prepare(sql).all(...(params as never[])) as T[] }),
+    run: async () => ({ meta: { changes: Number(raw.prepare(sql).run(...(params as never[])).changes) } }),
+  })
+  return {
+    raw,
+    prepare: (sql) => stmt(sql),
+    batch: async (stmts) => {
+      raw.exec('BEGIN')
+      try {
+        const out = []
+        for (const s of stmts) out.push(await s.run())
+        raw.exec('COMMIT')
+        return out
+      } catch (e) {
+        raw.exec('ROLLBACK')
+        throw e
+      }
+    },
+  }
+}
+
+const wine = (id: string, updatedAt: number, name = 'Barolo'): SyncChange => ({ kind: 'wines', id: `wine-${id}-0000`, updatedAt, deleted: false, data: { producer: 'Vietti', name, vintage: 2016 } })
+
+describe('server sync (D1 schema on SQLite)', async () => {
+  const { sync, validate } = await import('../../worker/sync')
+
+  it('stores pushes and returns them to a fresh device', async () => {
+    const db = sqliteD1()
+    const r1 = await sync(db, { cursor: 0, changes: [wine('a', 100), wine('b', 100)] })
+    expect(r1.accepted).toBe(2)
+    expect(r1.cursor).toBe(2)
+    const fresh = await sync(db, { cursor: 0, changes: [] })
+    expect(fresh.changes.map((c) => c.id)).toEqual(['wine-a-0000', 'wine-b-0000'])
+    expect(db.raw.prepare('SELECT producer, vintage FROM wines').all()).toEqual([
+      { producer: 'Vietti', vintage: 2016 },
+      { producer: 'Vietti', vintage: 2016 },
+    ])
+  })
+
+  it('last write wins: an older edit never overwrites a newer one', async () => {
+    const db = sqliteD1()
+    await sync(db, { cursor: 0, changes: [wine('a', 200, 'New name')] })
+    const r = await sync(db, { cursor: 1, changes: [wine('a', 100, 'Old name')] })
+    expect(r.accepted).toBe(0)
+    expect(r.changes).toEqual([]) // nothing new since cursor 1
+    const all = await sync(db, { cursor: 0, changes: [] })
+    expect(all.changes[0].data).toMatchObject({ name: 'New name' })
+  })
+
+  it('propagates deletions as tombstones', async () => {
+    const db = sqliteD1()
+    await sync(db, { cursor: 0, changes: [wine('a', 100)] })
+    await sync(db, { cursor: 1, changes: [{ kind: 'wines', id: 'wine-a-0000', updatedAt: 150, deleted: true, data: null }] })
+    const r = await sync(db, { cursor: 1, changes: [] })
+    expect(r.changes).toEqual([{ kind: 'wines', id: 'wine-a-0000', updatedAt: 150, deleted: true, data: null }])
+    expect(db.raw.prepare('SELECT COUNT(*) AS n FROM wines').get()).toEqual({ n: 0 })
+  })
+
+  it('pages large pulls', async () => {
+    const db = sqliteD1()
+    const many = Array.from({ length: 450 }, (_, i) => wine(String(i).padStart(4, '0'), 1))
+    for (let i = 0; i < 3; i++) await sync(db, { cursor: 0, changes: many.map((c) => ({ ...c, id: c.id.replace('wine-', `w${i}-`) })) })
+    const first = await sync(db, { cursor: 0, changes: [] })
+    expect(first.changes).toHaveLength(1000)
+    expect(first.more).toBe(true)
+    const second = await sync(db, { cursor: first.cursor, changes: [] })
+    expect(second.changes).toHaveLength(350)
+    expect(second.more).toBe(false)
+  })
+
+  it('rejects malformed requests', () => {
+    expect(() => validate({ cursor: -1, changes: [] })).toThrow()
+    expect(() => validate({ cursor: 0, changes: [{ kind: 'users', id: 'x'.repeat(10), updatedAt: 1, deleted: false, data: {} }] })).toThrow()
+    expect(() => validate({ cursor: 0, changes: [{ kind: 'wines', id: "'; DROP TABLE records; --", updatedAt: 1, deleted: false, data: {} }] })).toThrow()
+  })
+})
+
+describe('two devices syncing through the Worker', () => {
+  let server: ReturnType<typeof sqliteD1>
+
+  beforeEach(async () => {
+    server = sqliteD1()
+    // Loaded by path so the browser tsconfig doesn't typecheck Worker-only globals (D1Database, R2Bucket…).
+    const workerPath = new URL('../../worker/index.ts', import.meta.url).href
+    const worker = ((await import(/* @vite-ignore */ workerPath)) as { default: { fetch: (req: Request, env: unknown) => Promise<Response> } }).default
+    const env = {
+      DB: server,
+      ALLOW_NO_AUTH: 'true',
+      ASSETS: { fetch: async () => new Response('index') },
+    }
+    vi.stubGlobal('fetch', async (input: string, init?: RequestInit) => {
+      const res = await worker.fetch(new Request(new URL(input, 'https://cellar.test'), init), env)
+      return res
+    })
+  })
+
+  /** Loads a fresh copy of the app modules backed by its own IndexedDB = one device. */
+  async function device() {
+    vi.resetModules()
+    // Dexie (an external dependency) survives resetModules and caches its IndexedDB, so swap it explicitly.
+    Dexie.dependencies.indexedDB = new IDBFactory()
+    Dexie.dependencies.IDBKeyRange = IDBKeyRange
+    const dbm = await import('./db')
+    const syncm = await import('./sync')
+    return { ...dbm, ...syncm }
+  }
+
+  it('a wine added on the phone shows up on the laptop, and edits/deletes flow back', async () => {
+    const phone = await device()
+    const id = await phone.addWineWithBottles({ producer: 'Vietti', name: 'Barolo Castiglione', vintage: 2016, type: 'red', grapes: ['Nebbiolo'], bottleSize: 750, external: [], favourite: false, tags: [] }, 2, { location: 'Rack A' })
+    await phone.syncNow()
+
+    const laptop = await device()
+    await laptop.syncNow()
+    expect((await laptop.db.wines.get(id))?.name).toBe('Barolo Castiglione')
+    expect(await laptop.db.bottles.where('wineId').equals(id).count()).toBe(2)
+    expect(await laptop.db.locations.count()).toBe(1)
+
+    // Laptop drinks a bottle; the phone sees it after its next sync.
+    await new Promise((r) => setTimeout(r, 5))
+    await laptop.drinkBottle(id, { date: '2026-09-30', rating: 4.5, notes: 'Lovely' })
+    await laptop.syncNow()
+    await phone.syncNow()
+    const phoneBottles = await phone.db.bottles.where('wineId').equals(id).toArray()
+    expect(phoneBottles.filter((b) => b.status === 'drunk')).toHaveLength(1)
+    expect((await phone.db.tastings.toArray())[0]).toMatchObject({ rating: 4.5, notes: 'Lovely' })
+  })
+
+  it('stores and serves label photos, and drops them when the wine is deleted', async () => {
+    const id = 'wine-photo-0001'
+    const jpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 4, 0xff, 0xd9])
+    expect((await fetch(`/api/photo/${id}`, { method: 'PUT', body: jpeg })).status).toBe(200)
+    const got = await fetch(`/api/photo/${id}`)
+    expect(got.headers.get('content-type')).toBe('image/jpeg')
+    expect(new Uint8Array(await got.arrayBuffer())).toEqual(jpeg)
+    await fetch('/api/sync', { method: 'POST', body: JSON.stringify({ cursor: 0, changes: [{ kind: 'wines', id, updatedAt: 1, deleted: true, data: null }] }) })
+    expect((await fetch(`/api/photo/${id}`)).status).toBe(404)
+  })
+
+  it('deleting a wine removes it on the other device', async () => {
+    const a = await device()
+    const id = await a.addWineWithBottles({ producer: 'Gaja', name: 'Dagromis', vintage: 2016, type: 'red', grapes: [], bottleSize: 750, external: [], favourite: false, tags: [] }, 1)
+    await a.syncNow()
+    await new Promise((r) => setTimeout(r, 5))
+    await a.deleteWine(id)
+    await new Promise((r) => setTimeout(r, 20)) // tombstones are written after the delete transaction
+    await a.syncNow()
+
+    const b = await device()
+    await b.syncNow()
+    expect(await b.db.wines.count()).toBe(0)
+    expect(await b.db.bottles.count()).toBe(0)
+    expect(server.raw.prepare('SELECT COUNT(*) AS n FROM wines').get()).toEqual({ n: 0 })
+  })
+})
+
+describe('passkey login gate', () => {
+  const origin = 'https://cellar.test'
+  async function setup() {
+    const db = sqliteD1()
+    const workerPath = new URL('../../worker/index.ts', import.meta.url).href
+    const worker = ((await import(/* @vite-ignore */ workerPath)) as { default: { fetch: (req: Request, env: unknown) => Promise<Response> } }).default
+    const env = { DB: db, SESSION_SECRET: 'test-secret-'.repeat(4), ASSETS: { fetch: async () => new Response('index') } }
+    const call = (path: string, init?: RequestInit) => worker.fetch(new Request(origin + path, init), env)
+    const passkeys = (await import(/* @vite-ignore */ new URL('../../worker/passkeys.ts', import.meta.url).href)) as { createInvite: (env: unknown) => Promise<string> }
+    return { db, env, call, passkeys }
+  }
+
+  it('reports signed-out state publicly and rejects data access without a session', async () => {
+    const { call } = await setup()
+    expect(await (await call('/api/health')).json()).toMatchObject({ ok: true, authenticated: false, devices: 0, scan: false })
+    expect((await call('/api/sync', { method: 'POST', body: '{"cursor":0,"changes":[]}' })).status).toBe(401)
+    expect((await call('/api/photo/wine-0000-0001')).status).toBe(401)
+    expect((await call('/api/scan', { method: 'POST', body: '{}' })).status).toBe(401)
+    expect((await call('/api/auth/invite', { method: 'POST' })).status).toBe(401)
+  })
+
+  it('rejects forged session cookies', async () => {
+    const { call } = await setup()
+    const exp = Date.now() + 1e9
+    const res = await call('/api/sync', { method: 'POST', body: '{"cursor":0,"changes":[]}', headers: { cookie: `mv_session=${exp}.forged-signature` } })
+    expect(res.status).toBe(401)
+  })
+
+  it('only starts device setup with a valid, unused, unexpired invite', async () => {
+    const { call, env, passkeys, db } = await setup()
+    const post = (body: unknown) => call('/api/auth/register/options', { method: 'POST', body: JSON.stringify(body) })
+    expect((await post({ invite: 'x'.repeat(32) })).status).toBe(403)
+    const invite = await passkeys.createInvite(env)
+    const ok = await post({ invite })
+    expect(ok.status).toBe(200)
+    expect((await ok.json()) as { challenge: string; rp: { id: string } }).toMatchObject({ rp: { id: 'cellar.test', name: 'MioVino' } })
+    expect(ok.headers.get('set-cookie')).toMatch(/mv_chal=.*HttpOnly.*SameSite=Lax.*Secure/)
+    // Only the hash is stored, never the token itself.
+    expect(JSON.stringify(db.raw.prepare('SELECT * FROM invites').all())).not.toContain(invite)
+    db.raw.prepare('UPDATE invites SET expires_at = 1').run()
+    expect((await post({ invite })).status).toBe(403)
+  })
+})

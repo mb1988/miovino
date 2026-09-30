@@ -134,7 +134,7 @@ function RankList({ title, items }: { title: string; items: Ranked[] }) {
   )
 }
 
-function WineList({ title, wines, empty }: { title: string; wines: { id: number; type: WineType; producer: string; name: string; vintage: number | null; avgRating?: number }[]; empty: string }) {
+function WineList({ title, wines, empty }: { title: string; wines: { id: string; type: WineType; producer: string; name: string; vintage: number | null; avgRating?: number }[]; empty: string }) {
   return (
     <Section title={title}>
       <div className="card divide-y divide-ink-700">

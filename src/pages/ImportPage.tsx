@@ -53,7 +53,7 @@ export default function ImportPage() {
         let wineId = existingKeys.get(sameWineKey(p.wine))
         if (wineId != null) merged++
         else {
-          wineId = (await db.wines.add({ ...p.wine, createdAt: ts, updatedAt: ts } as Wine)) as number
+          wineId = (await db.wines.add({ ...p.wine, createdAt: ts } as Wine)) as string
           wines++
         }
         const rows = Array.from({ length: p.quantity }, () => ({ wineId: wineId!, status: 'cellar' as const, ...p.bottle, createdAt: ts }))

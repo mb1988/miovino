@@ -6,7 +6,7 @@ export function useCellar() {
   return useLiveQuery(() => loadCellar(), [])
 }
 
-export function useWine(id: number) {
+export function useWine(id: string) {
   return useLiveQuery(async () => {
     const w = await db.wines.get(id)
     if (!w) return null
