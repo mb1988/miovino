@@ -42,6 +42,7 @@ export const IT: Record<string, string> = {
   MioVino: 'MioVino',
   'MioVino · v0.1': 'MioVino · v0.1',
   Language: 'Lingua',
+  'from my cellar': 'dalla mia cantina',
   '{n} bottle in the cellar has no price, so the value is a floor.': '{n} bottiglia in cantina non ha prezzo, quindi il valore è per difetto.',
   'Cellar over time': 'La cantina nel tempo',
   'Spending and bottles, year by year': 'Spese e bottiglie, anno per anno',

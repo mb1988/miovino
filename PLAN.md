@@ -135,14 +135,23 @@ Bottom nav: **Cellar · Drink · ＋Add (big) · Journal · More**
 5. [x] **Barcode scan** — Add → Scan barcode; ZXing (WebAssembly) on Safari, native detector elsewhere
 6. [x] **Italian UI** — More → Settings → Lingua (defaults to the phone's language); the chat answers in Italian too
 7. [x] **Stats over time** — More → Cellar over time: value at cost, spend per year, bottles in/out
-8. [ ] **Share a wine card** — image of the bottle + your note
+8. [x] **Share a wine card** — Share on a wine page: photo/bottle, rating, latest note → share sheet (or download)
 
 ### Waiting on the owner
 - `ANTHROPIC_API_KEY` as a Worker secret (label scan + chat): `npx wrangler secret put ANTHROPIC_API_KEY`
 - Try push reminders on the iPhone (Home Screen app → More → Reminders)
 
+### Phase 4 — backlog for autonomous runs (top first; tick when shipped)
+1. [ ] **Restaurant wine-list scanner** — photo of a wine list → Claude reads it and ranks picks by your taste (Wine DNA), budget and food; `/api/winelist` in the Worker
+2. [ ] **Reminder texts in Italian** — push digest and Worker messages follow the language saved with the subscription
+3. [ ] **"What should I drink?" reasons in Italian** — `src/lib/recommend.ts` reason strings through `t()`
+4. [ ] **Drinking-window suggestions** — for wines with no window, ask Claude (server) for a typical window; owner confirms per wine
+5. [ ] **Wine page: price paid vs. now** — optional "current price" field and the difference in Cellar over time
+6. [ ] **Accessibility pass** — focus rings, labels, contrast check on every screen at 390px and desktop
+7. [ ] **End-to-end smoke test in CI** — Playwright against `vite preview` with a seeded IndexedDB and mocked `/api`
+
 ### Later, only if wanted
-Market value tracking, partner/shared cellar, multiple cellars, restaurant wine-list scanner.
+Market value tracking, partner/shared cellar, multiple cellars.
 
 ## 7. Decisions
 - Currency: **£** ✅
