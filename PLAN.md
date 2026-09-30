@@ -135,7 +135,7 @@ Bottom nav: **Cellar · Drink · ＋Add (big) · Journal · More**
 5. [x] **Barcode scan** — Add → Scan barcode; ZXing (WebAssembly) on Safari, native detector elsewhere
 6. [x] **Italian UI** — More → Settings → Lingua (defaults to the phone's language); the chat answers in Italian too
 7. [x] **Stats over time** — More → Cellar over time: value at cost, spend per year, bottles in/out
-8. [ ] **Share a wine card** — image of the bottle + your note
+8. [x] **Share a wine card** — Share on a wine page: photo/bottle, rating, latest note → share sheet (or download)
 
 ### Waiting on the owner
 - `ANTHROPIC_API_KEY` as a Worker secret (label scan + chat): `npx wrangler secret put ANTHROPIC_API_KEY`

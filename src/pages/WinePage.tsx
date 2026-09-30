@@ -1,4 +1,4 @@
-import { BookOpen, ExternalLink, Grape, Grid3x3, Heart, MapPin, Pencil, Plus, Trash2, Utensils, Wine as WineIcon } from 'lucide-react'
+import { BookOpen, ExternalLink, Grape, Grid3x3, Share2, Heart, MapPin, Pencil, Plus, Trash2, Utensils, Wine as WineIcon } from 'lucide-react'
 import { t } from '../lib/i18n'
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
@@ -8,6 +8,7 @@ import { useBlobUrl, useLocations, useWine } from '../lib/hooks'
 import { classicPairing } from '../lib/pairing'
 import { parseWindow } from '../lib/importer'
 import { formatMoney } from '../lib/settings'
+import { shareWineCard } from '../lib/shareCard'
 import { drinkStatus } from '../lib/status'
 import { WINE_TYPE_LABEL, type Bottle, type BottleStatus } from '../lib/types'
 
@@ -45,6 +46,13 @@ export default function WinePage() {
               className={cx('rounded-full p-2 hover:bg-ink-800', wine.favourite ? 'text-wine-300' : 'text-cream-300')}
             >
               <Heart size={20} fill={wine.favourite ? 'currentColor' : 'none'} />
+            </button>
+            <button
+              aria-label={t('Share')}
+              onClick={() => shareWineCard(wine).catch((e: Error) => alert(e.message))}
+              className="rounded-full p-2 text-cream-300 hover:bg-ink-800"
+            >
+              <Share2 size={20} />
             </button>
             <Link to={`/wine/${id}/edit`} aria-label={t('Edit')} className="rounded-full p-2 text-cream-300 hover:bg-ink-800">
               <Pencil size={20} />
