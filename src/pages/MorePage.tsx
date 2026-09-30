@@ -1,4 +1,4 @@
-import { ChevronRight, Dna, ShoppingBag, Download, Eye, EyeOff, FileJson, FileSpreadsheet, GripVertical, MapPin, Trash2, Upload } from 'lucide-react'
+import { ChevronRight, Dna, Grid3x3, ShoppingBag, Download, Eye, EyeOff, FileJson, FileSpreadsheet, GripVertical, MapPin, Trash2, Upload } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Button, cx, Label, PageHeader, Section } from '../components/ui'
@@ -92,6 +92,17 @@ export default function MorePage() {
         <ChevronRight className="text-cream-500" />
       </Link>
 
+      <Link to="/rack" className="card mb-6 flex items-center gap-4 p-4 hover:ring-ink-600">
+        <span className="rounded-xl bg-ink-700 p-2.5 text-cream-200">
+          <Grid3x3 />
+        </span>
+        <span className="flex-1">
+          <span className="block font-semibold text-cream-50">Rack map</span>
+          <span className="text-sm text-cream-400">See which bottle sits in which slot</span>
+        </span>
+        <ChevronRight className="text-cream-500" />
+      </Link>
+
       {sync.available && sync.authenticated && <DevicesSection />}
 
       <Section title="Cellar locations">
@@ -102,7 +113,11 @@ export default function MorePage() {
               <button className="flex-1 text-left text-sm text-cream-100" onClick={() => renameLocation(l.id!, l.name)}>
                 <MapPin size={14} className="mr-1.5 inline text-cream-400" />
                 {l.name}
+                {l.rows && l.cols ? <span className="ml-1.5 text-xs text-cream-500">{l.rows}×{l.cols}</span> : null}
               </button>
+              <Link to={`/rack?loc=${l.id}`} aria-label={`Rack map of ${l.name}`} className="text-cream-500 hover:text-cream-200">
+                <Grid3x3 size={16} />
+              </Link>
               <button
                 aria-label={`Delete ${l.name}`}
                 className="text-cream-500 hover:text-rose-300"
