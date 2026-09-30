@@ -54,14 +54,37 @@ Plus a restore drill: once a month, restore the latest export into the preview D
 
 **Recommendation:** Claude through the Worker proxy (default Sonnet 5.5, switchable). It's pennies a year at this volume and the most accurate. Adding a free fallback (Workers AI) is easy, about an hour, because the scanner is isolated in `src/lib/scanner.ts`.
 
-## Release checklist
+## The database (Cloudflare D1)
 
-- [ ] Create a private GitHub repo and push (`main` protected: PR + green CI required)
-- [ ] Cloudflare account → `wrangler login`
-- [ ] Worker + static assets, D1 `miovino` + `miovino-preview`, R2 bucket
-- [ ] Cloudflare Access policy: allow your email only
-- [ ] `/api/sync`, `/api/photo`, `/api/scan` + secrets (`ANTHROPIC_API_KEY`)
-- [ ] Sync in the app (push/pull, conflict = newest wins), migration of the current local data
-- [ ] Nightly backup Action + monthly restore drill
-- [ ] Custom domain (optional, e.g. `cellar.yourdomain.com`)
-- [ ] Install the PWA on your phone and test the live camera over HTTPS
+**What it is:** SQLite managed by Cloudflare. It runs next to the Worker, is free at this size (5 GB, 5M reads/day), and can restore to any minute of the last 7 days.
+
+**How data flows:**
+- The phone keeps a full copy of the cellar in the browser (IndexedDB). The app always reads from this copy, so it's instant and works offline.
+- Every change (add, edit, drink, delete) is stamped with a time and pushed to D1 by the Worker, about 2 seconds after the edit, on opening the app, and every 5 minutes.
+- Other devices pull whatever changed. If the same record was edited on two devices, the **most recent edit wins**.
+- Label photos are stored as files in R2 (`photos/<wineId>.jpg`), not in the database.
+
+**Schema** (`migrations/0001_init.sql`): one `records` table (kind, id, JSON data, updated_at, deleted, rev), plus readable views:
+`wines`, `bottles`, `tastings`, `locations` and `cellar` (what's in the cellar now). Query it yourself:
+
+```bash
+npm run db:query -- "SELECT producer, name, vintage, bottles, drink_from, drink_to FROM cellar"
+```
+
+**Schema changes** go in new numbered files in `migrations/`. CI backs up the database, applies migrations, then deploys.
+
+## Setup (one time)
+
+1. `npx wrangler login` (opens the browser, approve)
+2. `npm run cf:setup` creates the D1 databases (prod + preview), the R2 buckets (photos, preview photos, backups with 90-day expiry), writes the IDs into `wrangler.jsonc` and applies migrations
+3. `npm run deploy` (first deploy prints `https://miovino.<you>.workers.dev`)
+4. `npx wrangler secret put ANTHROPIC_API_KEY` (paste your key yourself; enables scanning on the server)
+5. **Lock it:** Dashboard → Workers → miovino → Settings → Domains & Routes → workers.dev → *Enable Cloudflare Access*. Copy the team domain and AUD tag into `wrangler.jsonc` → `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`, then `npm run deploy`. Until then, the API refuses every request.
+6. **CI/CD:** create an API token (Workers Scripts Edit, D1 Edit, Workers R2 Storage Edit, Account Settings Read). In GitHub → Settings → Secrets add `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`; under Variables add `CF_DEPLOY=true`.
+7. On your phone: open the URL, sign in with the email code, then **Add to Home Screen**.
+
+## Day-to-day
+
+- Work on a branch, open a PR. CI tests it and deploys it to `miovino-preview` (its own database).
+- Merge to `main`: CI backs up the DB, migrates, then deploys production.
+- Something broke? `npx wrangler rollback` (code), or D1 → Time Travel (data).

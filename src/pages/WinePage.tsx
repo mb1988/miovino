@@ -11,7 +11,7 @@ import { drinkStatus } from '../lib/status'
 import { WINE_TYPE_LABEL, type Bottle, type BottleStatus } from '../lib/types'
 
 export default function WinePage() {
-  const id = Number(useParams().id)
+  const id = useParams().id!
   const wine = useWine(id)
   const nav = useNavigate()
   const photo = useBlobUrl(wine?.photo)
@@ -347,7 +347,7 @@ function NotesSheet({ open, initial, onClose, onSave }: { open: boolean; initial
   )
 }
 
-function BottleSheet({ wineId, bottle, onClose }: { wineId: number; bottle: Bottle | 'new' | null; onClose: () => void }) {
+function BottleSheet({ wineId, bottle, onClose }: { wineId: string; bottle: Bottle | 'new' | null; onClose: () => void }) {
   const locations = useLocations()
   const isNew = bottle === 'new'
   const b = bottle && bottle !== 'new' ? bottle : undefined

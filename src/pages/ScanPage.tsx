@@ -6,7 +6,7 @@ import { addBottles } from '../lib/db'
 import { useCellar } from '../lib/hooks'
 import { matchCellar } from '../lib/match'
 import type { LabelResult } from '../lib/scanner'
-import { useSettings } from '../lib/settings'
+import { useCanScan } from '../lib/sync'
 import type { WineWithBottles } from '../lib/types'
 import { labelToDraft } from './EditWinePage'
 import { LiveCamera } from '../components/LiveCamera'
@@ -14,7 +14,7 @@ import { LiveCamera } from '../components/LiveCamera'
 type Phase = { k: 'idle' } | { k: 'reading'; preview: string } | { k: 'error'; msg: string; preview?: string } | { k: 'matched'; result: LabelResult; thumb: Blob; matches: WineWithBottles[]; preview: string }
 
 export default function ScanPage() {
-  const settings = useSettings()
+  const canScan = useCanScan()
   const cellar = useCellar()
   const nav = useNavigate()
   const [camOpen, setCamOpen] = useState(false)
@@ -43,7 +43,7 @@ export default function ScanPage() {
       <LiveCamera open={camOpen} onClose={() => setCamOpen(false)} onCapture={onFile} />
       <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => onFile(e.target.files?.[0])} />
 
-      {!settings.apiKey && (
+      {!canScan && (
         <div className="card mb-5 p-4 text-sm">
           <p className="flex items-center gap-2 font-medium text-cream-50">
             <KeyRound size={16} /> Scanner needs an Anthropic API key
@@ -65,10 +65,10 @@ export default function ScanPage() {
             </div>
           </div>
           <div className="grid w-full max-w-xs gap-2">
-            <Button className="py-3.5 text-base" disabled={!settings.apiKey} onClick={() => setCamOpen(true)}>
+            <Button className="py-3.5 text-base" disabled={!canScan} onClick={() => setCamOpen(true)}>
               <Camera size={20} /> Take photo
             </Button>
-            <Button variant="secondary" disabled={!settings.apiKey} onClick={() => fileRef.current?.click()}>
+            <Button variant="secondary" disabled={!canScan} onClick={() => fileRef.current?.click()}>
               <ImageUp size={18} /> Choose from library
             </Button>
             <Link to="/add/manual" className="mt-2 text-center text-sm text-cream-400 underline">

@@ -1,0 +1,2 @@
+ALLOW_NO_AUTH=true
+# ANTHROPIC_API_KEY=sk-ant-... (optional, enables /api/scan locally)

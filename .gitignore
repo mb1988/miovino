@@ -31,3 +31,7 @@ schema.tmp.json
 # Claude Code local worktrees
 .claude/worktrees/
 /data/
+
+# Cloudflare local state and secrets
+.wrangler/
+.dev.vars

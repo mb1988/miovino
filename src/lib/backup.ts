@@ -1,4 +1,4 @@
-import { db, loadCellar } from './db'
+import { db, deleteAllData, loadCellar } from './db'
 import { drinkStatus, STATUS_META } from './status'
 import { WINE_TYPE_LABEL, type Bottle, type Location, type Tasting, type Wine } from './types'
 
@@ -50,35 +50,33 @@ export async function buildBackup(): Promise<Backup> {
   }
 }
 
+/**
+ * Restores a backup. "replace" deletes current data first (deletions sync to other devices);
+ * "merge" upserts by id. Backups from v0.1 (numeric ids) get fresh UUIDs, with references remapped.
+ */
 export async function restoreBackup(json: unknown, mode: 'replace' | 'merge' = 'replace') {
   const b = json as Backup
   if (b?.format !== FORMAT) throw new Error('This file is not a MioVino backup.')
-  const wines: Wine[] = await Promise.all(b.wines.map(async (w) => ({ ...w, photo: w.photo ? await dataUrlToBlob(w.photo) : undefined })))
+  const ids = new Map<string, string>()
+  const remap = (kind: string, id: unknown) => {
+    if (id == null) return undefined
+    if (typeof id === 'string') return id
+    const k = `${kind}:${id}`
+    if (!ids.has(k)) ids.set(k, crypto.randomUUID())
+    return ids.get(k)!
+  }
+  const wines: Wine[] = await Promise.all(
+    b.wines.map(async (w) => ({ ...w, id: remap('w', w.id), photo: w.photo ? await dataUrlToBlob(w.photo) : undefined, hasPhoto: !!w.photo }) as Wine),
+  )
+  const bottles = b.bottles.map((x) => ({ ...x, id: remap('b', x.id), wineId: remap('w', x.wineId)!, tastingId: remap('t', x.tastingId) }))
+  const tastings = b.tastings.map((x) => ({ ...x, id: remap('t', x.id), wineId: remap('w', x.wineId)!, bottleId: remap('b', x.bottleId) }))
+  const locations = b.locations.map((x) => ({ ...x, id: remap('l', x.id) }))
+  if (mode === 'replace') await deleteAllData()
   await db.transaction('rw', db.wines, db.bottles, db.tastings, db.locations, async () => {
-    if (mode === 'replace') {
-      await Promise.all([db.wines.clear(), db.bottles.clear(), db.tastings.clear(), db.locations.clear()])
-      await db.wines.bulkAdd(wines)
-      await db.bottles.bulkAdd(b.bottles)
-      await db.tastings.bulkAdd(b.tastings)
-      await db.locations.bulkAdd(b.locations)
-    } else {
-      // Merge: re-key everything so ids never collide.
-      const wineIds = new Map<number, number>()
-      for (const w of wines) {
-        const { id, ...rest } = w
-        wineIds.set(id!, (await db.wines.add(rest as Wine)) as number)
-      }
-      const tastingIds = new Map<number, number>()
-      for (const t of b.tastings) {
-        const { id, ...rest } = t
-        tastingIds.set(id!, (await db.tastings.add({ ...rest, wineId: wineIds.get(t.wineId)! })) as number)
-      }
-      for (const bt of b.bottles) {
-        const { id: _id, ...rest } = bt
-        await db.bottles.add({ ...rest, wineId: wineIds.get(bt.wineId)!, tastingId: bt.tastingId ? tastingIds.get(bt.tastingId) : undefined })
-      }
-      for (const l of b.locations) if (!(await db.locations.where('name').equals(l.name).first())) await db.locations.add({ name: l.name, order: l.order })
-    }
+    await db.wines.bulkPut(wines)
+    await db.bottles.bulkPut(bottles)
+    await db.tastings.bulkPut(tastings)
+    for (const l of locations) if (!(await db.locations.where('name').equals(l.name).first())) await db.locations.put(l)
   })
 }
 

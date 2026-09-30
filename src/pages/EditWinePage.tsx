@@ -8,7 +8,7 @@ import { useBlobUrl, useLocations } from '../lib/hooks'
 import { tidyName } from '../lib/importer'
 import { enrich } from '../lib/knowledge'
 import { imageToBase64 } from '../lib/image'
-import { useSettings } from '../lib/settings'
+import { useCanScan } from '../lib/sync'
 import type { LabelResult } from '../lib/scanner'
 import { WINE_TYPE_LABEL, WINE_TYPES, type ExternalInfo, type Wine, type WineType } from '../lib/types'
 
@@ -110,7 +110,7 @@ const num = (s: string) => {
 
 export default function EditWinePage() {
   const params = useParams()
-  const editId = params.id ? Number(params.id) : undefined
+  const editId = params.id
   const nav = useNavigate()
   const state = (useLocation().state ?? {}) as AddState
   const locations = useLocations()
@@ -120,7 +120,7 @@ export default function EditWinePage() {
   const [error, setError] = useState('')
   const photoUrl = useBlobUrl(draft.photo)
   const fileRef = useRef<HTMLInputElement>(null)
-  const settings = useSettings()
+  const canScan = useCanScan()
   const [camera, setCamera] = useState<'photo' | 'scan' | null>(null)
   const [scanMsg, setScanMsg] = useState('')
   const [scanning, setScanning] = useState(false)
@@ -188,6 +188,7 @@ export default function EditWinePage() {
       personalNotes: draft.personalNotes.trim() || undefined,
       external: draft.external,
       photo: draft.photo,
+      hasPhoto: !!draft.photo,
     }
     if (editId != null) {
       await updateWine(editId, { ...wine, needsReview: undefined })
@@ -233,8 +234,8 @@ export default function EditWinePage() {
             <Button
               variant="secondary"
               className="px-3 py-1.5 text-xs"
-              disabled={scanning || !settings.apiKey}
-              title={settings.apiKey ? 'Read the label and fill empty fields' : 'Add an API key in Settings to scan'}
+              disabled={scanning || !canScan}
+              title={canScan ? 'Read the label and fill empty fields' : 'Scanning needs the server or an API key in Settings'}
               onClick={() => setCamera('scan')}
             >
               {scanning ? <Loader2 size={14} className="animate-spin" /> : <ScanLine size={14} />} Scan label

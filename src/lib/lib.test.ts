@@ -104,7 +104,7 @@ describe.runIf(existsSync(new URL('../../Wine.xlsx', import.meta.url)))('Wine.xl
 })
 
 describe('recommender', () => {
-  const mk = (id: number, over: Partial<WineWithBottles>): WineWithBottles => ({
+  const mk = (id: string, over: Partial<WineWithBottles>): WineWithBottles => ({
     id,
     producer: 'P' + id,
     name: 'W' + id,
@@ -116,19 +116,18 @@ describe('recommender', () => {
     favourite: false,
     tags: [],
     createdAt: 0,
-    updatedAt: 0,
     bottles: [{ wineId: id, status: 'cellar', createdAt: 0, purchasePrice: 50 }],
     inCellar: 1,
     tastings: [],
     ...over,
   })
   it('puts urgent wines first and skips hold when readyOnly', () => {
-    const cellar = [mk(1, { drinkFrom: 2030, drinkTo: 2040 }), mk(2, { drinkFrom: 2020, drinkTo: 2027 }), mk(3, { drinkFrom: 2020, drinkTo: 2035 })]
+    const cellar = [mk('w1', { drinkFrom: 2030, drinkTo: 2040 }), mk('w2', { drinkFrom: 2020, drinkTo: 2027 }), mk('w3', { drinkFrom: 2020, drinkTo: 2035 })]
     const all = suggest(cellar, { type: 'any', occasion: 'any', readyOnly: false }, 2026)
-    expect(all[0].wine.id).toBe(2)
-    expect(all.at(-1)!.wine.id).toBe(1)
+    expect(all[0].wine.id).toBe('w2')
+    expect(all.at(-1)!.wine.id).toBe('w1')
     const ready = suggest(cellar, { type: 'any', occasion: 'any', readyOnly: true }, 2026)
-    expect(ready.map((s) => s.wine.id)).not.toContain(1)
+    expect(ready.map((s) => s.wine.id)).not.toContain('w1')
   })
 })
 
