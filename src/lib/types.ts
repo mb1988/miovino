@@ -21,6 +21,9 @@ export interface ExternalInfo {
   score?: number
   pairing?: string
   description?: string
+  window?: string // e.g. "2024–2036 / 2026–2046" as published
+  note?: string
+  url?: string
 }
 
 export interface Wine {

@@ -1,10 +1,13 @@
-import { foodAffinity, normalizeText, type Food } from './knowledge'
+import type { Food } from './knowledge'
+import { classicPairing, foodsFromText, pairingMentions, wineFoods } from './pairing'
 import { currentYear, drinkStatus } from './status'
 import type { WineType, WineWithBottles } from './types'
 
 export interface SuggestOptions {
   type: WineType | 'any'
   food?: Food
+  /** Free text, e.g. "lamb chops" or "risotto ai funghi" — mapped to food families. */
+  dish?: string
   occasion: 'casual' | 'special' | 'any'
   maxPrice?: number
   readyOnly: boolean
@@ -70,18 +73,19 @@ export function suggest(cellar: WineWithBottles[], opts: SuggestOptions, year = 
       reasons.push(`Around its peak year (${w.peakYear})`)
     }
 
-    if (opts.food) {
-      const guidePairing = w.external.map((e) => e.pairing ?? '').join(' ')
-      const affinities = foodAffinity(w.type, w.grapes, w.region)
-      if (affinities.includes(opts.food)) {
+    const wanted = [...new Set([...(opts.food ? [opts.food] : []), ...(opts.dish ? foodsFromText(opts.dish) : [])])]
+    if (wanted.length) {
+      const guidePairing = w.external.map((e) => e.pairing ?? '').filter(Boolean).join('; ')
+      const suits = wineFoods(w)
+      const hits = wanted.filter((f) => suits.includes(f))
+      if (hits.length) {
         score += 15
-        reasons.push(`Classic match with ${opts.food.toLowerCase()}`)
-      } else {
-        score -= 15
-      }
-      if (guidePairing && pairingMentions(guidePairing, opts.food)) {
+        const classic = classicPairing(w)
+        reasons.push(classic ? `${classic.basis} is a classic match with ${hits.join(' / ').toLowerCase()}` : `Good match with ${hits.join(' / ').toLowerCase()}`)
+      } else score -= 15
+      if (guidePairing && wanted.some((f) => pairingMentions(guidePairing, f))) {
         score += 10
-        reasons.push(`Guide suggests: ${guidePairing}`)
+        reasons.push(`Guide pairing: ${guidePairing}`)
       }
     }
 
@@ -111,23 +115,4 @@ export function suggest(cellar: WineWithBottles[], opts: SuggestOptions, year = 
     out.push({ wine: w, score, reasons })
   }
   return out.sort((a, b) => b.score - a.score)
-}
-
-const FOOD_WORDS: Record<Food, string[]> = {
-  'Red meat': ['manzo', 'filetto', 'tagliata', 'carne', 'beef', 'steak', 'stracotto', 'brasato', 'vitello', 'agnello', 'lamb', 'ossobuco', 'grigliata'],
-  Game: ['capriolo', 'cinghiale', 'lepre', 'camoscio', 'cervo', 'selvaggina', 'piccione', 'pernice', 'fagiano', 'game', 'venison', 'anatra'],
-  Poultry: ['pollo', 'chicken', 'tacchino', 'coq', 'faraona', 'piccione', 'pernice'],
-  Pork: ['maiale', 'pork', 'stinco', 'salsiccia', 'porchetta', 'pancetta'],
-  Fish: ['pesce', 'fish', 'branzino', 'orata', 'salmone', 'tonno'],
-  Shellfish: ['crostacei', 'gamberi', 'ostriche', 'oysters', 'shellfish', 'scampi', 'aragosta'],
-  'Pasta / risotto': ['risotto', 'pasta', 'tajarin', 'agnolotti', 'plin', 'ragu', 'lasagne'],
-  Cheese: ['formaggio', 'cheese', 'taleggio', 'parmigiano', 'gorgonzola', 'pecorino'],
-  Vegetarian: ['verdure', 'vegetable', 'funghi', 'mushroom', 'tartufo', 'truffle'],
-  Dessert: ['dolce', 'dessert', 'torta', 'crostata', 'pasticceria'],
-  Aperitif: ['aperitivo', 'aperitif', 'antipasto'],
-}
-
-function pairingMentions(text: string, food: Food) {
-  const t = normalizeText(text)
-  return FOOD_WORDS[food].some((w) => t.includes(w))
 }

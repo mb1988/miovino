@@ -1,9 +1,11 @@
-import { BookOpen, Grape, Heart, MapPin, Pencil, Plus, Trash2, Wine as WineIcon } from 'lucide-react'
+import { BookOpen, ExternalLink, Grape, Heart, MapPin, Pencil, Plus, Trash2, Utensils, Wine as WineIcon } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Bottle as BottleIcon, Button, cx, Flag, Label, PageHeader, Section, Sheet, Stars, StatusChip, WindowBar } from '../components/ui'
 import { addBottles, db, deleteWine, ensureLocation, today, updateWine } from '../lib/db'
 import { useBlobUrl, useLocations, useWine } from '../lib/hooks'
+import { classicPairing } from '../lib/pairing'
+import { parseWindow } from '../lib/importer'
 import { formatMoney } from '../lib/settings'
 import { drinkStatus } from '../lib/status'
 import { WINE_TYPE_LABEL, type Bottle, type BottleStatus } from '../lib/types'
@@ -187,6 +189,8 @@ export default function WinePage() {
         )}
       </Section>
 
+      <FoodSection wine={wine} />
+
       <Section title="Wine info">
         <div className="card divide-y divide-ink-700 text-sm">
           <InfoRow label="Appellation" value={wine.appellation} />
@@ -210,7 +214,34 @@ export default function WinePage() {
                 {e.pairing}
               </p>
             )}
+            {e.window && (
+              <div className="mb-2 flex flex-wrap items-center gap-2">
+                <span className="text-cream-400">Drinking window:</span>
+                <span className="font-medium text-cream-50">{e.window}</span>
+                {(() => {
+                  const w = parseWindow(e.window.split('/')[0])
+                  if (w.from == null || (w.from === wine.drinkFrom && w.to === wine.drinkTo)) return null
+                  return (
+                    <button
+                      className="rounded-full bg-ink-800 px-2.5 py-0.5 text-xs text-wine-300 ring-1 ring-ink-600"
+                      onClick={() => {
+                        if (confirm(`Replace your window ${wine.drinkFrom ?? '…'}–${wine.drinkTo ?? '…'} with ${w.from}–${w.to ?? '…'}?`))
+                          updateWine(id, { drinkFrom: w.from, drinkTo: w.to ?? wine.drinkTo, needsReview: undefined })
+                      }}
+                    >
+                      Use {w.from}–{w.to ?? '…'}
+                    </button>
+                  )
+                })()}
+              </div>
+            )}
             {e.description && <p className="leading-relaxed text-cream-300 italic">{e.description}</p>}
+            {e.note && <p className="mt-2 text-xs text-cream-400">{e.note}</p>}
+            {e.url && (
+              <a href={e.url} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-xs text-wine-300 underline">
+                Source <ExternalLink size={12} />
+              </a>
+            )}
           </div>
         </Section>
       ))}
@@ -245,6 +276,38 @@ export default function WinePage() {
       <BottleSheet wineId={id} bottle={editing} onClose={() => setEditing(null)} />
       <NotesSheet key={String(notesOpen)} open={notesOpen} initial={wine.personalNotes ?? ''} onClose={() => setNotesOpen(false)} onSave={(n) => updateWine(id, { personalNotes: n || undefined })} />
     </div>
+  )
+}
+
+function FoodSection({ wine }: { wine: Parameters<typeof classicPairing>[0] & { external: { source: string; pairing?: string }[] } }) {
+  const guide = wine.external.filter((e) => e.pairing)
+  const classic = classicPairing(wine)
+  if (!guide.length && !classic) return null
+  return (
+    <Section title="What to eat with it">
+      <div className="card space-y-3 p-4 text-sm">
+        {guide.map((e) => (
+          <p key={e.source} className="flex gap-2 text-cream-50">
+            <Utensils size={16} className="mt-0.5 shrink-0 text-gold-400" />
+            <span>
+              {e.pairing} <span className="text-xs text-cream-400">— {e.source}</span>
+            </span>
+          </p>
+        ))}
+        {classic && (
+          <div>
+            <p className="mb-2 text-xs text-cream-400">Classic pairings for {classic.basis}</p>
+            <div className="flex flex-wrap gap-1.5">
+              {classic.dishes.map((d) => (
+                <span key={d} className="rounded-full bg-ink-800 px-2.5 py-1 text-xs text-cream-200 ring-1 ring-ink-600">
+                  {d}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </Section>
   )
 }
 

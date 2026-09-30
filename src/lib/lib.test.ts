@@ -94,9 +94,9 @@ describe('spreadsheet import (fixture: real rows with the tricky cases)', async 
 })
 
 // The full personal spreadsheet is not in git; this runs only on a machine that has it.
-describe.runIf(existsSync(new URL('../../Wine.xlsx', import.meta.url)))('Wine.xlsx (local only)', async () => {
-  const { parsed } = await load('../../Wine.xlsx')
-  it('reads all wines and bottles, every row gets a country', () => {
+describe.runIf(existsSync(new URL('../../Wine.xlsx', import.meta.url)))('Wine.xlsx (local only)', () => {
+  it('reads all wines and bottles, every row gets a country', async () => {
+    const { parsed } = await load('../../Wine.xlsx')
     const rows = parsed.filter((p) => !p.skip)
     expect(rows.length).toBeGreaterThanOrEqual(48)
     expect(rows.every((p) => p.wine.country)).toBe(true)
@@ -129,5 +129,38 @@ describe('recommender', () => {
     expect(all.at(-1)!.wine.id).toBe(1)
     const ready = suggest(cellar, { type: 'any', occasion: 'any', readyOnly: true }, 2026)
     expect(ready.map((s) => s.wine.id)).not.toContain(1)
+  })
+})
+
+describe('food pairing', async () => {
+  const { classicPairing, foodsFromText, wineFoods } = await import('./pairing')
+  it('maps free text in English and Italian to food families', () => {
+    expect(foodsFromText('lamb chops')).toContain('Red meat')
+    expect(foodsFromText('Lepre in salmì')).toContain('Game')
+    expect(foodsFromText('risotto ai funghi')).toEqual(expect.arrayContaining(['Pasta / risotto', 'Vegetarian']))
+  })
+  it('gives classic pairings by appellation', () => {
+    expect(classicPairing({ producer: 'Vietti', name: 'Barolo Castiglione', grapes: ['Nebbiolo'] })?.basis).toBe('Barolo & Barbaresco')
+    expect(classicPairing({ producer: 'Haut-Bergeron', name: 'Sauternes', grapes: [] })?.dishes).toContain('Foie gras')
+  })
+  it('combines guide pairing with style', () => {
+    const foods = wineFoods({ producer: 'X', name: 'Brunello', grapes: ['Sangiovese'], type: 'red', region: 'Tuscany', external: [{ source: 'Vitae', pairing: 'Lepre in salmì' }] })
+    expect(foods).toEqual(expect.arrayContaining(['Game', 'Red meat']))
+  })
+})
+
+describe('critic columns', () => {
+  it('imports critic window as external info and flags disagreement', () => {
+    const mapping = guessMapping(['Produttore', 'Vino', 'Anno', 'Best to Drink', 'Critic window', 'Critic source', 'Review', 'Source link'])
+    expect(mapping['Critic window']).toBe('criticWindow')
+    expect(mapping['Review']).toBe('reviewNote')
+    const p = normalizeRow(
+      { Produttore: 'Domaine Rostaing', Vino: 'Côte-Rôtie Ampodium', Anno: 2019, 'Best to Drink': '2030–2038', 'Critic window': '2024–2032', 'Critic source': 'Wine Advocate', Review: 'Critics: earlier AND ends earlier', 'Source link': 'https://example.com' },
+      mapping,
+      2,
+    )
+    expect(p.wine.external).toContainEqual(expect.objectContaining({ source: 'Critics', window: '2024–2032', url: 'https://example.com' }))
+    expect(p.wine.needsReview?.join()).toMatch(/Check window/)
+    expect(p.wine.drinkFrom).toBe(2030) // spreadsheet stays the source of truth
   })
 })

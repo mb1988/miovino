@@ -42,7 +42,13 @@ export default function SuggestPage() {
           </div>
         </div>
         <div>
-          <Label>Eating</Label>
+          <Label>What are you eating?</Label>
+          <input
+            className="field mb-2"
+            placeholder="e.g. lamb chops, risotto ai funghi, cinghiale…"
+            value={opts.dish ?? ''}
+            onChange={(e) => up({ dish: e.target.value || undefined })}
+          />
           <div className="flex flex-wrap gap-1.5">
             <Chip active={!opts.food} onClick={() => up({ food: undefined })}>
               Nothing / anything

@@ -122,7 +122,7 @@ export default function MorePage() {
           <label className="block">
             <Label>Currency</Label>
             <select className="field" value={s.currency} onChange={(e) => saveSettings({ currency: e.target.value })}>
-              {['EUR', 'GBP', 'USD', 'CHF'].map((c) => (
+              {['GBP', 'EUR', 'USD', 'CHF'].map((c) => (
                 <option key={c}>{c}</option>
               ))}
             </select>
