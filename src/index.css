@@ -1,0 +1,97 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Fraunces', ui-serif, Georgia, serif;
+
+  --color-ink-950: #0f080b;
+  --color-ink-900: #160c11;
+  --color-ink-850: #1d1117;
+  --color-ink-800: #26161e;
+  --color-ink-700: #35202b;
+  --color-ink-600: #4a2e3c;
+
+  --color-wine-700: #6d1530;
+  --color-wine-600: #8a1c3c;
+  --color-wine-500: #a8284d;
+  --color-wine-400: #c7466b;
+  --color-wine-300: #e07b98;
+
+  --color-cream-50: #fbf6ee;
+  --color-cream-100: #f3e9d9;
+  --color-cream-200: #e8d5b5;
+  --color-cream-300: #cdb793;
+  --color-cream-400: #a8977c;
+  --color-cream-500: #7f7263;
+
+  --color-gold-400: #e0b865;
+}
+
+html,
+body {
+  background: var(--color-ink-900);
+  color: var(--color-cream-100);
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}
+
+body {
+  font-family: var(--font-sans);
+  min-height: 100dvh;
+}
+
+.font-display {
+  font-variation-settings: 'opsz' 72;
+}
+
+@layer components {
+/* Inputs share one look */
+.field {
+  @apply w-full rounded-xl bg-ink-800 px-3.5 py-2.5 text-cream-50 ring-1 ring-ink-600 outline-none placeholder:text-cream-500 focus:ring-2 focus:ring-wine-400;
+}
+
+select.field {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23a8977c' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.9rem center;
+  padding-right: 2.2rem;
+}
+
+.card {
+  @apply rounded-2xl bg-ink-850 ring-1 ring-ink-700;
+}
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.animate-rise {
+  animation: rise 0.25s ease-out both;
+}
+
+@keyframes sheet {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+.animate-sheet {
+  animation: sheet 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
