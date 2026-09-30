@@ -94,9 +94,9 @@ describe('spreadsheet import (fixture: real rows with the tricky cases)', async 
 })
 
 // The full personal spreadsheet is not in git; this runs only on a machine that has it.
-describe.runIf(existsSync(new URL('../../Wine.xlsx', import.meta.url)))('Wine.xlsx (local only)', async () => {
-  const { parsed } = await load('../../Wine.xlsx')
-  it('reads all wines and bottles, every row gets a country', () => {
+describe.runIf(existsSync(new URL('../../Wine.xlsx', import.meta.url)))('Wine.xlsx (local only)', () => {
+  it('reads all wines and bottles, every row gets a country', async () => {
+    const { parsed } = await load('../../Wine.xlsx')
     const rows = parsed.filter((p) => !p.skip)
     expect(rows.length).toBeGreaterThanOrEqual(48)
     expect(rows.every((p) => p.wine.country)).toBe(true)
