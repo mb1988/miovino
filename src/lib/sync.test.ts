@@ -293,3 +293,50 @@ describe('push reminders endpoints', () => {
     }
   })
 })
+
+describe('ask my cellar endpoint', () => {
+  async function setup(extra: Record<string, unknown> = {}) {
+    const db = sqliteD1()
+    const worker = ((await import(/* @vite-ignore */ new URL('../../worker/index.ts', import.meta.url).href)) as { default: { fetch: (req: Request, env: unknown) => Promise<Response> } }).default
+    const env = { DB: db, ALLOW_NO_AUTH: 'true', ASSETS: { fetch: async () => new Response('index') }, ...extra }
+    const call = (path: string, body: unknown) => worker.fetch(new Request('https://cellar.test' + path, { method: 'POST', body: JSON.stringify(body) }), env)
+    const ask = (await import(/* @vite-ignore */ new URL('../../worker/ask.ts', import.meta.url).href)) as {
+      validateTurns: (b: unknown) => unknown
+      cellarSnapshot: (db: unknown, now?: Date) => Promise<string>
+    }
+    return { db, call, ask }
+  }
+
+  it('explains when the server has no Claude key, and checks the conversation shape', async () => {
+    const { call, ask } = await setup()
+    const res = await call('/api/ask', { messages: [{ role: 'user', content: 'Hi' }] })
+    expect(res.status).toBe(501)
+    expect(((await res.json()) as { error: string }).error).toMatch(/ANTHROPIC_API_KEY/)
+    expect(ask.validateTurns({ messages: [{ role: 'user', content: 'Hi' }] })).toBeTruthy()
+    expect(ask.validateTurns({ messages: [{ role: 'assistant', content: 'Hi' }] })).toBeNull() // must start with the user
+    expect(ask.validateTurns({ messages: [{ role: 'user', content: 'a' }, { role: 'assistant', content: 'b' }] })).toBeNull() // must end with the user
+    expect(ask.validateTurns({ messages: [{ role: 'user', content: 'x'.repeat(4001) }] })).toBeNull()
+    expect(ask.validateTurns({ messages: [{ role: 'system', content: 'x' }] })).toBeNull()
+  })
+
+  it('gives Claude a compact snapshot of bottles, tastings and the wishlist', async () => {
+    const { db, call, ask } = await setup()
+    const c = (kind: string, id: string, data: Record<string, unknown>) => ({ kind, id, updatedAt: 1, deleted: false, data })
+    await call('/api/sync', {
+      cursor: 0,
+      changes: [
+        c('wines', 'wine-gaja-0001', { producer: 'Gaja', name: 'Barbaresco', vintage: 2016, type: 'red', region: 'Piedmont', grapes: ['Nebbiolo'], drinkFrom: 2022, drinkTo: 2027 }),
+        c('bottles', 'bottle-0000-0001', { wineId: 'wine-gaja-0001', status: 'cellar', location: 'Rack A', slot: 'B4', purchasePrice: 180 }),
+        c('wines', 'wine-krug-0001', { producer: 'Krug', name: 'Grande Cuvée', vintage: null, type: 'sparkling' }),
+        c('bottles', 'bottle-0000-0002', { wineId: 'wine-krug-0001', status: 'drunk' }),
+        c('tastings', 'tasting-0000-0001', { wineId: 'wine-krug-0001', date: '2026-05-01', rating: 5, buyAgain: 'yes', notes: 'Stunning' }),
+        c('wishlist', 'wish-0000-0001', { producer: 'Vietti', name: 'Barolo Rocche', note: 'for the 2030 birthday' }),
+      ],
+    })
+    const text = await ask.cellarSnapshot(db, new Date('2026-09-30T12:00:00Z'))
+    expect(text).toContain('Today is 2026-09-30.')
+    expect(text).toContain('- Gaja Barbaresco 2016 — red; Piedmont; Nebbiolo; window 2022–2027 (drink soon); 1 bottle at Rack A B4; paid 180')
+    expect(text).toContain('## Already drunk\n- Krug Grande Cuvée NV — drunk; 2026-05-01, 5/5, buy again: yes, "Stunning"')
+    expect(text).toContain('- Vietti Barolo Rocche (for the 2030 birthday)')
+  })
+})

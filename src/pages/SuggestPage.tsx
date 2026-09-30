@@ -1,4 +1,4 @@
-import { MapPin, RefreshCw, Sparkles, Wine as WineIcon } from 'lucide-react'
+import { MapPin, MessageCircle, RefreshCw, Sparkles, Wine as WineIcon } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { locationsOf } from '../components/WineCard'
@@ -26,6 +26,14 @@ export default function SuggestPage() {
   return (
     <div>
       <PageHeader title="What should I drink?" subtitle="Picks from your own cellar" />
+
+      <Link to="/ask" className="card mb-4 flex items-center gap-3 p-4 hover:ring-ink-600">
+        <MessageCircle className="text-gold-400" />
+        <span className="flex-1">
+          <span className="block font-semibold text-cream-50">Ask my cellar</span>
+          <span className="text-sm text-cream-400">&ldquo;What goes with lamb?&rdquo; &mdash; answers from your own bottles</span>
+        </span>
+      </Link>
 
       <div className="card mb-5 space-y-4 p-4">
         <div>

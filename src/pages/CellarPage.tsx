@@ -1,4 +1,4 @@
-import { Camera, FileSpreadsheet, LayoutList, PenLine, Rows3, Search, SlidersHorizontal, Sparkles, Wine as WineIcon, X } from 'lucide-react'
+import { ArrowUpDown, Camera, FileSpreadsheet, LayoutList, PenLine, Rows3, Search, SlidersHorizontal, Sparkles, Wine as WineIcon, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { MonthlyDigest } from '../components/MonthlyDigest'
@@ -183,13 +183,18 @@ export default function CellarPage() {
             </option>
           ))}
         </select>
-        <select aria-label="Sort" className="rounded-lg bg-transparent py-1 text-right text-cream-200 outline-none" value={sort} onChange={(e) => set('sort', e.target.value === 'urgency' ? null : e.target.value)}>
-          {Object.entries(SORTS).map(([k, v]) => (
-            <option key={k} value={k} className="bg-ink-850">
-              {v}
-            </option>
-          ))}
-        </select>
+        {/* A visible pill; the native select on top keeps the phone's own picker. */}
+        <label className="relative flex items-center gap-1.5 rounded-full bg-ink-800 px-3 py-1.5 font-medium text-cream-100 ring-1 ring-ink-600">
+          <ArrowUpDown size={13} className="text-cream-400" />
+          Sort: {SORTS[sort] ?? SORTS.urgency}
+          <select aria-label="Sort" className="absolute inset-0 cursor-pointer opacity-0" value={sort} onChange={(e) => set('sort', e.target.value === 'urgency' ? null : e.target.value)}>
+            {Object.entries(SORTS).map(([k, v]) => (
+              <option key={k} value={k}>
+                {v}
+              </option>
+            ))}
+          </select>
+        </label>
         </span>
       </div>
 

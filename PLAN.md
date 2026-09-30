@@ -123,18 +123,23 @@ Bottom nav: **Cellar · Drink · ＋Add (big) · Journal · More**
 - [x] Vintage filter + vintage picker; currency £
 - [x] Git repo, feature branches, CI workflow
 
-### Phase 2 — release (see docs/RELEASE.md)
-- Cloudflare: Worker + D1 + R2 + Access; sync; AI proxy; nightly backups
+### Phase 2 — release ✅ live at https://miovino.miovino.workers.dev
+- [x] Cloudflare Worker + D1 (photos in D1), sync, passkey login, server-side label scan
+- [x] CI/CD: every merge to `main` backs up D1, runs migrations and deploys; PRs deploy to `miovino-preview`
 
-### Phase 3 — next features, in suggested order
-1. **Drinking reminders**: monthly "ready now / closing soon" push notification + email digest
-2. **Visual rack map**: tap a slot to see the bottle; "where is it?" highlight
-3. **Ask my cellar** (AI chat over your own data): "what goes with ossobuco?", "what do I have from Piedmont ready this year?"
-4. **Barcode scan**: instant re-add of a bottle you already own
-5. **Wishlist / shopping list**: wines to buy again ("buy again = yes" feeds it)
-6. **Stats over time**: spend per year, bottles in/out, value
-7. **Italian UI**
-8. **Share a wine card**: image of the bottle + your note, to send to friends
+### Phase 3 — features (status 2026-09-30)
+1. [x] **Wishlist / shopping list** — buy again = yes feeds it
+2. [x] **Visual rack map** — tap a slot, "show in rack" highlight
+3. [x] **Drinking reminders** — monthly card + Web Push (cron 1st of month); email digest not done
+4. [x] **Ask my cellar** — chat over your own data (needs `ANTHROPIC_API_KEY` Worker secret)
+5. [ ] **Barcode scan** — instant re-add of a bottle you already own
+6. [ ] **Italian UI**
+7. [ ] **Stats over time** — spend per year, bottles in/out, value
+8. [ ] **Share a wine card** — image of the bottle + your note
+
+### Waiting on the owner
+- `ANTHROPIC_API_KEY` as a Worker secret (label scan + chat): `npx wrangler secret put ANTHROPIC_API_KEY`
+- Try push reminders on the iPhone (Home Screen app → More → Reminders)
 
 ### Later, only if wanted
 Market value tracking, partner/shared cellar, multiple cellars, restaurant wine-list scanner.
