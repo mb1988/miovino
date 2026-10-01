@@ -107,7 +107,7 @@ function SpendChart({ years }: { years: YearRow[] }) {
           <span className="text-cream-400">{t('Tap a year for details')}</span>
         )}
       </p>
-      <div className="flex h-40 items-end gap-0.5 border-b border-ink-600" role="img" aria-label={t('Spent per year')}>
+      <div className="flex h-40 items-end gap-0.5 border-b border-ink-600" role="group" aria-label={t('Spent per year')}>
         {years.map((y) => (
           <button
             key={y.year}

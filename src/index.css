@@ -22,7 +22,7 @@
   --color-cream-200: #e8d5b5;
   --color-cream-300: #cdb793;
   --color-cream-400: #a8977c;
-  --color-cream-500: #7f7263;
+  --color-cream-500: #908271; /* ≥4.5:1 on ink-900/850/800 (WCAG AA) */
 
   --color-gold-400: #e0b865;
 }
@@ -94,4 +94,26 @@ select.field {
 }
 .animate-sheet {
   animation: sheet 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+/* Keyboard focus: a clear ring on anything interactive (mouse/touch clicks don't show it). */
+:where(a, button, summary, [role='button'], [tabindex]:not([tabindex='-1'])):focus-visible {
+  outline: 2px solid var(--color-wine-300);
+  outline-offset: 2px; /* follows each element's own rounded shape */
+}
+/* Tailwind's rounded-full is an 'infinite' radius, which Chromium draws square once an outline is added. */
+.rounded-full:focus-visible {
+  border-radius: 9999px;
+}
+
+/* Respect "reduce motion": no pulsing, sliding or smooth scrolling. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

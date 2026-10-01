@@ -147,7 +147,7 @@ Bottom nav: **Cellar · Drink · ＋Add (big) · Journal · More**
 3. [x] **"What should I drink?" reasons in Italian** — `src/lib/recommend.ts` reason strings through `t()`
 4. [x] **Drinking-window suggestions** — for wines with no window, ask Claude (server) for a typical window; owner confirms per wine
 5. [x] **Wine page: price paid vs. now** — optional "current price" field and the difference in Cellar over time
-6. [ ] **Accessibility pass** — focus rings, labels, contrast check on every screen at 390px and desktop
+6. [x] **Accessibility pass** — focus rings, labels, contrast check on every screen at 390px and desktop
 7. [ ] **End-to-end smoke test in CI** — Playwright against `vite preview` with a seeded IndexedDB and mocked `/api`
 
 ### Later, only if wanted

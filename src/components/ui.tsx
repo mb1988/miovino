@@ -48,7 +48,8 @@ export function PageHeader({ title, subtitle, back, right }: { title: ReactNode;
           </button>
         )}
         <div className="min-w-0 flex-1">
-          <h1 className="font-display truncate text-2xl font-semibold text-cream-50">{title}</h1>
+          {/* Pages with their own heading (e.g. a wine's name in the hero) pass an empty title. */}
+          {title ? <h1 className="font-display truncate text-2xl font-semibold text-cream-50">{title}</h1> : null}
           {subtitle && <p className="truncate text-sm text-cream-400">{subtitle}</p>}
         </div>
         {right}
@@ -111,7 +112,7 @@ export function Flag({ country }: { country?: string }) {
 export function Stars({ value, size = 14, className }: { value?: number; size?: number; className?: string }) {
   if (value == null) return null
   return (
-    <span className={cx('inline-flex items-center gap-0.5 text-gold-400', className)} aria-label={`${value} of 5`}>
+    <span role="img" className={cx('inline-flex items-center gap-0.5 text-gold-400', className)} aria-label={t('{value} of 5 stars', { value: value ?? 0 })}>
       {[1, 2, 3, 4, 5].map((i) => {
         const fill = Math.max(0, Math.min(1, value - (i - 1)))
         return (
@@ -139,8 +140,8 @@ export function StarInput({ value, onChange }: { value?: number; onChange: (v: n
             <div className="absolute inset-0 overflow-hidden text-gold-400" style={{ width: `${fill * 100}%` }}>
               <Star size={40} fill="currentColor" strokeWidth={0} />
             </div>
-            <button type="button" aria-label={`${i - 0.5} stars`} className="absolute inset-y-0 left-0 w-1/2" onClick={() => onChange(value === i - 0.5 ? undefined : i - 0.5)} />
-            <button type="button" aria-label={`${i} stars`} className="absolute inset-y-0 right-0 w-1/2" onClick={() => onChange(value === i ? undefined : i)} />
+            <button type="button" aria-label={t('{value} stars', { value: i - 0.5 })} className="absolute inset-y-0 left-0 w-1/2" onClick={() => onChange(value === i - 0.5 ? undefined : i - 0.5)} />
+            <button type="button" aria-label={t('{value} stars', { value: i })} className="absolute inset-y-0 right-0 w-1/2" onClick={() => onChange(value === i ? undefined : i)} />
           </div>
         )
       })}
@@ -195,7 +196,18 @@ export function Sheet({ open, onClose, title, children }: { open: boolean; onClo
   if (!open) return null
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 sm:items-center" onClick={onClose}>
-      <div className="animate-sheet pb-[calc(env(safe-area-inset-bottom)+1.25rem)] max-h-[88dvh] w-full max-w-xl overflow-y-auto rounded-t-3xl bg-ink-850 p-5 ring-1 ring-ink-700 sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        ref={(el) => {
+          // Move focus into the sheet when it opens, so keyboard and screen-reader users land in it.
+          if (el && !el.contains(document.activeElement)) el.focus()
+        }}
+        tabIndex={-1}
+        className="animate-sheet pb-[calc(env(safe-area-inset-bottom)+1.25rem)] max-h-[88dvh] w-full max-w-xl overflow-y-auto rounded-t-3xl bg-ink-850 p-5 ring-1 ring-ink-700 outline-none sm:rounded-3xl"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="mb-4 flex items-center justify-between">
           <h2 className="font-display text-xl font-semibold text-cream-50">{title}</h2>
           <button aria-label={t('Close')} onClick={onClose} className="rounded-full p-1.5 text-cream-300 hover:bg-ink-700">
