@@ -187,3 +187,28 @@ describe('cellar timeline', async () => {
     expect(t.unpriced).toBe(1)
   })
 })
+
+describe('suggestion reasons follow the language', async () => {
+  const { setLang } = await import('./i18n')
+  it('explains picks in Italian', () => {
+    const w = {
+      id: 'w', producer: 'Gaja', name: 'Barbaresco', vintage: 2016, type: 'red', grapes: ['Nebbiolo'], appellation: 'Barbaresco', external: [], tags: [], favourite: false,
+      bottleSize: 750, createdAt: 0, drinkFrom: 2020, drinkTo: 2027, inCellar: 2, tastings: [], avgRating: 4.5,
+      bottles: [{ status: 'cellar' }, { status: 'cellar' }],
+    } as unknown as WineWithBottles
+    try {
+      setLang('it')
+      const [s] = suggest([w], { type: 'any', occasion: 'any', readyOnly: true, dish: 'brasato' }, 2026)
+      expect(s.reasons).toEqual([
+        'Da bere presto — la finestra si chiude nel 2027',
+        'Barolo & Barbaresco: abbinamento classico con carne rossa',
+        'Gli hai già dato 4,5★',
+        'Ne hai 2 bottiglie',
+      ])
+      setLang('en')
+      expect(suggest([w], { type: 'any', occasion: 'any', readyOnly: true, dish: 'brasato' }, 2026)[0].reasons[1]).toBe('Barolo & Barbaresco is a classic match with red meat')
+    } finally {
+      setLang('en')
+    }
+  })
+})

@@ -69,7 +69,7 @@ export default function BarcodePage() {
                 <PenLine size={18} /> {t('Add manually')}
               </Button>
               <Button variant="ghost" className="w-full" onClick={() => setLinking(true)}>
-                It&rsquo;s a wine I already have
+                {t('It’s a wine I already have')}
               </Button>
             </div>
           )}
