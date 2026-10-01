@@ -1,5 +1,6 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { IT } from './i18n-it'
 
@@ -15,7 +16,7 @@ function files(dir: string): string[] {
 
 describe('i18n', () => {
   it('has an Italian translation for every t() string in the app', () => {
-    const root = new URL('..', import.meta.url).pathname
+    const root = fileURLToPath(new URL('..', import.meta.url))
     const used = new Set<string>()
     for (const f of files(root)) {
       const src = readFileSync(f, 'utf8')

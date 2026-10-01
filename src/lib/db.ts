@@ -1,4 +1,5 @@
 import Dexie, { type EntityTable, type Table } from 'dexie'
+import { DEMO } from './demo'
 import { KINDS, type Bottle, type Kind, type Location, type Tasting, type Tombstone, type Wine, type WineWithBottles, type WishItem } from './types'
 
 /** Key/value store for sync bookkeeping (cursor, last push time). */
@@ -79,7 +80,8 @@ function trackChanges(database: MioVinoDB, kind: Kind) {
   })
 }
 
-export const db = new MioVinoDB()
+// The demo (/demo) gets its own database so it can never mix with the real cellar.
+export const db = new MioVinoDB(DEMO ? 'miovino-demo' : 'miovino2')
 
 export function now() {
   return Date.now()

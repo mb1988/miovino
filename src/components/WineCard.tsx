@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom'
 import { useBlobUrl } from '../lib/hooks'
 import { bottlePrice } from '../lib/recommend'
 import { formatMoney } from '../lib/settings'
-import { drinkStatus } from '../lib/status'
+import { t } from '../lib/i18n'
+import { drinkStatus, STATUS_META } from '../lib/status'
 import type { WineWithBottles } from '../lib/types'
 import { Bottle, cx, Flag, Stars, StatusChip, WindowBar } from './ui'
 
@@ -49,7 +50,7 @@ export function WineCard({ wine: w }: { wine: WineWithBottles }) {
           )}
           <div className="mt-3 flex items-center gap-3 text-xs text-cream-400">
             <span className="font-semibold text-cream-100">
-              {w.inCellar} {w.inCellar === 1 ? 'bottle' : 'bottles'}
+              {w.inCellar} {w.inCellar === 1 ? t('bottle') : t('bottles')}
             </span>
             {price != null && <span>{formatMoney(price)}</span>}
             {locs.length > 0 && (
@@ -67,21 +68,32 @@ export function WineCard({ wine: w }: { wine: WineWithBottles }) {
 
 export function WineRow({ wine: w }: { wine: WineWithBottles }) {
   const status = drinkStatus(w)
+  const m = STATUS_META[status]
+  const locs = locationsOf(w)
+  const range = w.drinkFrom != null || w.drinkTo != null ? `${w.drinkFrom ?? '…'}–${w.drinkTo ?? '…'}` : ''
   return (
-    <Link to={`/wine/${w.id}`} className={cx('flex items-center gap-3 border-b border-ink-800 px-1 py-2.5 hover:bg-ink-850', w.inCellar === 0 && 'opacity-55')}>
-      <Bottle type={w.type} className="h-8 w-3.5 shrink-0" />
+    <Link to={`/wine/${w.id}`} className={cx('flex items-start gap-3 border-b border-ink-800 px-1 py-3 hover:bg-ink-850', w.inCellar === 0 && 'opacity-55')}>
+      <Bottle type={w.type} className="mt-0.5 h-9 w-4 shrink-0" />
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-cream-50">
-          {w.producer} · {w.name}
+        {/* The name wraps (up to two lines) rather than being cut off; the producer sits above it. */}
+        <p className="truncate text-xs text-cream-300">
+          {w.producer}
+          {w.favourite && <Heart size={11} className="ml-1 inline align-[-1px] text-wine-300" fill="currentColor" aria-label={t('Favourite')} />}
         </p>
-        <p className="truncate text-xs text-cream-400">
-          {w.vintage ?? 'NV'} · {w.drinkFrom ?? '…'}–{w.drinkTo ?? '…'}
-          {locationsOf(w).length ? ` · ${locationsOf(w).join(', ')}` : ''}
+        <p className="line-clamp-2 text-[15px] leading-snug font-medium break-words text-cream-50">
+          {w.name} <span className="font-normal text-cream-300">{w.vintage ?? 'NV'}</span>
+        </p>
+        <p className="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-cream-400">
+          <span className={cx('h-2 w-2 shrink-0 rounded-full', m.dot)} aria-hidden />
+          <span className="shrink-0">{t(m.label)}</span>
+          {range && <span className="shrink-0">· {range}</span>}
+          {locs.length > 0 && <span className="min-w-0 truncate">· {locs.join(', ')}</span>}
         </p>
       </div>
-      <StatusChip status={status} className="hidden sm:inline-flex" />
-      <span className={cx('h-2 w-2 shrink-0 rounded-full sm:hidden', { past: 'bg-rose-500', soon: 'bg-amber-400', ready: 'bg-emerald-400', approaching: 'bg-yellow-300', hold: 'bg-sky-400', unknown: 'bg-stone-500' }[status])} />
-      <span className="w-6 text-right text-sm font-semibold text-cream-100">{w.inCellar}</span>
+      <div className="shrink-0 pt-0.5 text-right">
+        <p className="text-base leading-none font-semibold text-cream-100">{w.inCellar}</p>
+        <p className="mt-1 text-[11px] text-cream-500">{w.inCellar === 1 ? t('bottle') : t('bottles')}</p>
+      </div>
     </Link>
   )
 }
