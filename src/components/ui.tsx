@@ -65,7 +65,8 @@ export function Chip({ active, onClick, children, className }: { active?: boolea
       aria-pressed={active ?? false}
       onClick={onClick}
       className={cx(
-        'shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-medium ring-1 transition',
+        // min-h-8 + a 4px invisible margin above and below = a 40px tap target without bigger-looking chips.
+        "relative inline-flex min-h-8 shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-medium ring-1 transition after:absolute after:inset-x-0 after:-inset-y-1 after:content-['']",
         active ? 'bg-cream-100 text-ink-900 ring-cream-100' : 'bg-ink-850 text-cream-300 ring-ink-600 hover:text-cream-100',
         className,
       )}
@@ -136,10 +137,10 @@ export function StarInput({ value, onChange }: { value?: number; onChange: (v: n
       {[1, 2, 3, 4, 5].map((i) => {
         const fill = value == null ? 0 : Math.max(0, Math.min(1, value - (i - 1)))
         return (
-          <div key={i} className="relative h-10 w-10">
-            <Star size={40} className="absolute text-ink-600" fill="currentColor" strokeWidth={0} />
+          <div key={i} className="relative h-11 w-11">
+            <Star size={44} className="absolute text-ink-600" fill="currentColor" strokeWidth={0} />
             <div className="absolute inset-0 overflow-hidden text-gold-400" style={{ width: `${fill * 100}%` }}>
-              <Star size={40} fill="currentColor" strokeWidth={0} />
+              <Star size={44} fill="currentColor" strokeWidth={0} />
             </div>
             <button type="button" aria-label={t('{value} stars', { value: i - 0.5 })} className="absolute inset-y-0 left-0 w-1/2" onClick={() => onChange(value === i - 0.5 ? undefined : i - 0.5)} />
             <button type="button" aria-label={t('{value} stars', { value: i })} className="absolute inset-y-0 right-0 w-1/2" onClick={() => onChange(value === i ? undefined : i)} />
@@ -209,8 +210,11 @@ export function Sheet({ open, onClose, title, children }: { open: boolean; onClo
         className="animate-sheet pb-[calc(env(safe-area-inset-bottom)+1.25rem)] max-h-[88dvh] w-full max-w-xl overflow-y-auto rounded-t-3xl bg-ink-850 p-5 ring-1 ring-ink-700 outline-none sm:rounded-3xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="font-display text-xl font-semibold text-cream-50">{title}</h2>
+        <div className="-mt-2 mb-3 flex justify-center sm:hidden" aria-hidden>
+          <span className="h-1 w-10 rounded-full bg-ink-600" />
+        </div>
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h2 className="font-display min-w-0 text-xl font-semibold text-cream-50">{title}</h2>
           <button aria-label={t('Close')} onClick={onClose} className="rounded-full p-1.5 text-cream-300 hover:bg-ink-700">
             <X size={20} />
           </button>

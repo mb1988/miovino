@@ -97,8 +97,8 @@ export default function SuggestPage() {
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <label className="flex items-center gap-2 text-sm text-cream-200">
-            <input type="checkbox" className="accent-wine-500" checked={opts.readyOnly} onChange={(e) => up({ readyOnly: e.target.checked })} />
+          <label className="flex min-h-10 items-center gap-2.5 text-sm text-cream-200">
+            <input type="checkbox" className="h-5 w-5 accent-wine-500" checked={opts.readyOnly} onChange={(e) => up({ readyOnly: e.target.checked })} />
             {t('Ready to drink only')}
           </label>
           <label className="ml-auto flex items-center gap-2 text-sm text-cream-300">

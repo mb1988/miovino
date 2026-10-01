@@ -203,7 +203,7 @@ export default function RackPage() {
               <span>
                 {t('{a} of {b} slots filled', { a: grid.slots.size, b: loc.rows! * loc.cols! })}
               </span>
-              <button className="text-wine-300" onClick={() => setResizing(true)}>
+              <button className="-my-2 min-h-10 px-1 text-wine-300" onClick={() => setResizing(true)}>
                 {t('Change grid size')}
               </button>
             </div>

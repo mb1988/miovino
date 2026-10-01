@@ -186,7 +186,7 @@ export default function WinePage() {
       <Section
         title={t('Your notes')}
         action={
-          <button className="text-xs text-wine-300" onClick={() => setNotesOpen(true)}>
+          <button className="-my-2 min-h-10 px-2 text-xs text-wine-300" onClick={() => setNotesOpen(true)}>
             {t('Edit')}
           </button>
         }
@@ -299,7 +299,7 @@ export default function WinePage() {
 
       <div className="mt-8 flex justify-center">
         <button
-          className="flex items-center gap-2 text-sm text-rose-300/80 hover:text-rose-300"
+          className="flex min-h-11 items-center gap-2 px-3 text-sm text-rose-300/80 hover:text-rose-300"
           onClick={async () => {
             if (confirm(`Delete ${wine.producer} ${wine.name} ${wine.vintage ?? 'NV'} with all its bottles and tastings?`)) {
               await deleteWine(id)

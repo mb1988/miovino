@@ -158,7 +158,7 @@ Feedback after using the app. Each item is one PR; CI must be green before mergi
 3. [x] **Free AI instead of Anthropic** — one provider layer in the Worker: Google Gemini free tier (`GEMINI_API_KEY`) first, OpenRouter free models (`OPENROUTER_API_KEY`) as fallback, Anthropic only if its key is set. Scan, chat, wine list and window suggestions all go through it. *Owner:* create the free keys and add them as Worker secrets.
 4. [x] **Rack map: "Place a wine"** — pick a wine first, see how many of its bottles still need a slot, the app suggests slots (next to the same wine, then same producer/type, keeping a row together); you can never place more bottles than are in the cellar.
 5. [x] **Several cellars** — group racks/locations into cellars (e.g. Home, Parents'), switch cellar on the Cellar screen; "All cellars" stays the default.
-6. [ ] **Mobile experience pass** — safe areas, tap targets ≥44px, sheets that fit small screens, no horizontal scroll at 360px.
+6. [x] **Mobile experience pass** — safe areas, tap targets ≥44px, sheets that fit small screens, no horizontal scroll at 360px.
 7. [x] **Reminders on Android + iPhone** — clear per-platform guidance in More → Reminders.
 
 Answers to the owner's questions

@@ -148,28 +148,31 @@ export default function MorePage() {
           {locations?.map((l) => (
             <div key={l.id} className="flex items-center gap-3 px-4 py-2.5">
               <GripVertical size={14} className="text-ink-600" />
-              <button className="flex-1 text-left text-sm text-cream-100" onClick={() => renameLocation(l.id!, l.name)}>
+              <button className="min-h-10 min-w-0 flex-1 truncate text-left text-sm text-cream-100" onClick={() => renameLocation(l.id!, l.name)}>
                 <MapPin size={14} className="mr-1.5 inline text-cream-400" />
                 {l.name}
                 {l.rows && l.cols ? <span className="ml-1.5 text-xs text-cream-500">{l.rows}×{l.cols}</span> : null}
               </button>
-              <select
-                aria-label={t('Cellar of {name}', { name: l.name })}
-                className="max-w-[8.5rem] truncate rounded-lg bg-ink-800 py-1.5 pr-1 pl-2 text-xs text-cream-200 ring-1 ring-ink-600"
-                value={l.cellar?.trim() || s.cellarName}
-                onChange={(e) => moveToCellar(l.id!, e.target.value)}
-              >
-                {cellarNames(locations, s.cellarName).map((n) => (
-                  <option key={n}>{n}</option>
-                ))}
-                <option value={NEW_CELLAR}>{t('New cellar…')}</option>
-              </select>
-              <Link to={`/rack?loc=${l.id}`} aria-label={`Rack map of ${l.name}`} className="text-cream-500 hover:text-cream-200">
+              <label className="relative flex min-h-9 max-w-[8.5rem] items-center rounded-lg bg-ink-800 px-2 text-xs text-cream-200 ring-1 ring-ink-600">
+                <span className="truncate">{l.cellar?.trim() || s.cellarName}</span>
+                <select
+                  aria-label={t('Cellar of {name}', { name: l.name })}
+                  className="absolute inset-0 cursor-pointer text-base opacity-0"
+                  value={l.cellar?.trim() || s.cellarName}
+                  onChange={(e) => moveToCellar(l.id!, e.target.value)}
+                >
+                  {cellarNames(locations, s.cellarName).map((n) => (
+                    <option key={n}>{n}</option>
+                  ))}
+                  <option value={NEW_CELLAR}>{t('New cellar…')}</option>
+                </select>
+              </label>
+              <Link to={`/rack?loc=${l.id}`} aria-label={`Rack map of ${l.name}`} className="-my-1 flex h-10 w-9 items-center justify-center rounded-full text-cream-500 hover:text-cream-200">
                 <Grid3x3 size={16} />
               </Link>
               <button
                 aria-label={`Delete ${l.name}`}
-                className="text-cream-500 hover:text-rose-300"
+                className="-my-1 flex h-10 w-9 items-center justify-center rounded-full text-cream-500 hover:text-rose-300"
                 onClick={async () => {
                   const used = await db.bottles.where('location').equals(l.name).count()
                   if (used && !confirm(`${used} bottle(s) are in "${l.name}". Remove the location anyway? (Bottles keep the text.)`)) return
