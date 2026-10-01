@@ -520,7 +520,7 @@ export const IT: Record<string, string> = {
   // Demo mode
   'Put the demo cellar back as it was? Your changes in the demo will be lost.': 'Ripristinare la cantina demo? Le modifiche fatte nella demo andranno perse.',
   Demo: 'Demo',
-  'sample wines, kept in this browser only': 'vini di esempio, solo in questo browser',
+  'sample data': 'dati di esempio',
   Exit: 'Esci',
   'Demo device': 'Dispositivo demo',
   'Not available in the demo.': 'Non disponibile nella demo.',

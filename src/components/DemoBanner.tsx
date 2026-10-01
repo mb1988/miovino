@@ -40,7 +40,7 @@ export function DemoBanner() {
       <div role="note" className="-mx-4 flex items-center gap-1 bg-gold-400/15 px-4 pt-[calc(env(safe-area-inset-top)+0.5rem)] pb-2 text-xs text-cream-100 ring-1 ring-gold-400/30">
         <FlaskConical size={16} className="mr-1 shrink-0 text-gold-400" aria-hidden />
         <p className="min-w-0 flex-1 leading-snug">
-          <strong className="font-semibold">{t('Demo')}</strong> · {t('sample wines, kept in this browser only')}
+          <strong className="font-semibold">{t('Demo')}</strong> · {t('sample data')}
         </p>
         <button onClick={() => setAbout(true)} className={btn}>
           <Info size={14} aria-hidden /> {t('About')}
