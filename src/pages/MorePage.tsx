@@ -6,11 +6,14 @@ import { Button, Chip, cx, Label, PageHeader, Section } from '../components/ui'
 import { exportCsv, exportJson, exportXlsx, restoreBackup } from '../lib/backup'
 import { db, deleteAllData, ensureLocation } from '../lib/db'
 import { useLocations } from '../lib/hooks'
+import { cellarNames } from '../lib/cellars'
 import { saveSettings, useSettings } from '../lib/settings'
 import { syncNow, useSync } from '../lib/sync'
 import { DevicesSection } from '../components/DevicesSection'
 import { updatePushLanguage } from '../lib/push'
 import { RemindersSection } from '../components/RemindersSection'
+
+const NEW_CELLAR = '__new_cellar__'
 
 export default function MorePage() {
   const s = useSettings()
@@ -24,6 +27,14 @@ export default function MorePage() {
   const flash = (m: string) => {
     setMsg(m)
     setTimeout(() => setMsg(''), 3500)
+  }
+
+  const moveToCellar = async (id: string, choice: string) => {
+    let name = choice
+    if (choice === NEW_CELLAR) name = prompt(t('Name of the new cellar, e.g. Country house'))?.trim() ?? ''
+    if (!name) return
+    // The main cellar is stored as "no cellar", so renaming it in Settings keeps its locations.
+    await db.locations.update(id, { cellar: name === s.cellarName ? undefined : name })
   }
 
   const renameLocation = async (id: string, oldName: string) => {
@@ -142,6 +153,17 @@ export default function MorePage() {
                 {l.name}
                 {l.rows && l.cols ? <span className="ml-1.5 text-xs text-cream-500">{l.rows}×{l.cols}</span> : null}
               </button>
+              <select
+                aria-label={t('Cellar of {name}', { name: l.name })}
+                className="max-w-[8.5rem] truncate rounded-lg bg-ink-800 py-1.5 pr-1 pl-2 text-xs text-cream-200 ring-1 ring-ink-600"
+                value={l.cellar?.trim() || s.cellarName}
+                onChange={(e) => moveToCellar(l.id!, e.target.value)}
+              >
+                {cellarNames(locations, s.cellarName).map((n) => (
+                  <option key={n}>{n}</option>
+                ))}
+                <option value={NEW_CELLAR}>{t('New cellar…')}</option>
+              </select>
               <Link to={`/rack?loc=${l.id}`} aria-label={`Rack map of ${l.name}`} className="text-cream-500 hover:text-cream-200">
                 <Grid3x3 size={16} />
               </Link>
@@ -173,6 +195,7 @@ export default function MorePage() {
           </form>
         </div>
         <p className="mt-2 text-xs text-cream-500">{t('Tap a location to rename it — bottles move with it.')}</p>
+        <p className="mt-1 text-xs text-cream-500">{t('More than one cellar? Pick a cellar for each location (or “New cellar…”), then switch between cellars on the Cellar screen.')}</p>
       </Section>
 
       <Section title={t('Import & export')}>

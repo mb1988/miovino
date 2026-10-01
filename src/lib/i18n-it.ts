@@ -570,4 +570,11 @@ export const IT: Record<string, string> = {
   'Place {n} bottles': 'Sistema {n} bottiglie',
   '{n} bottle of this wine has no slot yet.': '{n} bottiglia di questo vino non ha ancora una posizione.',
   '{n} bottles of this wine have no slot yet.': '{n} bottiglie di questo vino non hanno ancora una posizione.',
+  // Several cellars
+  'All cellars': 'Tutte le cantine',
+  'Name of the new cellar, e.g. Country house': 'Nome della nuova cantina, es. Casa di campagna',
+  'Cellar of {name}': 'Cantina di {name}',
+  'New cellar…': 'Nuova cantina…',
+  'More than one cellar? Pick a cellar for each location (or “New cellar…”), then switch between cellars on the Cellar screen.': 'Più di una cantina? Scegli la cantina di ogni posizione (o «Nuova cantina…»), poi passa da una all’altra nella schermata Cantina.',
+  'Picks from {cellar}': 'Scelte da {cellar}',
 }

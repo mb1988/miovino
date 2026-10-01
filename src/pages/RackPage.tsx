@@ -5,7 +5,9 @@ import { useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Bottle as BottleIcon, Button, Chip, cx, Empty, Label, PageHeader, Sheet, StatusChip, TYPE_COLOR } from '../components/ui'
 import { db } from '../lib/db'
-import { useCellar, useLocations } from '../lib/hooks'
+import { useCellarView, useLocations } from '../lib/hooks'
+import { CellarSwitcher } from '../components/CellarSwitcher'
+import { cellarOf } from '../lib/cellars'
 import { clearSlot, hasGrid, layout, MAX_COLS, MAX_ROWS, placeBottle, placeBottles, slotName, suggestSlots, unslotted } from '../lib/rack'
 import { PlaceWineSheet, type PlaceChoice } from '../components/PlaceWineSheet'
 import { drinkStatus, STATUS_META } from '../lib/status'
@@ -20,8 +22,10 @@ import type { Bottle, Location, WineWithBottles } from '../lib/types'
  */
 export default function RackPage() {
   const [sp, setSp] = useSearchParams()
-  const locations = useLocations()
-  const cellar = useCellar()
+  const allLocations = useLocations()
+  const { all: cellar, names, active, setActive, main } = useCellarView()
+  // Only the racks of the cellar chosen on this device (all of them when none is chosen).
+  const locations = useMemo(() => allLocations?.filter((l) => !active || cellarOf(l.name, allLocations, main) === active), [allLocations, active, main])
   const bottles = useLiveQuery(() => db.bottles.where('status').equals('cellar').toArray(), [])
   const [open, setOpen] = useState<{ slot: string; bottle?: Bottle } | null>(null)
   const [movingChoice, setMoving] = useState<Bottle | null>()
@@ -72,7 +76,7 @@ export default function RackPage() {
     }
   }
   const choose = (c: PlaceChoice) => {
-    const target = locations.find((l) => l.id === c.locId)!
+    const target = allLocations!.find((l) => l.id === c.locId)!
     const w = wines.get(c.wineId)!
     const slots = suggestSlots(target, bottles, { wineId: w.id, producer: w.producer, type: w.type }, c.count, (id) => {
       const x = wines.get(id)
@@ -87,7 +91,7 @@ export default function RackPage() {
   const confirmPlan = async () => {
     if (!plan || !loc) return
     // Bottles already in this rack's location go first, so fewer bottles change location.
-    const free = unslotted(plan.wineId, bottles, locations).sort((a, b) => Number(b.location === loc.name) - Number(a.location === loc.name))
+    const free = unslotted(plan.wineId, bottles, allLocations!).sort((a, b) => Number(b.location === loc.name) - Number(a.location === loc.name))
     const assignments = plan.slots.slice(0, free.length).map((slot, i) => ({ bottleId: free[i].id!, slot }))
     try {
       await placeBottles(loc.name, assignments)
@@ -110,7 +114,7 @@ export default function RackPage() {
     setOpen({ slot, bottle })
   }
 
-  const anyGrid = locations.some(hasGrid)
+  const anyGrid = allLocations!.some(hasGrid)
   const header = (
     <PageHeader
       title={t('Rack map')}
@@ -125,10 +129,12 @@ export default function RackPage() {
       }
     />
   )
+  const switcher = <CellarSwitcher names={names} active={active} onChange={(n) => (setActive(n), setSp({}, { replace: true }), setPlan(null), setMoving(null))} className="mb-3" />
   if (!locations.length)
     return (
       <div>
         {header}
+        {switcher}
         <Empty icon={<Grid3x3 size={32} />} title={t('No locations yet')}>
           Add one in{' '}
           <Link to="/more" className="text-wine-300 underline">
@@ -146,6 +152,7 @@ export default function RackPage() {
       {header}
       {msg && <div className="animate-rise fixed inset-x-4 top-4 z-50 mx-auto max-w-md rounded-xl bg-cream-100 px-4 py-3 text-sm text-ink-900 shadow-xl">{msg}</div>}
 
+      {switcher}
       {locations.length > 1 && (
         <div className="-mx-4 mb-4 flex gap-2 overflow-x-auto px-4 pb-1">
           {locations.map((l) => (
@@ -230,7 +237,7 @@ export default function RackPage() {
           initialLoc={loc && hasGrid(loc) ? loc.id : undefined}
           cellar={cellar}
           bottles={bottles}
-          locations={locations}
+          locations={allLocations!}
           onClose={() => setPicker(false)}
           onChoose={choose}
         />

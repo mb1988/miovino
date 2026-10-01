@@ -94,6 +94,7 @@ export interface Location extends Synced {
   order: number
   rows?: number // rack grid size (optional)
   cols?: number
+  cellar?: string // which cellar this location is in; empty = the main cellar (Settings → cellar name)
 }
 
 /** Something to buy: added by hand, or from a tasting marked "buy again". */

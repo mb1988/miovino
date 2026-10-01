@@ -5,7 +5,8 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { MonthlyDigest } from '../components/MonthlyDigest'
 import { locationsOf, WineCard, WineRow } from '../components/WineCard'
 import { Button, Chip, cx, Empty, Sheet } from '../components/ui'
-import { useCellar } from '../lib/hooks'
+import { useCellarView } from '../lib/hooks'
+import { CellarSwitcher } from '../components/CellarSwitcher'
 import { normalizeText } from '../lib/knowledge'
 import { bottlePrice } from '../lib/recommend'
 import { formatMoney, useSettings } from '../lib/settings'
@@ -24,7 +25,7 @@ const SORTS = {
 type SortKey = keyof typeof SORTS
 
 export default function CellarPage() {
-  const cellar = useCellar()
+  const { wines: cellar, all, names, active, setActive } = useCellarView()
   const settings = useSettings()
   const [params, setParams] = useSearchParams()
   const [filtersOpen, setFiltersOpen] = useState(false)
@@ -89,16 +90,17 @@ export default function CellarPage() {
     return sortWines(filtered, sort)
   }, [cellar, q, type, status, country, region, location, vintage, fav, showGone, sort])
 
-  if (!cellar) return null
+  if (!cellar || !all) return null
   const activeFilters = [type, status, country, region, location, vintage, fav ? '1' : null, showGone ? '1' : null].filter(Boolean).length
 
-  if (cellar.length === 0) return <Welcome name={settings.cellarName} />
+  if (all.length === 0) return <Welcome name={settings.cellarName} />
 
   return (
     <div>
       <header className="pt-[calc(env(safe-area-inset-top)+1.5rem)] pb-4">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-wine-300">{t('MioVino')}</p>
-        <h1 className="font-display text-3xl font-semibold text-cream-50">{settings.cellarName}</h1>
+        <h1 className="font-display text-3xl font-semibold text-cream-50">{active || (names.length > 1 ? t('All cellars') : settings.cellarName)}</h1>
+        <CellarSwitcher names={names} active={active} onChange={(n) => (setActive(n), set('loc', null))} className="mt-3" />
       </header>
 
       {stats && (

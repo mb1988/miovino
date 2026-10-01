@@ -144,3 +144,29 @@ test('rack map: place a wine — pick it first, get slots next to its other bott
   await page.getByRole('button', { name: 'Place 2 bottles' }).click()
   await expect(page.getByText('3 of 6 slots filled')).toBeVisible()
 })
+
+test('several cellars: give a location its own cellar, then switch on the Cellar screen', async ({ page }) => {
+  await seed(page, {
+    wines: [wine('w1'), wine('w2', { producer: 'Leflaive', name: 'Puligny-Montrachet', type: 'white' })],
+    bottles: [
+      { id: 'b1', wineId: 'w1', status: 'cellar', location: 'Rack A', createdAt: now, updatedAt: now },
+      { id: 'b2', wineId: 'w2', status: 'cellar', location: 'Barn', createdAt: now, updatedAt: now },
+    ],
+    locations: [
+      { id: 'l1', name: 'Rack A', order: 0, updatedAt: now },
+      { id: 'l2', name: 'Barn', order: 1, updatedAt: now },
+    ],
+  })
+  await expect(page.getByRole('group', { name: 'Cellar' })).toHaveCount(0) // one cellar: no switcher
+  await page.goto('/more')
+  page.once('dialog', (d) => d.accept('Country house'))
+  await page.getByRole('combobox', { name: 'Cellar of Barn' }).selectOption({ label: 'New cellar…' })
+  await expect(page.getByRole('combobox', { name: 'Cellar of Barn' })).toHaveValue('Country house')
+
+  await page.getByRole('link', { name: 'Cellar', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'All cellars' })).toBeVisible()
+  await page.getByRole('group', { name: 'Cellar' }).getByRole('button', { name: 'Country house' }).click()
+  await expect(page.getByRole('heading', { name: 'Country house' })).toBeVisible()
+  await expect(page.getByText('1 wine · 1 bottle')).toBeVisible()
+  await expect(page.getByText('Puligny-Montrachet')).toBeVisible()
+})

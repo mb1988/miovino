@@ -62,6 +62,7 @@ export function Chip({ active, onClick, children, className }: { active?: boolea
   return (
     <button
       type="button"
+      aria-pressed={active ?? false}
       onClick={onClick}
       className={cx(
         'shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-medium ring-1 transition',
