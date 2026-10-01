@@ -58,12 +58,22 @@ interface Provider {
 
 const TIMEOUT = 60_000
 
+/**
+ * A key as pasted into `wrangler secret put`: tolerate surrounding spaces or quotes and a pasted
+ * "NAME=" prefix (easy to do when copying from a .dev.vars line).
+ */
+export function cleanKey(raw: string | undefined) {
+  const k = (raw ?? '').trim().replace(/^[A-Z_]+=/, '').replace(/^["']|["']$/g, '').trim()
+  return k || undefined
+}
+
 /** The providers that have a key, in the order they'll be tried. */
 export function providers(env: AiEnv): Provider[] {
+  const [g, o, a] = [cleanKey(env.GEMINI_API_KEY), cleanKey(env.OPENROUTER_API_KEY), cleanKey(env.ANTHROPIC_API_KEY)]
   const all: Record<ProviderId, Provider | null> = {
-    gemini: env.GEMINI_API_KEY ? gemini(env.GEMINI_API_KEY, env.GEMINI_MODEL || 'gemini-flash-latest') : null,
-    openrouter: env.OPENROUTER_API_KEY ? openrouter(env.OPENROUTER_API_KEY, env.OPENROUTER_MODEL || 'openrouter/free') : null,
-    anthropic: env.ANTHROPIC_API_KEY ? anthropic(env.ANTHROPIC_API_KEY, env.ANTHROPIC_MODEL || 'claude-opus-5-5') : null,
+    gemini: g ? gemini(g, env.GEMINI_MODEL || 'gemini-flash-latest') : null,
+    openrouter: o ? openrouter(o, env.OPENROUTER_MODEL || 'openrouter/free') : null,
+    anthropic: a ? anthropic(a, env.ANTHROPIC_MODEL || 'claude-opus-5-5') : null,
   }
   const order = (env.AI_PROVIDERS || 'gemini,openrouter,anthropic').split(',').map((s) => s.trim()) as ProviderId[]
   return order.map((id) => all[id]).filter((p): p is Provider => !!p)
@@ -163,6 +173,16 @@ async function httpError(provider: ProviderId, res: Response): Promise<AiError> 
   const name = PROVIDER_NAMES[provider]
   if (res.status === 429) return new AiError(429, 'Rate limited — the free AI quota is used up for now. Try again in a minute.')
   if (res.status === 401 || res.status === 403) return new AiError(502, `The server's ${name} key was rejected.`)
+  // Google answers a bad key, or a region without the free tier, with 400 + a message: show it plainly.
+  const reason = (() => {
+    try {
+      return (JSON.parse(detail) as { error?: { message?: string } }).error?.message
+    } catch {
+      return undefined
+    }
+  })()
+  if (res.status === 400 && /api key/i.test(reason ?? detail)) return new AiError(502, `The server's ${name} key was rejected — set it again with: npx wrangler secret put ${provider === 'gemini' ? 'GEMINI_API_KEY' : provider === 'openrouter' ? 'OPENROUTER_API_KEY' : 'ANTHROPIC_API_KEY'}`)
+  if (reason) return new AiError(502, `${name} error ${res.status}: ${reason.slice(0, 200)}`)
   return new AiError(502, `${name} error ${res.status}${detail ? `: ${detail}` : ''}`)
 }
 
