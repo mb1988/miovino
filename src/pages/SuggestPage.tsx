@@ -33,7 +33,7 @@ export default function SuggestPage() {
         <MessageCircle className="text-gold-400" />
         <span className="flex-1">
           <span className="block font-semibold text-cream-50">{t('Ask my cellar')}</span>
-          <span className="text-sm text-cream-400">&ldquo;What goes with lamb?&rdquo; &mdash; answers from your own bottles</span>
+          <span className="text-sm text-cream-400">{t('“What goes with lamb?” — answers from your own bottles')}</span>
         </span>
       </Link>
         <Link to="/winelist" className="card flex items-center gap-3 p-4 hover:ring-ink-600">
@@ -73,7 +73,7 @@ export default function SuggestPage() {
             </Chip>
             {FOODS.map((f) => (
               <Chip key={f} active={opts.food === f} onClick={() => up({ food: opts.food === f ? undefined : (f as Food) })}>
-                {f}
+                {t(f)}
               </Chip>
             ))}
           </div>
@@ -89,7 +89,7 @@ export default function SuggestPage() {
               ] as const
             ).map(([k, l]) => (
               <Chip key={k} active={opts.occasion === k} onClick={() => up({ occasion: k })}>
-                {l}
+                {t(l)}
               </Chip>
             ))}
           </div>
@@ -104,7 +104,7 @@ export default function SuggestPage() {
             <input
               className="field w-20 py-1.5"
               inputMode="numeric"
-              placeholder="any"
+              placeholder={t('any')}
               value={opts.maxPrice ?? ''}
               onChange={(e) => up({ maxPrice: e.target.value ? Number(e.target.value) : undefined })}
             />
@@ -114,7 +114,7 @@ export default function SuggestPage() {
 
       {cellar && results.length === 0 ? (
         <Empty icon={<WineIcon size={28} />} title={t('Nothing fits')}>
-          Try loosening the filters{opts.readyOnly ? ' or include wines not yet ready' : ''}.
+          {opts.readyOnly ? t('Try loosening the filters or include wines not yet ready.') : t('Try loosening the filters.')}
         </Empty>
       ) : (
         <div className="space-y-3">

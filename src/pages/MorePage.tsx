@@ -91,7 +91,7 @@ export default function MorePage() {
         </span>
         <span className="flex-1">
           <span className="block font-semibold text-cream-50">{t('Wishlist')}</span>
-          <span className="text-sm text-cream-400">Wines to buy, and ones you said you&rsquo;d buy again</span>
+          <span className="text-sm text-cream-400">{t('Wines to buy, and ones you said you’d buy again')}</span>
         </span>
         <ChevronRight className="text-cream-500" />
       </Link>

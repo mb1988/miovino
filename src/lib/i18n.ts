@@ -37,7 +37,7 @@ export function setLang(next: Lang) {
   } catch {
     /* keep for this visit */
   }
-  document.documentElement.lang = next
+  if (typeof document !== 'undefined') document.documentElement.lang = next
   listeners.forEach((l) => l())
 }
 

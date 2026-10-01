@@ -287,7 +287,7 @@ function GridSetup({ loc, bottles, canCancel, onDone }: { loc: Location; bottles
         {stepper('Rows', rows, setRows, MAX_ROWS)}
         {stepper('Columns', cols, setCols, MAX_COLS)}
       </div>
-      {lost > 0 && <p className="text-sm text-amber-200">{lost} placed bottle(s) would fall outside the grid and go back to &ldquo;not on the grid&rdquo;.</p>}
+      {lost > 0 && <p className="text-sm text-amber-200">{t('{n} placed bottle(s) would fall outside the grid and go back to “not on the grid”.', { n: lost })}</p>}
       <div className="flex gap-2">
         {canCancel && (
           <Button variant="secondary" className="flex-1" onClick={onDone}>

@@ -1,3 +1,4 @@
+import { locale, t } from './i18n'
 import type { Food } from './knowledge'
 import { classicPairing, foodsFromText, pairingMentions, wineFoods } from './pairing'
 import { currentYear, drinkStatus } from './status'
@@ -46,23 +47,23 @@ export function suggest(cellar: WineWithBottles[], opts: SuggestOptions, year = 
     switch (status) {
       case 'past':
         score += 40
-        reasons.push(`Past its window (ended ${w.drinkTo}) — open it before it fades`)
+        reasons.push(t('Past its window (ended {year}) — open it before it fades', { year: w.drinkTo ?? '' }))
         break
       case 'soon':
         score += 35
-        reasons.push(`Drink soon — window closes ${w.drinkTo}`)
+        reasons.push(t('Drink soon — window closes {year}', { year: w.drinkTo ?? '' }))
         break
       case 'ready':
         score += 25
-        reasons.push(`In its drinking window (${w.drinkFrom ?? '…'}–${w.drinkTo ?? '…'})`)
+        reasons.push(t('In its drinking window ({from}–{to})', { from: w.drinkFrom ?? '…', to: w.drinkTo ?? '…' }))
         break
       case 'approaching':
         score += 5
-        reasons.push(`Window opens ${w.drinkFrom} — a little early`)
+        reasons.push(t('Window opens {year} — a little early', { year: w.drinkFrom ?? '' }))
         break
       case 'hold':
         score -= 30
-        reasons.push(`Better to hold until ${w.drinkFrom}`)
+        reasons.push(t('Better to hold until {year}', { year: w.drinkFrom ?? '' }))
         break
       case 'unknown':
         score += 8
@@ -70,7 +71,7 @@ export function suggest(cellar: WineWithBottles[], opts: SuggestOptions, year = 
     }
     if (w.peakYear != null && Math.abs(w.peakYear - year) <= 1) {
       score += 10
-      reasons.push(`Around its peak year (${w.peakYear})`)
+      reasons.push(t('Around its peak year ({year})', { year: w.peakYear }))
     }
 
     const wanted = [...new Set([...(opts.food ? [opts.food] : []), ...(opts.dish ? foodsFromText(opts.dish) : [])])]
@@ -81,34 +82,35 @@ export function suggest(cellar: WineWithBottles[], opts: SuggestOptions, year = 
       if (hits.length) {
         score += 15
         const classic = classicPairing(w)
-        reasons.push(classic ? `${classic.basis} is a classic match with ${hits.join(' / ').toLowerCase()}` : `Good match with ${hits.join(' / ').toLowerCase()}`)
+        const foods = hits.map((f) => t(f).toLowerCase()).join(' / ')
+        reasons.push(classic ? t('{wine} is a classic match with {foods}', { wine: classic.basis, foods }) : t('Good match with {foods}', { foods }))
       } else score -= 15
       if (guidePairing && wanted.some((f) => pairingMentions(guidePairing, f))) {
         score += 10
-        reasons.push(`Guide pairing: ${guidePairing}`)
+        reasons.push(t('Guide pairing: {pairing}', { pairing: guidePairing }))
       }
     }
 
     if (opts.occasion === 'special') {
       if (price != null && price >= median) {
         score += 10
-        reasons.push('A special bottle for a special night')
+        reasons.push(t('A special bottle for a special night'))
       }
       if (w.favourite) score += 5
     } else if (opts.occasion === 'casual') {
       if (price != null && price <= median) {
         score += 8
-        reasons.push('Easy-going choice for a casual evening')
+        reasons.push(t('Easy-going choice for a casual evening'))
       } else if (price != null) score -= 8
     }
 
     if (w.avgRating != null) {
       score += (w.avgRating - 3) * 5
-      if (w.avgRating >= 4) reasons.push(`You rated it ${w.avgRating.toFixed(1)}★ before`)
+      if (w.avgRating >= 4) reasons.push(t('You rated it {rating}★ before', { rating: w.avgRating.toLocaleString(locale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 }) }))
     }
     if (w.inCellar >= 2) {
       score += 4
-      reasons.push(`You have ${w.inCellar} bottles`)
+      reasons.push(t('You have {n} bottles', { n: w.inCellar }))
     }
     if (w.favourite) score += 3
 
