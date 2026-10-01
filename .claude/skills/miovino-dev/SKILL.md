@@ -28,6 +28,7 @@ The owner has asked for autonomous progress: merge your own green PRs and contin
 - Claude calls live in the Worker (key never in the browser): `claude-opus-5-5`, `@anthropic-ai/sdk`, typed errors, check `stop_reason === 'refusal'`. Chat uses `betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default'` and caches the cellar snapshot in `system`.
 - UI: dark wine theme tokens in `src/index.css` (`ink-*`, `cream-*`, `wine-*`, `gold-*`); reuse `src/components/ui.tsx` (Button, Chip, Sheet, Section, PageHeader, StatusChip). Mobile first (390px). Per-device conveniences may use localStorage wrapped in try/catch; anything that must sync goes in Dexie.
 - **Every visible string goes through `t()`** (`src/lib/i18n.ts`; English text is the key, `{placeholders}` for values, `plural(n, one, many)` for counts) and gets an Italian entry in `src/lib/i18n-it.ts`. `src/lib/i18n.test.ts` fails on any `t('…')` without a translation. Don't name a loop variable `t` in files that translate.
+- Accessibility: keep text ≥4.5:1 (cream-500 is the faintest allowed on ink-900/850/800), name icon-only buttons with aria-label, `Sheet` is a dialog that takes focus. Before shipping UI, run axe-core in the Playwright browser check (`axe.run(document, {runOnly: ['wcag2a','wcag2aa','wcag21aa','best-practice']})`) — expect zero violations.
 - Commit messages: `feat: …` / `fix: …` / `test: …`, body explains what the owner gets.
 
 ## Browser check (no Cloudflare needed)

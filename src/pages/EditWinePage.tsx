@@ -240,7 +240,7 @@ export default function EditWinePage() {
       )}
 
       <div className="mb-5 flex items-center gap-4">
-        <button type="button" onClick={() => setCamera('photo')} className="flex h-24 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-ink-850 text-cream-400 ring-1 ring-ink-700">
+        <button type="button" aria-label={photoUrl ? t('Retake photo') : t('Take photo')} onClick={() => setCamera('photo')} className="flex h-24 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-ink-850 text-cream-400 ring-1 ring-ink-700">
           {photoUrl ? <img src={photoUrl} alt="Label" className="h-full w-full object-cover" /> : <ImagePlus />}
         </button>
         <div className="min-w-0 text-sm text-cream-400">
