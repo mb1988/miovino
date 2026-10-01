@@ -1,7 +1,6 @@
 import { useSyncExternalStore } from 'react'
 import { MAX_PUSH, type SyncChange, type SyncRequest, type SyncResponse } from '../shared/sync'
 import { asRemote, db, onLocalChange } from './db'
-import { useSettings } from './settings'
 import { KINDS, type Kind, type Wine } from './types'
 
 /**
@@ -13,7 +12,8 @@ import { KINDS, type Kind, type Wine } from './types'
 
 export interface SyncState {
   available: boolean // a MioVino server answered /api/health
-  scan: boolean // server can scan labels (has an API key)
+  scan: boolean // server has an AI key: label scan, chat, wine list, window suggestions
+  ai: string | null // which AI provider the server uses, e.g. "Google Gemini"
   authenticated: boolean // this browser has a valid session (passkey or Cloudflare Access)
   devices: number // passkeys registered on the server (0 = first-time setup)
   status: 'idle' | 'syncing' | 'error' | 'offline' | 'signed-out'
@@ -21,7 +21,7 @@ export interface SyncState {
   error?: string
 }
 
-let state: SyncState = { available: false, scan: false, authenticated: false, devices: 0, status: 'idle' }
+let state: SyncState = { available: false, scan: false, ai: null, authenticated: false, devices: 0, status: 'idle' }
 const listeners = new Set<() => void>()
 const set = (patch: Partial<SyncState>) => {
   state = { ...state, ...patch }
@@ -37,28 +37,26 @@ export function useSync(): SyncState {
   )
 }
 
-/** True when labels can be scanned: via the server, or with a key saved on this device. */
+/** True when the server can run the AI features (it has a free Gemini/OpenRouter key, or a Claude key). */
 export function useCanScan(): boolean {
-  const s = useSync()
-  const settings = useSettings()
-  return s.scan || !!settings.apiKey
+  return useSync().scan
 }
 
-type Health = { available: boolean; scan: boolean; authenticated: boolean; devices: number }
+type Health = { available: boolean; scan: boolean; ai: string | null; authenticated: boolean; devices: number }
 let statusPromise: Promise<Health> | undefined
 /** Asks the Worker (if any) what it can do and whether this browser is signed in. Cached until forced. */
 export function serverStatus(force = false): Promise<Health> {
   if (!statusPromise || force) {
-    const none: Health = { available: false, scan: false, authenticated: false, devices: 0 }
+    const none: Health = { available: false, scan: false, ai: null, authenticated: false, devices: 0 }
     statusPromise = fetch('/api/health', { headers: { accept: 'application/json' }, credentials: 'same-origin' })
       .then(async (r) => {
         if (!r.ok || !r.headers.get('content-type')?.includes('json')) return none
         const j = (await r.json()) as Partial<Health> & { ok?: boolean }
-        return { available: !!j.ok, scan: !!j.scan, authenticated: j.authenticated !== false, devices: j.devices ?? 0 }
+        return { available: !!j.ok, scan: !!j.scan, ai: j.ai ?? null, authenticated: j.authenticated !== false, devices: j.devices ?? 0 }
       })
       .catch(() => none)
       .then((s) => {
-        set({ available: s.available, scan: s.scan, authenticated: s.authenticated, devices: s.devices, ...(s.authenticated && state.status === 'signed-out' ? { status: 'idle', error: undefined } : {}) })
+        set({ available: s.available, scan: s.scan, ai: s.ai, authenticated: s.authenticated, devices: s.devices, ...(s.authenticated && state.status === 'signed-out' ? { status: 'idle', error: undefined } : {}) })
         return s
       })
   }

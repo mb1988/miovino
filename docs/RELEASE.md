@@ -22,11 +22,11 @@ Phone / laptop (PWA, offline-first; IndexedDB stays as the local cache)
    ▼
 Cloudflare Worker ── /api/sync   → D1 (wines, bottles, tastings, locations)
                   ── /api/photo  → D1 photos table
-                  └─ /api/scan   → Claude API (key stored as a Worker secret)
+                  └─ /api/scan, /api/ask, … → Gemini / OpenRouter (keys stored as Worker secrets)
 ```
 
 - **Sync model:** every record gets `updatedAt` + `deletedAt`. The app pushes local changes and pulls anything newer, and the newest `updatedAt` wins. That is plenty for one person on two devices, and the app keeps working offline.
-- The Claude API key moves from phone settings to a Worker **secret**, so the phone never holds it.
+- AI keys are Worker **secrets**, so the phone never holds one.
 
 ## Environments: no separate staging
 
@@ -43,16 +43,24 @@ Cloudflare Worker ── /api/sync   → D1 (wines, bottles, tastings, locations
 
 Plus a restore drill: once a month, restore the latest export into the preview DB (the Action can do this) to prove backups actually work.
 
-## AI: which provider
+## AI: free by default
 
-| Option | Cost for ~100 scans/yr | Quality on wine labels | Notes |
-|---|---|---|---|
-| **Claude Haiku 4.5** via Worker proxy | ≈ £0.30/yr | Good | Cheapest Claude |
-| **Claude Sonnet 5.5 / Opus 5.5** | ≈ £1–2/yr | Best: reads stylised labels, knows producers and windows | Current default in the app |
-| Cloudflare Workers AI (Llama 3.2 Vision) | Free (10k neurons/day) | Noticeably weaker at stylised labels and wine knowledge | Same platform, no extra account |
-| Google Gemini free tier | Free | Good | On the free tier, prompts/images **may be used for training**. Free-tier limits were cut in 2026 |
+All AI features (label scan, Ask my cellar, wine-list scanner, window suggestions) run in the Worker through `worker/ai.ts`. It tries the providers that have a key, in order, and moves to the next on a rate limit, an outage or an unreadable answer:
 
-**Recommendation:** Claude through the Worker proxy (default Sonnet 5.5, switchable). It's pennies a year at this volume and the most accurate. Adding a free fallback (Workers AI) is easy, about an hour, because the scanner is isolated in `src/lib/scanner.ts`.
+| Order | Provider | Secret | Model (var) | Cost |
+|---|---|---|---|---|
+| 1 | **Google Gemini** | `GEMINI_API_KEY` | `GEMINI_MODEL` = `gemini-flash-latest` (an alias that follows Google's current Flash model) | Free tier (Flash models only, daily limits) |
+| 2 | **OpenRouter** | `OPENROUTER_API_KEY` | `OPENROUTER_MODEL` = `openrouter/free` (picks a free model that can read images) | Free: 50 requests/day, 1,000/day after a one-off $10 top-up |
+| 3 | Anthropic Claude | `ANTHROPIC_API_KEY` | `ANTHROPIC_MODEL` = `claude-opus-5-5` | Paid, only used if set |
+
+Change the order with the `AI_PROVIDERS` var (e.g. `openrouter,gemini`). `/api/health` reports which provider is active, and More → AI features shows it.
+
+**Privacy note:** on free tiers, Google (and some OpenRouter free models) may use prompts and images to improve their models. Label photos and restaurant lists are low-risk; the chat sends a text summary of your cellar.
+
+**Get the keys (2 minutes each):**
+- Gemini: https://aistudio.google.com/apikey → *Create API key* → `npx wrangler secret put GEMINI_API_KEY`
+- OpenRouter (backup): https://openrouter.ai/keys → `npx wrangler secret put OPENROUTER_API_KEY`
+- Preview deployments: same commands with `--env preview`.
 
 ## The database (Cloudflare D1)
 
@@ -78,7 +86,7 @@ npm run db:query -- "SELECT producer, name, vintage, bottles, drink_from, drink_
 1. `npx wrangler login` (opens the browser, approve)
 2. `npm run cf:setup` creates the D1 databases (prod + preview), writes the IDs into `wrangler.jsonc` and applies migrations
 3. `npm run deploy` (first deploy prints `https://miovino.<you>.workers.dev`)
-4. `npx wrangler secret put ANTHROPIC_API_KEY` (paste your key yourself; enables scanning on the server)
+4. `npx wrangler secret put GEMINI_API_KEY` (free key from aistudio.google.com; paste it yourself). Optional backup: `OPENROUTER_API_KEY`. This enables every AI feature.
 5. **Login (passkeys, built in):** `npm run auth:invite` prints a QR code and a one-time link (24 h). Open it on your phone, tap *Create passkey*, then approve with Face ID / fingerprint. Add more devices later from More → Devices → *Add a device* (shows a QR). Sessions last 180 days. Optional: Cloudflare Access also works (set `ACCESS_TEAM_DOMAIN` / `ACCESS_AUD`), but Zero Trust's free plan asks for a payment card.
 6. **CI/CD:** create an API token (Workers Scripts Edit, D1 Edit, Account Settings Read). In GitHub → Settings → Secrets add `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`; under Variables add `CF_DEPLOY=true`.
 7. On your phone, after creating the passkey: **Share → Add to Home Screen**.

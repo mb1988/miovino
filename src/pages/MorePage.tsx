@@ -1,4 +1,4 @@
-import { BarChart3, CalendarRange, ChevronRight, Dna, Grid3x3, ShoppingBag, Download, Eye, EyeOff, FileJson, FileSpreadsheet, GripVertical, MapPin, Trash2, Upload } from 'lucide-react'
+import { BarChart3, CalendarRange, ChevronRight, Dna, Grid3x3, ShoppingBag, Download, FileJson, FileSpreadsheet, GripVertical, MapPin, Trash2, Upload } from 'lucide-react'
 import { LANGS, locale, setLang, t, useLang } from '../lib/i18n'
 import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -17,7 +17,6 @@ export default function MorePage() {
   const lang = useLang()
   const sync = useSync()
   const locations = useLocations()
-  const [showKey, setShowKey] = useState(false)
   const [newLoc, setNewLoc] = useState('')
   const [msg, setMsg] = useState('')
   const restoreRef = useRef<HTMLInputElement>(null)
@@ -234,29 +233,18 @@ export default function MorePage() {
         </div>
       </Section>
 
-      <Section title={t('AI label scanner')} className="scroll-mt-20">
-        <div id="ai" className="card space-y-4 p-4">
-          <label className="block">
-            {sync.scan && <p className="mb-3 rounded-lg bg-emerald-500/10 p-2.5 text-xs text-emerald-200 ring-1 ring-emerald-500/30">{t('Scanning runs on your MioVino server — no key needed on this device.')}</p>}
-            <Label hint={t('optional · stored on this device only')}>{t('Anthropic API key')}</Label>
-            <div className="flex gap-2">
-              <input className="field font-mono text-xs" type={showKey ? 'text' : 'password'} value={s.apiKey} onChange={(e) => saveSettings({ apiKey: e.target.value.trim() })} placeholder={t('sk-ant-…')} autoComplete="off" />
-              <Button variant="secondary" aria-label={showKey ? t('Hide key') : t('Show key')} onClick={() => setShowKey(!showKey)}>
-                {showKey ? <EyeOff size={16} /> : <Eye size={16} />}
-              </Button>
-            </div>
-          </label>
-          <label className="block">
-            <Label>{t('Model')}</Label>
-            <select className="field" value={s.model} onChange={(e) => saveSettings({ model: e.target.value })}>
-              <option value="claude-opus-5-5">Claude Opus 5.5 (best)</option>
-              <option value="claude-sonnet-5-5">Claude Sonnet 5.5 (cheaper)</option>
-              <option value="claude-haiku-4-5">Claude Haiku 4.5 (cheapest)</option>
-            </select>
-          </label>
-          <p className="text-xs text-cream-500">
-            {t('Label photos are sent to the Anthropic API to be read. Get a key at console.anthropic.com. A scan costs roughly a cent.')}
+      <Section title={t('AI features')} className="scroll-mt-20">
+        <div id="ai" className="card space-y-3 p-4 text-sm">
+          {sync.scan ? (
+            <p className="rounded-lg bg-emerald-500/10 p-2.5 text-emerald-200 ring-1 ring-emerald-500/30">{t('On — label scan, Ask my cellar, wine lists and window suggestions use {provider}.', { provider: sync.ai ?? 'AI' })}</p>
+          ) : (
+            <p className="rounded-lg bg-ink-800 p-2.5 text-cream-300 ring-1 ring-ink-600">{t('Off — the server has no AI key yet. Everything else works.')}</p>
+          )}
+          <p className="text-xs text-cream-400">
+            {t('AI runs on your MioVino server, so no key is ever stored on this phone. Free options: a Google Gemini key from aistudio.google.com, or an OpenRouter key from openrouter.ai. Add it with:')}
           </p>
+          <code className="block overflow-x-auto rounded-lg bg-ink-950 p-2.5 text-xs whitespace-nowrap text-cream-200">npx wrangler secret put GEMINI_API_KEY</code>
+          <p className="text-xs text-cream-500">{t('On the free Gemini tier Google may use what you send to improve its models; photos of labels and wine lists are low-risk, but keep that in mind.')}</p>
         </div>
       </Section>
 

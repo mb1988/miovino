@@ -130,7 +130,7 @@ export default function WinePage() {
               </Link>{' '}
               {t('or')}{' '}
               <Link className="text-wine-300 underline" to={`/windows?w=${id}`}>
-                {t('ask Claude')}
+                {t('ask the AI')}
               </Link>
             </p>
           ) : (

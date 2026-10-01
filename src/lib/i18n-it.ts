@@ -53,7 +53,6 @@ export const IT: Record<string, string> = {
   'Suggestions for wines without one': 'Suggerimenti per i vini che non ce l’hanno',
   'Every wine has a window': 'Ogni vino ha la sua finestra',
   'New wines without one will show up here.': 'I nuovi vini senza finestra compariranno qui.',
-  'Claude suggests a typical window for each wine from the producer, appellation and vintage. Nothing is saved until you accept it.': 'Claude suggerisce una finestra tipica per ogni vino in base a produttore, denominazione e annata. Nulla viene salvato finché non accetti.',
   'Suggestions come from your MioVino server — sign in on this device to use them.': 'I suggerimenti arrivano dal tuo server MioVino — accedi da questo dispositivo per usarli.',
   'Suggest windows for {n} wines': 'Suggerisci le finestre per {n} vini',
   'Accept all {n}': 'Accetta tutte ({n})',
@@ -69,7 +68,6 @@ export const IT: Record<string, string> = {
   Skip: 'Salta',
   'No window yet.': 'Ancora nessuna finestra.',
   or: 'oppure',
-  'ask Claude': 'chiedi a Claude',
   'Past its window (ended {year}) — open it before it fades': 'Oltre la finestra (finita nel {year}) — stappalo prima che cali',
   'Drink soon — window closes {year}': 'Da bere presto — la finestra si chiude nel {year}',
   'In its drinking window ({from}–{to})': 'Nella sua finestra di beva ({from}–{to})',
@@ -149,8 +147,6 @@ export const IT: Record<string, string> = {
   'Data lives only in this browser': 'I dati sono solo in questo browser',
   'Your cellar is synced to the cloud database (with 7-day point-in-time restore). A JSON backup is still a good portable copy.': 'La tua cantina è sincronizzata nel database cloud (con ripristino fino a 7 giorni). Un backup JSON resta comunque una buona copia portatile.',
   'Data lives only in this browser. Export a backup now and then.': 'I dati sono solo in questo browser. Esporta un backup ogni tanto.',
-  'Hide key': 'Nascondi chiave',
-  'Show key': 'Mostra chiave',
   'Sent to {n} device.': 'Inviata a {n} dispositivo.',
   'Sent to {n} devices.': 'Inviata a {n} dispositivi.',
   'Nothing was delivered — try turning reminders off and on.': 'Non è arrivato nulla — prova a disattivare e riattivare i promemoria.',
@@ -256,9 +252,6 @@ export const IT: Record<string, string> = {
   'Excel or CSV, columns mapped automatically': 'Excel o CSV, colonne riconosciute da sole',
 
   // Scan
-  'Scanner needs an Anthropic API key': 'Lo scanner richiede una chiave API Anthropic',
-  'The photo is read by Claude (vision). The key stays on this device only.': 'La foto viene letta da Claude. La chiave resta solo su questo dispositivo.',
-  'Add key in Settings': 'Aggiungi la chiave nelle Impostazioni',
   'Fill the frame with the front label, in good light.': "Inquadra bene l'etichetta frontale, con buona luce.",
   'Take photo': 'Scatta foto',
   'Choose from library': 'Scegli dalla galleria',
@@ -332,7 +325,6 @@ export const IT: Record<string, string> = {
   'e.g. Rack A / Shelf 2': 'es. Scaffale A / Ripiano 2',
   Italy: 'Italia',
   Piedmont: 'Piemonte',
-  'AI label scanner': 'Scanner etichette AI',
 
   // Wine page
   'This wine no longer exists.': 'Questo vino non esiste più.',
@@ -449,7 +441,6 @@ export const IT: Record<string, string> = {
   '{n} placed bottle(s) would fall outside the grid and go back to “not on the grid”.': '{n} bottiglie finirebbero fuori dalla griglia e tornerebbero tra quelle “non sulla griglia”.',
 
   // Ask
-  'Claude, with your bottles and notes': 'Claude, con le tue bottiglie e le tue note',
   'New conversation': 'Nuova conversazione',
   'Ask anything about your wines. Try:': 'Chiedi qualsiasi cosa sui tuoi vini. Prova:',
   'Ask about your cellar…': 'Chiedi alla tua cantina…',
@@ -492,10 +483,6 @@ export const IT: Record<string, string> = {
   Settings: 'Impostazioni',
   'Cellar name': 'Nome della cantina',
   Currency: 'Valuta',
-  'Anthropic API key': 'Chiave API Anthropic',
-  'optional · stored on this device only': 'facoltativa · salvata solo su questo dispositivo',
-  'Scanning runs on your MioVino server — no key needed on this device.': 'La scansione gira sul tuo server MioVino — nessuna chiave necessaria qui.',
-  'Label photos are sent to the Anthropic API to be read. Get a key at console.anthropic.com. A scan costs roughly a cent.': "Le foto delle etichette vengono lette dall'API Anthropic. Prendi una chiave su console.anthropic.com. Una scansione costa circa un centesimo.",
   Model: 'Modello',
   'Danger zone': 'Zona pericolosa',
   'Delete all data': 'Elimina tutti i dati',
@@ -547,4 +534,16 @@ export const IT: Record<string, string> = {
   // Cellar list
   bottle: 'bottiglia',
   Favourite: 'Preferito',
+  // Free AI
+  'AI sommelier, with your bottles and notes': 'Sommelier AI, con le tue bottiglie e note',
+  'AI features': 'Funzioni AI',
+  'On — label scan, Ask my cellar, wine lists and window suggestions use {provider}.': 'Attive — scansione etichette, Chiedi alla cantina, carte dei vini e finestre di beva usano {provider}.',
+  'Off — the server has no AI key yet. Everything else works.': 'Spente — il server non ha ancora una chiave AI. Tutto il resto funziona.',
+  'AI runs on your MioVino server, so no key is ever stored on this phone. Free options: a Google Gemini key from aistudio.google.com, or an OpenRouter key from openrouter.ai. Add it with:': "L'AI gira sul tuo server MioVino, quindi nessuna chiave resta su questo telefono. Opzioni gratuite: una chiave Google Gemini da aistudio.google.com o una chiave OpenRouter da openrouter.ai. Aggiungila con:",
+  'On the free Gemini tier Google may use what you send to improve its models; photos of labels and wine lists are low-risk, but keep that in mind.': 'Con Gemini gratuito Google può usare ciò che invii per migliorare i suoi modelli; foto di etichette e carte dei vini sono poco sensibili, ma tienilo presente.',
+  'The label reader is not switched on': 'Il lettore di etichette non è attivo',
+  'It runs on your MioVino server with a free AI key. Until then, add the wine by hand.': 'Funziona sul tuo server MioVino con una chiave AI gratuita. Nel frattempo aggiungi il vino a mano.',
+  'How to switch it on': 'Come attivarlo',
+  'The AI suggests a typical window for each wine from the producer, appellation and vintage. Nothing is saved until you accept it.': "L'AI suggerisce una finestra tipica per ogni vino in base a produttore, denominazione e annata. Nulla viene salvato finché non accetti.",
+  'ask the AI': "chiedi all'AI",
 }

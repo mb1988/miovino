@@ -22,7 +22,8 @@ npm test                   # unit + sync tests (server logic runs on real SQLite
 - **Drink a bottle**: half-star rating, occasion, company, food, notes, and "buy again"
 - **What should I drink?**: rule-based picks that show their reasons (urgency, food match incl. Vitae pairings, occasion, price, your past ratings)
 - **Journal** and **Wine DNA** (styles, grapes, regions, producers, vintages, loved / wouldn't buy again)
-- **Label scanner**: photo → Claude vision → review form. If the wine is already in your cellar, it offers "+1 bottle" or "Drink" instead. Needs an Anthropic API key (More → Settings), which is stored only on the device.
+- **Label scanner**: photo → AI (free Google Gemini, OpenRouter fallback) → review form. If the wine is already in your cellar, it offers "+1 bottle" or "Drink" instead. Keys live on the server only.
+- **Demo**: `/demo` runs the whole app on sample wines, entirely in the browser
 - **Backup**: full JSON backup/restore (with photos), Excel export (cellar + tastings sheets), CSV export
 
 ## Code map
@@ -34,7 +35,9 @@ npm test                   # unit + sync tests (server logic runs on real SQLite
 | `src/lib/knowledge.ts` | Offline appellation → country/region/grapes table, food affinities |
 | `src/lib/status.ts` | Drinking-window status |
 | `src/lib/recommend.ts` | "What should I drink" scoring |
-| `src/lib/scanner.ts` | Claude vision label reader (lazy-loaded) |
+| `src/lib/scanner.ts` | Label scan client (`/api/scan`) |
+| `worker/ai.ts` | AI providers: Gemini → OpenRouter → Claude, with fallback |
+| `src/lib/demo*.ts` | Demo mode: flag, sample data, in-browser fake API |
 | `src/lib/backup.ts` | Export / backup / restore |
 | `src/lib/sync.ts` | Offline-first sync client |
 | `worker/` | Cloudflare Worker: `/api/sync`, `/api/photo`, `/api/scan`, Access JWT check |

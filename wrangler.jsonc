@@ -16,7 +16,9 @@
     "ACCESS_TEAM_DOMAIN": "",
     "ACCESS_AUD": "",
     "ALLOWED_EMAILS": "m.borry.j@gmail.com",
-    "SCAN_MODEL": "claude-opus-5-5"
+    // AI: free Gemini first, then OpenRouter free models, then Claude — whichever has a key (Worker secrets).
+    "GEMINI_MODEL": "gemini-flash-latest",
+    "OPENROUTER_MODEL": "openrouter/free"
   },
   "env": {
     // Preview deployments for pull requests: separate database and bucket, never touches real data.
@@ -27,7 +29,8 @@
         "ACCESS_TEAM_DOMAIN": "",
         "ACCESS_AUD": "",
         "ALLOWED_EMAILS": "m.borry.j@gmail.com",
-        "SCAN_MODEL": "claude-haiku-4-5"
+        "GEMINI_MODEL": "gemini-flash-lite-latest",
+        "OPENROUTER_MODEL": "openrouter/free"
       }
     }
   }

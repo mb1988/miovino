@@ -30,7 +30,7 @@ function saveTurns(turns: Turn[]) {
   }
 }
 
-/** "Ask my cellar": chat with Claude about your own bottles. The conversation is kept on this device. */
+/** "Ask my cellar": chat with the AI about your own bottles. The conversation is kept on this device. */
 export default function AskPage() {
   const sync = useSync()
   const [turns, setTurns] = useState<Turn[]>(loadTurns)
@@ -75,7 +75,7 @@ export default function AskPage() {
     <div className="flex min-h-[calc(100dvh-8rem)] flex-col">
       <PageHeader
         title={t('Ask my cellar')}
-        subtitle={t('Claude, with your bottles and notes')}
+        subtitle={t('AI sommelier, with your bottles and notes')}
         back
         right={
           turns.length > 0 && (

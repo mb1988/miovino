@@ -15,7 +15,7 @@ const CONF_STYLE: Record<WindowSuggestion['confidence'], string> = {
   low: 'text-rose-300',
 }
 
-/** Ask Claude for typical drinking windows for wines that have none; the owner accepts them one by one. */
+/** Ask the AI for typical drinking windows for wines that have none; the owner accepts them one by one. */
 export default function WindowsPage() {
   const cellar = useCellar()
   const sync = useSync()
@@ -77,7 +77,7 @@ export default function WindowsPage() {
         </Empty>
       ) : (
         <>
-          <p className="mb-4 text-sm text-cream-300">{t('Claude suggests a typical window for each wine from the producer, appellation and vintage. Nothing is saved until you accept it.')}</p>
+          <p className="mb-4 text-sm text-cream-300">{t('The AI suggests a typical window for each wine from the producer, appellation and vintage. Nothing is saved until you accept it.')}</p>
           {!ready && <p className="card mb-4 p-4 text-sm text-cream-300">{t('Suggestions come from your MioVino server — sign in on this device to use them.')}</p>}
           {left > 0 && (
             <Button className="mb-4 w-full" disabled={busy || !ready} onClick={ask}>

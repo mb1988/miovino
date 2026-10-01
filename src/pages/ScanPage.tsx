@@ -50,11 +50,11 @@ export default function ScanPage() {
       {!canScan && (
         <div className="card mb-5 p-4 text-sm">
           <p className="flex items-center gap-2 font-medium text-cream-50">
-            <KeyRound size={16} /> {t('Scanner needs an Anthropic API key')}
+            <KeyRound size={16} /> {t('The label reader is not switched on')}
           </p>
-          <p className="mt-1 text-cream-400">{t('The photo is read by Claude (vision). The key stays on this device only.')}</p>
+          <p className="mt-1 text-cream-400">{t('It runs on your MioVino server with a free AI key. Until then, add the wine by hand.')}</p>
           <Link to="/more#ai" className="mt-3 inline-block text-wine-300 underline">
-            {t('Add key in Settings')}
+            {t('How to switch it on')}
           </Link>
         </div>
       )}

@@ -1,2 +1,5 @@
 ALLOW_NO_AUTH=true
-# ANTHROPIC_API_KEY=sk-ant-... (optional, enables /api/scan locally)
+# AI (optional; any one is enough). Free: https://aistudio.google.com/apikey or https://openrouter.ai/keys
+# GEMINI_API_KEY=...
+# OPENROUTER_API_KEY=...
+# ANTHROPIC_API_KEY=sk-ant-... (paid, used last)
