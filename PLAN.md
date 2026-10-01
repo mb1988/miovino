@@ -142,7 +142,7 @@ Bottom nav: **Cellar · Drink · ＋Add (big) · Journal · More**
 - Try push reminders on the iPhone (Home Screen app → More → Reminders)
 
 ### Phase 4 — backlog for autonomous runs (top first; tick when shipped)
-1. [ ] **Restaurant wine-list scanner** — photo of a wine list → Claude reads it and ranks picks by your taste (Wine DNA), budget and food; `/api/winelist` in the Worker
+1. [x] **Restaurant wine-list scanner** — photo of a wine list → Claude reads it and ranks picks by your taste (Wine DNA), budget and food; `/api/winelist` in the Worker
 2. [ ] **Reminder texts in Italian** — push digest and Worker messages follow the language saved with the subscription
 3. [ ] **"What should I drink?" reasons in Italian** — `src/lib/recommend.ts` reason strings through `t()`
 4. [ ] **Drinking-window suggestions** — for wines with no window, ask Claude (server) for a typical window; owner confirms per wine

@@ -1,4 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod'
+import { MAX_LIST_PAGES, validateWineListRequest, wineListPrompt, WineListSchema } from '../src/shared/winelist'
 import { drinkStatus, type DrinkStatus } from '../src/shared/status'
 import { json } from './auth'
 
@@ -127,6 +129,47 @@ export async function handleAsk(req: Request, db: AskDb, apiKey: string | undefi
     const text = response.content.flatMap((b) => (b.type === 'text' ? [b.text] : [])).join('\n').trim()
     if (!text) return json({ error: 'No answer came back. Try again.' }, 502)
     return json({ answer: text, truncated: response.stop_reason === 'max_tokens' })
+  } catch (e) {
+    if (e instanceof Anthropic.RateLimitError) return json({ error: 'Rate limited — try again in a moment.' }, 429)
+    if (e instanceof Anthropic.AuthenticationError) return json({ error: 'The server API key was rejected.' }, 502)
+    if (e instanceof Anthropic.APIError) return json({ error: `AI error: ${e.message}` }, 502)
+    throw e
+  }
+}
+
+/** POST /api/winelist — read restaurant wine-list photos and pick bottles for the owner's taste. */
+export async function handleWineList(req: Request, db: AskDb, apiKey: string | undefined, model: string) {
+  if (!apiKey) return json({ error: 'The wine-list scanner needs a Claude API key on the server (ANTHROPIC_API_KEY).' }, 501)
+  const body = validateWineListRequest(await req.json())
+  if (!body) return json({ error: `Send 1–${MAX_LIST_PAGES} photos of the list as base64 JPEG in "images".` }, 400)
+
+  const client = new Anthropic({ apiKey })
+  try {
+    const response = await client.beta.messages.parse({
+      model,
+      max_tokens: 16000,
+      output_config: { effort: 'medium', format: betaZodOutputFormat(WineListSchema) },
+      betas: ['server-side-fallback-2026-07-01'],
+      fallbacks: 'default',
+      system: [
+        { type: 'text', text: 'You are a sommelier helping the owner of a private wine cellar choose from a restaurant wine list. Their cellar and tasting history follow.' },
+        { type: 'text', text: await cellarSnapshot(db), cache_control: { type: 'ephemeral' } },
+      ],
+      messages: [
+        {
+          role: 'user',
+          content: [
+            ...body.images.map((data) => ({ type: 'image' as const, source: { type: 'base64' as const, media_type: 'image/jpeg' as const, data } })),
+            { type: 'text', text: wineListPrompt(body) },
+          ],
+        },
+      ],
+    })
+    if (response.stop_reason === 'refusal') return json({ error: 'Claude declined to read these photos. Try clearer pictures of the list.' }, 422)
+    const result = response.parsed_output
+    if (!result) return json({ error: 'Could not read the list. Try a sharper, closer photo of each page.' }, 422)
+    if (!result.isWineList) return json({ error: "That doesn't look like a wine list. Photograph the pages with the wines." }, 422)
+    return json({ result: { ...result, picks: result.picks.slice(0, 5).map((p) => ({ ...p, vintage: p.vintage == null ? null : Math.round(p.vintage) })) } })
   } catch (e) {
     if (e instanceof Anthropic.RateLimitError) return json({ error: 'Rate limited — try again in a moment.' }, 429)
     if (e instanceof Anthropic.AuthenticationError) return json({ error: 'The server API key was rejected.' }, 502)

@@ -1,4 +1,4 @@
-import { MapPin, MessageCircle, RefreshCw, Sparkles, Wine as WineIcon } from 'lucide-react'
+import { MapPin, MessageCircle, ScrollText, RefreshCw, Sparkles, Wine as WineIcon } from 'lucide-react'
 import { t } from '../lib/i18n'
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -28,13 +28,22 @@ export default function SuggestPage() {
     <div>
       <PageHeader title={t('What should I drink?')} subtitle={t('Picks from your own cellar')} />
 
-      <Link to="/ask" className="card mb-4 flex items-center gap-3 p-4 hover:ring-ink-600">
+<div className="mb-4 grid gap-2">
+      <Link to="/ask" className="card flex items-center gap-3 p-4 hover:ring-ink-600">
         <MessageCircle className="text-gold-400" />
         <span className="flex-1">
           <span className="block font-semibold text-cream-50">{t('Ask my cellar')}</span>
           <span className="text-sm text-cream-400">&ldquo;What goes with lamb?&rdquo; &mdash; answers from your own bottles</span>
         </span>
       </Link>
+        <Link to="/winelist" className="card flex items-center gap-3 p-4 hover:ring-ink-600">
+          <ScrollText className="text-gold-400" />
+          <span className="flex-1">
+            <span className="block font-semibold text-cream-50">{t('At a restaurant?')}</span>
+            <span className="text-sm text-cream-400">{t('Photograph the wine list — picks for your taste')}</span>
+          </span>
+        </Link>
+      </div>
 
       <div className="card mb-5 space-y-4 p-4">
         <div>

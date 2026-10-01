@@ -3,7 +3,7 @@ import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod'
 import { labelPrompt, LabelSchema, SCAN_MODELS, tidyLabel } from '../src/shared/label'
 import { authorize, json, type AuthEnv } from './auth'
 import { authStatus, handleAuth } from './passkeys'
-import { handleAsk, type AskDb } from './ask'
+import { handleAsk, handleWineList, type AskDb } from './ask'
 import { handlePush, monthlyReminder, type PushDb } from './push'
 import { BadRequest, sync, validate, type Db } from './sync'
 
@@ -105,6 +105,9 @@ export default {
 
       // POST /api/ask — "Ask my cellar" chat
       if (url.pathname === '/api/ask' && req.method === 'POST') return handleAsk(req, env.DB as unknown as AskDb, env.ANTHROPIC_API_KEY, env.ASK_MODEL ?? 'claude-opus-5-5')
+
+      // POST /api/winelist — restaurant wine-list scanner
+      if (url.pathname === '/api/winelist' && req.method === 'POST') return handleWineList(req, env.DB as unknown as AskDb, env.ANTHROPIC_API_KEY, env.ASK_MODEL ?? 'claude-opus-5-5')
 
       if (url.pathname.startsWith('/api/push/')) {
         const res = await handlePush(req, env.DB as unknown as PushDb, url.pathname)
