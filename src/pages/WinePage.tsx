@@ -117,14 +117,18 @@ export default function WinePage() {
             <StatusChip status={status} />
             <span className="text-sm text-cream-200">
               {wine.drinkFrom ?? '…'} → {wine.drinkTo ?? '…'}
-              {wine.peakYear && <span className="text-gold-400"> · peak {wine.peakYear}</span>}
+              {wine.peakYear && <span className="text-gold-400"> · {t('peak {year}', { year: wine.peakYear })}</span>}
             </span>
           </div>
           {wine.drinkFrom == null && wine.drinkTo == null ? (
             <p className="mt-3 text-sm text-cream-400">
-              No window yet.{' '}
+              {t('No window yet.')}{' '}
               <Link className="text-wine-300 underline" to={`/wine/${id}/edit`}>
                 {t('Add one')}
+              </Link>{' '}
+              {t('or')}{' '}
+              <Link className="text-wine-300 underline" to={`/windows?w=${id}`}>
+                {t('ask Claude')}
               </Link>
             </p>
           ) : (

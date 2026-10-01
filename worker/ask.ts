@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod'
+import { MAX_WINDOW_WINES, tidyWindows, validateWindowsRequest, windowsPrompt, WindowsSchema } from '../src/shared/windows'
 import { MAX_LIST_PAGES, validateWineListRequest, wineListPrompt, WineListSchema } from '../src/shared/winelist'
 import { drinkStatus, type DrinkStatus } from '../src/shared/status'
 import { json } from './auth'
@@ -170,6 +171,33 @@ export async function handleWineList(req: Request, db: AskDb, apiKey: string | u
     if (!result) return json({ error: 'Could not read the list. Try a sharper, closer photo of each page.' }, 422)
     if (!result.isWineList) return json({ error: "That doesn't look like a wine list. Photograph the pages with the wines." }, 422)
     return json({ result: { ...result, picks: result.picks.slice(0, 5).map((p) => ({ ...p, vintage: p.vintage == null ? null : Math.round(p.vintage) })) } })
+  } catch (e) {
+    if (e instanceof Anthropic.RateLimitError) return json({ error: 'Rate limited — try again in a moment.' }, 429)
+    if (e instanceof Anthropic.AuthenticationError) return json({ error: 'The server API key was rejected.' }, 502)
+    if (e instanceof Anthropic.APIError) return json({ error: `AI error: ${e.message}` }, 502)
+    throw e
+  }
+}
+
+/** POST /api/windows — suggest drinking windows for wines that have none. The app shows them for the owner to accept. */
+export async function handleWindows(req: Request, apiKey: string | undefined, model: string) {
+  if (!apiKey) return json({ error: 'Window suggestions need a Claude API key on the server (ANTHROPIC_API_KEY).' }, 501)
+  const body = validateWindowsRequest(await req.json())
+  if (!body) return json({ error: `Send 1–${MAX_WINDOW_WINES} wines as {wines: [{id, producer, name, vintage, type, …}]}.` }, 400)
+
+  const client = new Anthropic({ apiKey })
+  try {
+    const response = await client.beta.messages.parse({
+      model,
+      max_tokens: 16000,
+      output_config: { effort: 'low', format: betaZodOutputFormat(WindowsSchema) },
+      betas: ['server-side-fallback-2026-07-01'],
+      fallbacks: 'default',
+      messages: [{ role: 'user', content: windowsPrompt(body.wines, body.lang) }],
+    })
+    if (response.stop_reason === 'refusal') return json({ error: 'Claude declined this request. Try fewer wines.' }, 422)
+    if (!response.parsed_output) return json({ error: 'No suggestions came back. Try again.' }, 502)
+    return json({ windows: tidyWindows(body.wines, response.parsed_output) })
   } catch (e) {
     if (e instanceof Anthropic.RateLimitError) return json({ error: 'Rate limited — try again in a moment.' }, 429)
     if (e instanceof Anthropic.AuthenticationError) return json({ error: 'The server API key was rejected.' }, 502)

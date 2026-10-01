@@ -1,4 +1,4 @@
-import { BarChart3, ChevronRight, Dna, Grid3x3, ShoppingBag, Download, Eye, EyeOff, FileJson, FileSpreadsheet, GripVertical, MapPin, Trash2, Upload } from 'lucide-react'
+import { BarChart3, CalendarRange, ChevronRight, Dna, Grid3x3, ShoppingBag, Download, Eye, EyeOff, FileJson, FileSpreadsheet, GripVertical, MapPin, Trash2, Upload } from 'lucide-react'
 import { LANGS, locale, setLang, t, useLang } from '../lib/i18n'
 import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -103,6 +103,17 @@ export default function MorePage() {
         <span className="flex-1">
           <span className="block font-semibold text-cream-50">{t('Cellar over time')}</span>
           <span className="text-sm text-cream-400">{t('Spending and bottles, year by year')}</span>
+        </span>
+        <ChevronRight className="text-cream-500" />
+      </Link>
+
+      <Link to="/windows" className="card mb-6 flex items-center gap-4 p-4 hover:ring-ink-600">
+        <span className="rounded-xl bg-ink-700 p-2.5 text-cream-200">
+          <CalendarRange />
+        </span>
+        <span className="flex-1">
+          <span className="block font-semibold text-cream-50">{t('Drinking windows')}</span>
+          <span className="text-sm text-cream-400">{t('Suggestions for wines without one')}</span>
         </span>
         <ChevronRight className="text-cream-500" />
       </Link>

@@ -390,3 +390,46 @@ describe('wine-list scanner endpoint', () => {
     }
   })
 })
+
+describe('drinking-window suggestions', () => {
+  const wine = { id: 'wine-0000-0001', producer: 'Vietti', name: 'Barolo Rocche', vintage: 2019, type: 'red', appellation: 'Barolo DOCG', grapes: ['Nebbiolo'] }
+  async function setup(key?: string) {
+    const db = sqliteD1()
+    const worker = ((await import(/* @vite-ignore */ new URL('../../worker/index.ts', import.meta.url).href)) as { default: { fetch: (req: Request, env: unknown) => Promise<Response> } }).default
+    const env = { DB: db, ALLOW_NO_AUTH: 'true', ASSETS: { fetch: async () => new Response('index') }, ...(key ? { ANTHROPIC_API_KEY: key } : {}) }
+    return (body: unknown) => worker.fetch(new Request('https://cellar.test/api/windows', { method: 'POST', body: JSON.stringify(body) }), env)
+  }
+
+  it('checks the request and explains a missing key', async () => {
+    expect((await (await setup())({ wines: [wine] })).status).toBe(501)
+    const call = await setup('sk-test')
+    expect((await call({ wines: [] })).status).toBe(400)
+    expect((await call({ wines: [{ ...wine, vintage: 19 }] })).status).toBe(400)
+    expect((await call({ wines: Array.from({ length: 41 }, (_, i) => ({ ...wine, id: `wine-${i}-00000` })) })).status).toBe(400)
+  })
+
+  it('returns tidy suggestions only for the wines asked about', async () => {
+    const call = await setup('sk-test')
+    const answer = {
+      windows: [
+        { id: wine.id, drinkFrom: 2034.0, drinkTo: 2027, peakYear: 2050, confidence: 'high', note: 'Classic Serralunga structure.' }, // years swapped, peak outside
+        { id: 'not-asked-123', drinkFrom: 2020, drinkTo: 2030, peakYear: null, confidence: 'low', note: 'x' },
+      ],
+    }
+    let prompt = ''
+    vi.stubGlobal('fetch', async (_url: unknown, init?: RequestInit) => {
+      prompt = JSON.parse(String(init?.body)).messages[0].content
+      const message = { id: 'msg_1', type: 'message', role: 'assistant', model: 'claude-opus-5-5', content: [{ type: 'text', text: JSON.stringify(answer) }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } }
+      return new Response(JSON.stringify(message), { status: 200, headers: { 'content-type': 'application/json' } })
+    })
+    try {
+      const res = await call({ wines: [wine], lang: 'it' })
+      expect(res.status).toBe(200)
+      expect(((await res.json()) as { windows: unknown[] }).windows).toEqual([{ id: wine.id, drinkFrom: 2027, drinkTo: 2034, peakYear: null, confidence: 'high', note: 'Classic Serralunga structure.' }])
+      expect(prompt).toContain('id=wine-0000-0001 | Vietti — Barolo Rocche | 2019 | red | Barolo DOCG | Nebbiolo')
+      expect(prompt).toContain('in Italian')
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+})
