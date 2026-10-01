@@ -78,7 +78,7 @@ test('rack map: lay out a rack and place a bottle', async ({ page }) => {
   })
   await page.goto('/rack')
   await page.getByRole('button', { name: 'Save' }).click() // default 4 × 6 grid
-  await page.getByRole('button', { name: 'Place' }).click()
+  await page.getByRole('button', { name: /Barbaresco 2016 Place$/ }).click() // the bottle in "Not on the grid yet"
   await page.getByRole('button', { name: 'B2: empty' }).click()
   await expect(page.getByRole('button', { name: /^B2: Gaja Barbaresco 2016/ })).toBeVisible()
   await expect(page.getByText('1 of 24 slots filled')).toBeVisible()
@@ -118,4 +118,29 @@ test('demo mode: sample cellar with no server, then back to the real app', async
   await page.getByRole('button', { name: 'Exit' }).click()
   await expect(page.getByRole('note')).toHaveCount(0)
   await expect(page.getByText('38 wines · 78 bottles')).toHaveCount(0)
+})
+
+test('rack map: place a wine — pick it first, get slots next to its other bottles', async ({ page }) => {
+  await seed(page, {
+    wines: [wine('w1'), wine('w2', { producer: 'Leflaive', name: 'Puligny-Montrachet', type: 'white' })],
+    bottles: [
+      { id: 'b1', wineId: 'w1', status: 'cellar', location: 'Rack A', slot: 'A1', createdAt: now, updatedAt: now },
+      { id: 'b2', wineId: 'w1', status: 'cellar', location: 'Rack A', createdAt: now, updatedAt: now },
+      { id: 'b3', wineId: 'w1', status: 'cellar', createdAt: now, updatedAt: now },
+      { id: 'b4', wineId: 'w2', status: 'drunk', createdAt: now, updatedAt: now },
+    ],
+    locations: [{ id: 'l1', name: 'Rack A', order: 0, rows: 2, cols: 3, updatedAt: now }],
+  })
+  await page.goto('/rack')
+  await page.getByRole('button', { name: 'Place a wine' }).click()
+  const sheet = page.getByRole('dialog')
+  await expect(sheet.getByText('Puligny-Montrachet')).toHaveCount(0) // nothing left in the cellar to place
+  await sheet.getByRole('button', { name: /Barbaresco 2016/ }).click()
+  await expect(sheet.getByText('2 without a slot')).toBeVisible()
+  await expect(sheet.getByRole('button', { name: 'More' })).toBeDisabled() // can't place more than you have
+  await sheet.getByRole('button', { name: 'Suggest slots' }).click()
+  await expect(page.getByRole('button', { name: 'A2: chosen' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'A3: chosen' })).toBeVisible()
+  await page.getByRole('button', { name: 'Place 2 bottles' }).click()
+  await expect(page.getByText('3 of 6 slots filled')).toBeVisible()
 })

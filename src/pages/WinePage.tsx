@@ -142,11 +142,15 @@ export default function WinePage() {
       <Section
         title={t('Your bottles · {n}', { n: cellarBottles.length })}
         action={
-          cellarBottles.some((b) => b.slot) && (
-            <Link to={`/rack?w=${id}`} className="flex items-center gap-1 text-xs text-wine-300">
+          cellarBottles.some((b) => b.slot) ? (
+            <Link to={`/rack?w=${id}`} className="flex min-h-9 items-center gap-1 text-xs text-wine-300">
               <Grid3x3 size={13} /> {t('Show in rack')}
             </Link>
-          )
+          ) : cellarBottles.length > 0 ? (
+            <Link to={`/rack?place=${id}`} className="flex min-h-9 items-center gap-1 text-xs text-wine-300">
+              <Grid3x3 size={13} /> {t('Place in a rack')}
+            </Link>
+          ) : null
         }
       >
         <div className="card divide-y divide-ink-700">

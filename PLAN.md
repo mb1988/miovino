@@ -156,7 +156,7 @@ Feedback after using the app. Each item is one PR; CI must be green before mergi
 1. [x] **Demo mode for the CV** — `/demo` opens the app on a separate on-device database full of made-up wines (no sign-in, never touches the real cellar or D1). AI features answer with canned replies. Banner + "Exit demo". "Try the demo" link on the sign-in screen.
 2. [x] **List view cuts text + general UI polish** — compact rows wrap/clamp instead of clipping; denser, readable rows on 360–390px phones.
 3. [x] **Free AI instead of Anthropic** — one provider layer in the Worker: Google Gemini free tier (`GEMINI_API_KEY`) first, OpenRouter free models (`OPENROUTER_API_KEY`) as fallback, Anthropic only if its key is set. Scan, chat, wine list and window suggestions all go through it. *Owner:* create the free keys and add them as Worker secrets.
-4. [ ] **Rack map: "Place a wine"** — pick a wine first, see how many of its bottles still need a slot, the app suggests slots (next to the same wine, then same producer/type, keeping a row together); you can never place more bottles than are in the cellar.
+4. [x] **Rack map: "Place a wine"** — pick a wine first, see how many of its bottles still need a slot, the app suggests slots (next to the same wine, then same producer/type, keeping a row together); you can never place more bottles than are in the cellar.
 5. [ ] **Several cellars** — group racks/locations into cellars (e.g. Home, Parents'), switch cellar on the Cellar screen; "All cellars" stays the default.
 6. [ ] **Mobile experience pass** — safe areas, tap targets ≥44px, sheets that fit small screens, no horizontal scroll at 360px.
 7. [ ] **Reminders on Android + iPhone** — clear per-platform guidance in More → Reminders.

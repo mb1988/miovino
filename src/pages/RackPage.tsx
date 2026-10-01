@@ -1,12 +1,13 @@
-import { Grid3x3, MapPin, Move, Search, Wine as WineIcon, X } from 'lucide-react'
-import { t } from '../lib/i18n'
+import { Grid3x3, ListPlus, MapPin, Move, Search, Wine as WineIcon, X } from 'lucide-react'
+import { plural, t } from '../lib/i18n'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Bottle as BottleIcon, Button, Chip, cx, Empty, Label, PageHeader, Sheet, StatusChip, TYPE_COLOR } from '../components/ui'
 import { db } from '../lib/db'
 import { useCellar, useLocations } from '../lib/hooks'
-import { clearSlot, hasGrid, layout, MAX_COLS, MAX_ROWS, placeBottle, slotName } from '../lib/rack'
+import { clearSlot, hasGrid, layout, MAX_COLS, MAX_ROWS, placeBottle, placeBottles, slotName, suggestSlots, unslotted } from '../lib/rack'
+import { PlaceWineSheet, type PlaceChoice } from '../components/PlaceWineSheet'
 import { drinkStatus, STATUS_META } from '../lib/status'
 import type { Bottle, Location, WineWithBottles } from '../lib/types'
 
@@ -15,6 +16,7 @@ import type { Bottle, Location, WineWithBottles } from '../lib/types'
  *   loc=<location id>  which rack to show
  *   w=<wine id>        highlight every bottle of that wine
  *   b=<bottle id>      highlight one bottle (or, if it has no slot yet, start placing it)
+ *   place=<wine id>    open "Place a wine" for that wine
  */
 export default function RackPage() {
   const [sp, setSp] = useSearchParams()
@@ -25,6 +27,9 @@ export default function RackPage() {
   const [movingChoice, setMoving] = useState<Bottle | null>()
   const [resizing, setResizing] = useState(false)
   const [msg, setMsg] = useState('')
+  const [picker, setPicker] = useState(() => !!sp.get('place'))
+  // "Place a wine": the slots chosen so far (the app's suggestion, adjusted by tapping).
+  const [plan, setPlan] = useState<{ wineId: string; count: number; slots: string[] } | null>(null)
 
   const wines = useMemo(() => new Map((cellar ?? []).map((w) => [w.id, w])), [cellar])
   const focusBottle = sp.get('b') ? bottles?.find((b) => b.id === sp.get('b')) : undefined
@@ -66,13 +71,60 @@ export default function RackPage() {
       flash((e as Error).message)
     }
   }
+  const choose = (c: PlaceChoice) => {
+    const target = locations.find((l) => l.id === c.locId)!
+    const w = wines.get(c.wineId)!
+    const slots = suggestSlots(target, bottles, { wineId: w.id, producer: w.producer, type: w.type }, c.count, (id) => {
+      const x = wines.get(id)
+      return x && { wineId: x.id, producer: x.producer, type: x.type }
+    })
+    setPicker(false)
+    setMoving(null)
+    setResizing(false)
+    setSp({ loc: target.id! }, { replace: true })
+    setPlan({ wineId: w.id, count: c.count, slots })
+  }
+  const confirmPlan = async () => {
+    if (!plan || !loc) return
+    // Bottles already in this rack's location go first, so fewer bottles change location.
+    const free = unslotted(plan.wineId, bottles, locations).sort((a, b) => Number(b.location === loc.name) - Number(a.location === loc.name))
+    const assignments = plan.slots.slice(0, free.length).map((slot, i) => ({ bottleId: free[i].id!, slot }))
+    try {
+      await placeBottles(loc.name, assignments)
+      setPlan(null)
+      setSp({ loc: loc.id!, w: plan.wineId }, { replace: true })
+      flash(plural(assignments.length, 'Placed {n} bottle', 'Placed {n} bottles'))
+    } catch (e) {
+      flash((e as Error).message)
+    }
+  }
   const tap = (slot: string, bottle?: Bottle) => {
+    if (plan) {
+      if (bottle) return flash(t('{slot} is already taken', { slot }))
+      if (plan.slots.includes(slot)) return setPlan({ ...plan, slots: plan.slots.filter((s) => s !== slot) })
+      if (plan.slots.length >= plan.count) return flash(t('All {n} chosen — tap a highlighted slot to free it first', { n: plan.count }))
+      return setPlan({ ...plan, slots: [...plan.slots, slot] })
+    }
     if (moving && !bottle) return place(moving, slot)
     if (moving && bottle?.id === moving.id) return setMoving(null)
     setOpen({ slot, bottle })
   }
 
-  const header = <PageHeader title={t('Rack map')} subtitle={loc?.name} back />
+  const anyGrid = locations.some(hasGrid)
+  const header = (
+    <PageHeader
+      title={t('Rack map')}
+      subtitle={loc?.name}
+      back
+      right={
+        anyGrid && !plan ? (
+          <Button variant="secondary" className="px-3" onClick={() => setPicker(true)}>
+            <ListPlus size={16} aria-hidden /> {t('Place a wine')}
+          </Button>
+        ) : undefined
+      }
+    />
+  )
   if (!locations.length)
     return (
       <div>
@@ -110,7 +162,25 @@ export default function RackPage() {
         loc &&
         grid && (
           <>
-            {moving && (
+            {plan && (
+              <div className="card mb-3 p-3 ring-gold-400/50">
+                <p className="text-sm text-cream-100">
+                  {t('Suggested slots for')} <span className="font-semibold">{wineLabel(wines.get(plan.wineId))}</span>
+                </p>
+                <p className="mt-0.5 text-xs text-cream-400">
+                  {t('{a} of {b} chosen · tap a slot to add or remove it', { a: plan.slots.length, b: plan.count })}
+                </p>
+                <div className="mt-3 flex gap-2">
+                  <Button variant="secondary" className="flex-1" onClick={() => setPlan(null)}>
+                    {t('Cancel')}
+                  </Button>
+                  <Button className="flex-1" disabled={!plan.slots.length} onClick={confirmPlan}>
+                    {plural(plan.slots.length, 'Place {n} bottle', 'Place {n} bottles')}
+                  </Button>
+                </div>
+              </div>
+            )}
+            {moving && !plan && (
               <div className="card mb-3 flex items-center gap-3 p-3 ring-gold-400/50">
                 <Move size={18} className="shrink-0 text-gold-400" />
                 <p className="flex-1 text-sm text-cream-100">
@@ -121,7 +191,7 @@ export default function RackPage() {
                 </button>
               </div>
             )}
-            <RackGrid loc={loc} slots={grid.slots} wines={wines} moving={!!moving} isHighlighted={isHighlighted} onTap={tap} />
+            <RackGrid loc={loc} slots={grid.slots} wines={wines} moving={!!moving || !!plan} suggested={plan?.slots ?? []} isHighlighted={isHighlighted} onTap={tap} />
             <div className="mt-3 flex items-center justify-between text-xs text-cream-500">
               <span>
                 {t('{a} of {b} slots filled', { a: grid.slots.size, b: loc.rows! * loc.cols! })}
@@ -153,6 +223,18 @@ export default function RackPage() {
         )
       )}
 
+      {picker && (
+        <PlaceWineSheet
+          open
+          initialWine={sp.get('place') ?? undefined}
+          initialLoc={loc && hasGrid(loc) ? loc.id : undefined}
+          cellar={cellar}
+          bottles={bottles}
+          locations={locations}
+          onClose={() => setPicker(false)}
+          onChoose={choose}
+        />
+      )}
       <SlotSheet
         open={open}
         loc={loc}
@@ -183,6 +265,7 @@ function RackGrid({
   slots,
   wines,
   moving,
+  suggested,
   isHighlighted,
   onTap,
 }: {
@@ -190,6 +273,7 @@ function RackGrid({
   slots: Map<string, Bottle>
   wines: Map<string, WineWithBottles>
   moving: boolean
+  suggested: string[]
   isHighlighted: (b: Bottle) => boolean
   onTap: (slot: string, bottle?: Bottle) => void
 }) {
@@ -205,14 +289,14 @@ function RackGrid({
           </span>
         ))}
         {Array.from({ length: rows }, (_, r) => (
-          <Row key={r} r={r} cols={cols} slots={slots} wines={wines} moving={moving} isHighlighted={isHighlighted} onTap={onTap} />
+          <Row key={r} r={r} cols={cols} slots={slots} wines={wines} moving={moving} suggested={suggested} isHighlighted={isHighlighted} onTap={onTap} />
         ))}
       </div>
     </div>
   )
 }
 
-function Row({ r, cols, slots, wines, moving, isHighlighted, onTap }: { r: number; cols: number } & Omit<Parameters<typeof RackGrid>[0], 'loc'>) {
+function Row({ r, cols, slots, wines, moving, suggested, isHighlighted, onTap }: { r: number; cols: number } & Omit<Parameters<typeof RackGrid>[0], 'loc'>) {
   return (
     <>
       <span className="flex items-center text-[10px] font-medium text-cream-500">{String.fromCharCode(65 + r)}</span>
@@ -222,19 +306,22 @@ function Row({ r, cols, slots, wines, moving, isHighlighted, onTap }: { r: numbe
         const w = b && wines.get(b.wineId)
         const hl = b && isHighlighted(b)
         const status = w && drinkStatus(w)
+        const pick = suggested.indexOf(slot) + 1 // 1-based order in the plan, 0 = not chosen
         return (
           <button
             key={slot}
-            aria-label={b ? `${slot}: ${wineLabel(w)}` : `${slot}: empty`}
+            aria-label={b ? `${slot}: ${wineLabel(w)}` : pick ? `${slot}: ${t('chosen')}` : `${slot}: empty`}
+            aria-pressed={pick ? true : undefined}
             onClick={() => onTap(slot, b)}
             className={cx(
               'relative flex aspect-square items-center justify-center rounded-full transition',
-              b ? 'ring-1 ring-black/30' : cx('bg-ink-900 ring-1 ring-inset', moving ? 'ring-gold-400/60 hover:bg-ink-700' : 'ring-ink-700 hover:bg-ink-800'),
+              b ? 'ring-1 ring-black/30' : pick ? 'bg-gold-400/25 ring-2 ring-gold-400' : cx('bg-ink-900 ring-1 ring-inset', moving ? 'ring-gold-400/60 hover:bg-ink-700' : 'ring-ink-700 hover:bg-ink-800'),
               hl && 'animate-pulse ring-2 ring-gold-400 ring-offset-2 ring-offset-ink-850',
             )}
             style={w ? { backgroundColor: TYPE_COLOR[w.type] } : undefined}
           >
             {w && <span className={cx('text-[9px] font-semibold', ['red', 'fortified'].includes(w.type) ? 'text-cream-50/90' : 'text-ink-900/80')}>{w.vintage ? `'${String(w.vintage).slice(2)}` : 'NV'}</span>}
+            {pick > 0 && <span className="text-[11px] font-bold text-gold-400">{pick}</span>}
             {status && <span className={cx('absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full ring-1 ring-ink-850', STATUS_META[status].dot)} />}
           </button>
         )
