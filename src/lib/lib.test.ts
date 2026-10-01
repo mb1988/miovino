@@ -212,3 +212,25 @@ describe('suggestion reasons follow the language', async () => {
     }
   })
 })
+
+describe('price paid vs. today', async () => {
+  const { cellarValueNow, priceChange, signedPct } = await import('./value')
+  const b = (status: string, purchasePrice?: number) => ({ status, purchasePrice })
+  it('compares the average paid for cellar bottles with the current price', () => {
+    const w = { marketPrice: 90, bottles: [b('cellar', 50), b('cellar', 70), b('drunk', 10)] } as unknown as WineWithBottles
+    expect(priceChange(w)).toEqual({ paid: 60, now: 90, diff: 30, pct: 50 })
+    expect(priceChange({ ...w, marketPrice: undefined })).toBeUndefined()
+    expect(priceChange({ ...w, bottles: [b('cellar')] } as unknown as WineWithBottles)).toBeUndefined()
+  })
+  it('values the cellar at current prices where known, at cost otherwise', () => {
+    const cellar = [
+      { marketPrice: 90, bottles: [b('cellar', 50), b('cellar', 70), b('drunk', 10)] },
+      { bottles: [b('cellar', 30), b('cellar')] },
+      { marketPrice: 20, bottles: [b('cellar')] }, // no purchase price: counts now, not in cost
+    ] as unknown as WineWithBottles[]
+    expect(cellarValueNow(cellar)).toEqual({ atCost: 150, now: 230, gain: 80, repriced: 3 })
+  })
+  it('formats signed percentages', () => {
+    expect([signedPct(12.4), signedPct(-4.6), signedPct(0.2)]).toEqual(['+12%', '−5%', '±0%'])
+  })
+})

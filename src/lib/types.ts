@@ -53,6 +53,8 @@ export interface Wine extends Synced {
   favourite: boolean
   personalNotes?: string
   barcode?: string // EAN/UPC from the back label, normalised to 13 digits
+  marketPrice?: number // what a bottle sells for today (owner-entered), per bottle
+  marketPriceDate?: string // yyyy-mm-dd when marketPrice was set
   tags: string[]
   needsReview?: string[] // import warnings still to confirm
   createdAt: number
