@@ -14,6 +14,7 @@ Personal wine-cellar PWA for one owner (48 wines, UK, £). React + TS + Vite + T
    - `npx tsc -b` (app + worker + node configs)
    - `npm test` (vitest; server logic runs on real SQLite with every migration applied — see `src/lib/sync.test.ts`)
    - `npx oxlint` (existing warnings are fine; add no new ones)
+   - `npm run build && npm run e2e` (Playwright journeys + axe scan in `e2e/smoke.spec.ts`, also run by CI; add a journey for any new screen)
    - Browser check (below) for anything visible.
 4. Commit, push, open a PR. CI (`.github/workflows/ci.yml`) runs `check`, then deploys the PR to **miovino-preview** (own D1, never real data).
 5. When `check` is green, merge. Merging to `main` backs up D1 (artifact), applies migrations, deploys production. Verify: `curl -s https://miovino.miovino.workers.dev/api/health`.

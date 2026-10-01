@@ -15,7 +15,8 @@
     "db:migrate:local": "wrangler d1 migrations apply miovino --local",
     "db:query": "wrangler d1 execute miovino --remote --command",
     "cf:types": "wrangler types",
-    "auth:invite": "node scripts/auth-invite.mjs"
+    "auth:invite": "node scripts/auth-invite.mjs",
+    "e2e": "playwright test"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.130.0",
@@ -34,8 +35,10 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@cloudflare/vite-plugin": "^1.62.3",
     "@cloudflare/workers-types": "^5.20260930.2",
+    "@playwright/test": "^1.56.1",
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^24.13.3",
     "@types/qrcode": "^1.5.6",
@@ -45,6 +48,7 @@
     "cross-env": "^10.1.0",
     "fake-indexeddb": "^6.2.5",
     "oxlint": "^1.81.0",
+    "playwright-core": "^1.56.1",
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.2",
     "vite": "^8.3.0",

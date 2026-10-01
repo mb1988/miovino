@@ -35,3 +35,5 @@ schema.tmp.json
 # Cloudflare local state and secrets
 .wrangler/
 .dev.vars
+test-results/
+playwright-report/
