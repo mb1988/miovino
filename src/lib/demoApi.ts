@@ -33,7 +33,12 @@ export function installDemoApi() {
   window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(input instanceof Request ? input.url : String(input), window.location.href)
     if (url.origin !== window.location.origin || !url.pathname.startsWith('/api/')) return real(input, init)
-    const body = init?.body && typeof init.body === 'string' ? (JSON.parse(init.body) as Record<string, unknown>) : {}
+    let body: Record<string, unknown> = {}
+    try {
+      if (typeof init?.body === 'string') body = JSON.parse(init.body) as Record<string, unknown>
+    } catch {
+      /* not JSON (e.g. a photo upload): the route doesn't need it */
+    }
     return route(url.pathname, init?.method ?? 'GET', body)
   }
 }

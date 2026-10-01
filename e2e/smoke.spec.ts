@@ -174,3 +174,18 @@ test('several cellars: give a location its own cellar, then switch on the Cellar
   await expect(page.getByText('1 wine · 1 bottle')).toBeVisible()
   await expect(page.getByText('Puligny-Montrachet')).toBeVisible()
 })
+
+test('several cellars: "Show in rack" opens the right rack even when another cellar is chosen', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('miovino.cellar', 'Country house'))
+  await seed(page, {
+    wines: [wine('w1')],
+    bottles: [{ id: 'b1', wineId: 'w1', status: 'cellar', location: 'Rack A', slot: 'A1', createdAt: now, updatedAt: now }],
+    locations: [
+      { id: 'l1', name: 'Rack A', order: 0, rows: 2, cols: 2, updatedAt: now },
+      { id: 'l2', name: 'Barn', order: 1, rows: 2, cols: 2, cellar: 'Country house', updatedAt: now },
+    ],
+  })
+  await page.goto('/rack?w=w1')
+  await expect(page.locator('header p', { hasText: 'Rack A' })).toBeVisible()
+  await expect(page.getByRole('button', { name: /^A1: Gaja Barbaresco 2016/ })).toBeVisible()
+})

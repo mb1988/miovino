@@ -41,12 +41,15 @@ export default function RackPage() {
 
   // Pick the rack: explicit, else where the focused bottle/wine lives, else the first with bottles.
   const loc = useMemo(() => {
-    if (!locations?.length || !bottles) return undefined
-    const byId = locations.find((l) => l.id === sp.get('loc'))
+    if (!locations || !allLocations || !bottles) return undefined
+    // A link to a rack or bottle wins even when it's in another cellar than the one chosen here.
+    const byId = allLocations.find((l) => l.id === sp.get('loc'))
     if (byId) return byId
     const target = focusBottle ?? bottles.find((b) => b.wineId === focusWine && b.slot) ?? bottles.find((b) => b.wineId === focusWine)
-    return locations.find((l) => l.name === target?.location) ?? locations.find((l) => hasGrid(l)) ?? locations[0]
-  }, [locations, bottles, sp, focusBottle, focusWine])
+    return allLocations.find((l) => l.name === target?.location) ?? locations.find((l) => hasGrid(l)) ?? locations[0]
+  }, [locations, allLocations, bottles, sp, focusBottle, focusWine])
+  // The chosen cellar's racks, plus the one on screen if a link brought us to another cellar.
+  const chips = locations && loc && !locations.includes(loc) ? [...locations, loc] : (locations ?? [])
 
   const grid = useMemo(() => (loc && bottles ? layout(loc, bottles) : undefined), [loc, bottles])
 
@@ -130,7 +133,7 @@ export default function RackPage() {
     />
   )
   const switcher = <CellarSwitcher names={names} active={active} onChange={(n) => (setActive(n), setSp({}, { replace: true }), setPlan(null), setMoving(null))} className="mb-3" />
-  if (!locations.length)
+  if (!chips.length)
     return (
       <div>
         {header}
@@ -153,9 +156,9 @@ export default function RackPage() {
       {msg && <div className="animate-rise fixed inset-x-4 top-4 z-50 mx-auto max-w-md rounded-xl bg-cream-100 px-4 py-3 text-sm text-ink-900 shadow-xl">{msg}</div>}
 
       {switcher}
-      {locations.length > 1 && (
+      {chips.length > 1 && (
         <div className="-mx-4 mb-4 flex gap-2 overflow-x-auto px-4 pb-1">
-          {locations.map((l) => (
+          {chips.map((l) => (
             <Chip key={l.id} active={l.id === loc?.id} onClick={() => selectLoc(l)}>
               {l.name}
             </Chip>
