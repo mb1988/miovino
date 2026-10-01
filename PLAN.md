@@ -150,6 +150,21 @@ Bottom nav: **Cellar · Drink · ＋Add (big) · Journal · More**
 6. [x] **Accessibility pass** — focus rings, labels, contrast check on every screen at 390px and desktop
 7. [x] **End-to-end smoke test in CI** — Playwright against `vite preview` with a seeded IndexedDB and mocked `/api`
 
+### Phase 5 — owner review, 2026-10-01 (priority order; tick when shipped)
+Feedback after using the app. Each item is one PR; CI must be green before merging.
+
+1. [x] **Demo mode for the CV** — `/demo` opens the app on a separate on-device database full of made-up wines (no sign-in, never touches the real cellar or D1). AI features answer with canned replies. Banner + "Exit demo". "Try the demo" link on the sign-in screen.
+2. [x] **List view cuts text + general UI polish** — compact rows wrap/clamp instead of clipping; denser, readable rows on 360–390px phones.
+3. [ ] **Free AI instead of Anthropic** — one provider layer in the Worker: Google Gemini free tier (`GEMINI_API_KEY`) first, OpenRouter free models (`OPENROUTER_API_KEY`) as fallback, Anthropic only if its key is set. Scan, chat, wine list and window suggestions all go through it. *Owner:* create the free keys and add them as Worker secrets.
+4. [ ] **Rack map: "Place a wine"** — pick a wine first, see how many of its bottles still need a slot, the app suggests slots (next to the same wine, then same producer/type, keeping a row together); you can never place more bottles than are in the cellar.
+5. [ ] **Several cellars** — group racks/locations into cellars (e.g. Home, Parents'), switch cellar on the Cellar screen; "All cellars" stays the default.
+6. [ ] **Mobile experience pass** — safe areas, tap targets ≥44px, sheets that fit small screens, no horizontal scroll at 360px.
+7. [ ] **Reminders on Android + iPhone** — clear per-platform guidance in More → Reminders.
+
+Answers to the owner's questions
+- *More than one cellar?* Today: several **locations/racks** (each with its own grid) but no "cellar" level above them — item 5 adds it.
+- *Monthly reminder only with Safari?* On iPhone, web push only works once the app is on the Home Screen (iOS 16.4+); adding it from Safari is the reliable way. On **Android it works in Chrome/Edge/Firefox directly**, installed or not.
+
 ### Later, only if wanted
 Market value tracking, partner/shared cellar, multiple cellars.
 

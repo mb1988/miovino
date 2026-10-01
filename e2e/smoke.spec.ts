@@ -104,3 +104,18 @@ for (const path of ['/', '/wine/w1', '/suggest', '/more', '/rack', '/stats']) {
     expect(violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`)).toEqual([])
   })
 }
+
+test('demo mode: sample cellar with no server, then back to the real app', async ({ page }) => {
+  await page.goto('/demo')
+  await expect(page).toHaveURL(/\/$/)
+  await expect(page.getByRole('note')).toContainText('Demo')
+  await expect(page.getByText('38 wines · 78 bottles')).toBeVisible()
+  // The fake AI answers in the browser.
+  await page.goto('/ask')
+  await page.getByRole('button', { name: 'What should I open this weekend?' }).click()
+  await expect(page.getByText(/Demo mode: answers come from the built-in recommender/)).toBeVisible()
+  // The real cellar is a different database: leaving the demo shows it empty.
+  await page.getByRole('button', { name: 'Exit' }).click()
+  await expect(page.getByRole('note')).toHaveCount(0)
+  await expect(page.getByText('38 wines · 78 bottles')).toHaveCount(0)
+})

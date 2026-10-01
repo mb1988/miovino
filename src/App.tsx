@@ -3,6 +3,8 @@ import { t } from './lib/i18n'
 import { useEffect } from 'react'
 import { NavLink, Route, Routes, useLocation, useNavigationType } from 'react-router-dom'
 import { cx } from './components/ui'
+import { DemoBanner } from './components/DemoBanner'
+import { DEMO } from './lib/demo'
 import AddPage from './pages/AddPage'
 import CellarPage from './pages/CellarPage'
 import DrinkPage from './pages/DrinkPage'
@@ -47,6 +49,7 @@ export default function App() {
   return (
     // key={lang}: switching language re-renders every screen in the new language.
     <div key={lang} className="mx-auto min-h-dvh max-w-2xl px-4">
+      {DEMO && <DemoBanner />}
       <main className={cx(hideNav ? 'pb-10' : 'pb-28')}>
         <Routes>
           <Route path="/" element={<CellarPage />} />

@@ -1,4 +1,4 @@
-import { Fingerprint, Loader2, ShieldCheck, Smartphone } from 'lucide-react'
+import { FlaskConical, Fingerprint, Loader2, ShieldCheck, Smartphone } from 'lucide-react'
 import { t } from '../lib/i18n'
 import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
@@ -64,6 +64,11 @@ export default function SignInPage() {
       )}
 
       {error && <p className="mt-4 max-w-sm text-sm text-rose-300">{error}</p>}
+      {!invite && (
+        <a href="/demo" className="mt-8 inline-flex min-h-11 items-center gap-2 rounded-xl px-4 text-sm font-medium text-gold-400 ring-1 ring-gold-400/40 hover:bg-gold-400/10">
+          <FlaskConical size={16} aria-hidden /> {t('Try the demo with sample wines')}
+        </a>
+      )}
       <p className="mt-10 flex items-center gap-1.5 text-xs text-cream-500">
         <ShieldCheck size={14} /> {t('Passkeys never leave your device')}
       </p>

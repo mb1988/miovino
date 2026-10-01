@@ -530,4 +530,21 @@ export const IT: Record<string, string> = {
   'Fix now': 'Sistema ora',
   'Looks fine': 'Va bene così',
   Found: 'Trovati',
+  // Demo mode
+  'Put the demo cellar back as it was? Your changes in the demo will be lost.': 'Ripristinare la cantina demo? Le modifiche fatte nella demo andranno perse.',
+  Demo: 'Demo',
+  'sample wines, kept in this browser only': 'vini di esempio, solo in questo browser',
+  Exit: 'Esci',
+  'Demo device': 'Dispositivo demo',
+  'Not available in the demo.': 'Non disponibile nella demo.',
+  'Demo label: rose, red cherry and liquorice, with firm, fine tannins.': 'Etichetta demo: rosa, ciliegia e liquirizia, con tannini fitti e fini.',
+  'Braised beef, truffle pasta, aged cheeses': 'Brasato, tajarin al tartufo, formaggi stagionati',
+  'From your cellar, these suit that best:': 'Dalla tua cantina, questi sono i più adatti:',
+  'Here is what I would open from your cellar:': 'Ecco cosa aprirei dalla tua cantina:',
+  'Demo mode: answers come from the built-in recommender. The real app asks an AI about your own cellar.': "Modalità demo: le risposte arrivano dal suggeritore integrato. L'app vera chiede a un'AI della tua cantina.",
+  'Demo estimate based on the style of wine.': 'Stima demo basata sullo stile del vino.',
+  'Try the demo with sample wines': 'Prova la demo con vini di esempio',
+  // Cellar list
+  bottle: 'bottiglia',
+  Favourite: 'Preferito',
 }

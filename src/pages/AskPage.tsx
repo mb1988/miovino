@@ -3,6 +3,7 @@ import { getLang, t } from '../lib/i18n'
 import { useEffect, useRef, useState } from 'react'
 import { Markdown } from '../components/Markdown'
 import { Chip, cx, PageHeader } from '../components/ui'
+import { storageKey } from '../lib/demo'
 import { syncNow, useSync } from '../lib/sync'
 
 interface Turn {
@@ -10,7 +11,7 @@ interface Turn {
   content: string
 }
 
-const KEY = 'miovino.ask'
+const KEY = storageKey('miovino.ask')
 const MAX_TURNS = 40 // matches the server limit
 const STARTERS = ['What should I open this weekend?', 'Which bottles should I drink before they fade?', 'What goes with roast lamb from my cellar?', 'Which wines did I love most, and why?']
 

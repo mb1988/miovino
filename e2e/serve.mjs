@@ -3,8 +3,9 @@
 import { createReadStream, existsSync, statSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { extname, join, normalize } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
-const root = new URL('../dist/client/', import.meta.url).pathname
+const root = fileURLToPath(new URL('../dist/client/', import.meta.url))
 const port = Number(process.env.PORT ?? 4174)
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.wasm': 'application/wasm', '.png': 'image/png' }
 
