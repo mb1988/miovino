@@ -9,6 +9,7 @@ import { useLocations } from '../lib/hooks'
 import { saveSettings, useSettings } from '../lib/settings'
 import { syncNow, useSync } from '../lib/sync'
 import { DevicesSection } from '../components/DevicesSection'
+import { updatePushLanguage } from '../lib/push'
 import { RemindersSection } from '../components/RemindersSection'
 
 export default function MorePage() {
@@ -201,7 +202,7 @@ export default function MorePage() {
             <Label>{t('Language')}</Label>
             <div className="flex gap-1.5">
               {LANGS.map((l) => (
-                <Chip key={l.id} active={lang === l.id} onClick={() => setLang(l.id)}>
+                <Chip key={l.id} active={lang === l.id} onClick={() => (setLang(l.id), void updatePushLanguage())}>
                   {l.label}
                 </Chip>
               ))}
