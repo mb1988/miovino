@@ -1,4 +1,4 @@
-import { buildDigest, digestMessage, type DigestWine } from '../src/shared/reminders'
+import { buildDigest, digestMessage, digestMonth, type DigestLang, type DigestWine } from '../src/shared/reminders'
 import { json } from './auth'
 
 /**
@@ -137,7 +137,7 @@ export function validSubscription(s: unknown): s is PushSubscriptionJSON {
 }
 
 // ---------- digest from the synced records ----------
-export async function cellarDigestMessage(db: PushDb, now = new Date()) {
+export async function cellarDigestMessage(db: PushDb, now = new Date(), lang: DigestLang = 'en') {
   const { results } = await db.prepare("SELECT kind, id, data FROM records WHERE kind IN ('wines', 'bottles') AND deleted = 0").all<{ kind: string; id: string; data: string }>()
   const inCellar = new Map<string, number>()
   const wines: DigestWine[] = []
@@ -148,17 +148,29 @@ export async function cellarDigestMessage(db: PushDb, now = new Date()) {
       wines.push({ id: r.id, producer: String(d.producer ?? ''), name: String(d.name ?? ''), vintage: d.vintage as number | null, drinkFrom: d.drinkFrom as number | undefined, drinkTo: d.drinkTo as number | undefined, peakYear: d.peakYear as number | undefined, bottles: 0 })
   }
   for (const w of wines) w.bottles = inCellar.get(w.id) ?? 0
-  const month = now.toLocaleString('en-GB', { month: 'long', timeZone: 'Europe/London' })
-  return digestMessage(buildDigest(wines, now.getUTCFullYear()), month)
+  return digestMessage(buildDigest(wines, now.getUTCFullYear()), digestMonth(now, lang), lang)
 }
 
-/** Sends a message to every subscribed device, dropping expired subscriptions. */
-export async function pushToAll(db: PushDb, msg: PushMessage) {
+const READY: Record<DigestLang, PushMessage> = {
+  en: { title: 'MioVino reminders are on', body: 'You’ll get a drinking summary on the 1st of each month.', url: '/' },
+  it: { title: 'Promemoria MioVino attivi', body: 'Il 1° di ogni mese riceverai un riepilogo di cosa bere.', url: '/' },
+}
+
+/**
+ * Sends each subscribed device the message in its own language, dropping expired subscriptions.
+ * `message(lang)` returns null when there's nothing to say in that language.
+ */
+export async function pushToAll(db: PushDb, message: (lang: DigestLang) => Promise<PushMessage | null>) {
   const v = await getVapid(db)
   const subject = (await db.prepare("SELECT value FROM push_config WHERE key = 'subject'").first<{ value: string }>())?.value ?? 'https://miovino.app'
-  const { results } = await db.prepare('SELECT endpoint, p256dh, auth FROM push_subscriptions').all<{ endpoint: string; p256dh: string; auth: string }>()
+  const { results } = await db.prepare('SELECT endpoint, p256dh, auth, lang FROM push_subscriptions').all<{ endpoint: string; p256dh: string; auth: string; lang: string | null }>()
+  const byLang = new Map<DigestLang, PushMessage | null>()
   let sent = 0
   for (const s of results) {
+    const lang: DigestLang = s.lang === 'it' ? 'it' : 'en'
+    if (!byLang.has(lang)) byLang.set(lang, await message(lang))
+    const msg = byLang.get(lang)
+    if (!msg) continue
     const r = await sendPush({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, msg, v, subject)
     if (r === 'gone') await db.prepare('DELETE FROM push_subscriptions WHERE endpoint = ?1').bind(s.endpoint).run()
     if (r === 'ok') sent++
@@ -168,8 +180,7 @@ export async function pushToAll(db: PushDb, msg: PushMessage) {
 
 /** Monthly cron: the drinking summary to every device. */
 export async function monthlyReminder(db: PushDb) {
-  const msg = await cellarDigestMessage(db)
-  if (msg) await pushToAll(db, msg)
+  await pushToAll(db, (lang) => cellarDigestMessage(db, new Date(), lang))
 }
 
 /** /api/push/* — only reached by signed-in requests. */
@@ -177,13 +188,14 @@ export async function handlePush(req: Request, db: PushDb, path: string): Promis
   if (path === '/api/push/key' && req.method === 'GET') return json({ publicKey: (await getVapid(db)).publicKey })
 
   if (path === '/api/push/subscribe' && req.method === 'POST') {
-    const body = (await req.json()) as { subscription?: unknown; device?: string }
+    const body = (await req.json()) as { subscription?: unknown; device?: string; lang?: string }
     if (!validSubscription(body.subscription)) return json({ error: 'Bad subscription' }, 400)
     const s = body.subscription
     const device = typeof body.device === 'string' ? body.device.slice(0, 80) : null
+    const lang = body.lang === 'it' ? 'it' : 'en'
     await db
-      .prepare('INSERT INTO push_subscriptions (endpoint, p256dh, auth, device, created_at) VALUES (?1, ?2, ?3, ?4, ?5) ON CONFLICT (endpoint) DO UPDATE SET p256dh = excluded.p256dh, auth = excluded.auth, device = excluded.device')
-      .bind(s.endpoint, s.keys.p256dh, s.keys.auth, device, Date.now())
+      .prepare('INSERT INTO push_subscriptions (endpoint, p256dh, auth, device, lang, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6) ON CONFLICT (endpoint) DO UPDATE SET p256dh = excluded.p256dh, auth = excluded.auth, device = excluded.device, lang = excluded.lang')
+      .bind(s.endpoint, s.keys.p256dh, s.keys.auth, device, lang, Date.now())
       .run()
     // The app's own address identifies us to the push services (VAPID "sub").
     await db.prepare("INSERT OR REPLACE INTO push_config (key, value) VALUES ('subject', ?1)").bind(new URL(req.url).origin).run()
@@ -197,8 +209,7 @@ export async function handlePush(req: Request, db: PushDb, path: string): Promis
   }
 
   if (path === '/api/push/test' && req.method === 'POST') {
-    const msg = (await cellarDigestMessage(db)) ?? { title: 'MioVino reminders are on', body: 'You’ll get a drinking summary on the 1st of each month.', url: '/' }
-    return json(await pushToAll(db, msg))
+    return json(await pushToAll(db, async (lang) => (await cellarDigestMessage(db, new Date(), lang)) ?? READY[lang]))
   }
   return null
 }

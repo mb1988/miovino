@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildDigest, digestMessage, type DigestWine } from '../shared/reminders'
+import { buildDigest, digestMessage, digestMonth, type DigestWine } from '../shared/reminders'
 
 // Loaded by path so the Worker's types stay out of the app build (as in sync.test.ts).
 interface PushModule {
@@ -27,6 +27,18 @@ describe('monthly digest', () => {
     const msg = digestMessage(buildDigest([wine('a', 2020, 2027), wine('b', 2018, 2024), wine('d', 2020, 2040)], 2026), 'October')
     expect(msg).toEqual({ title: 'Your cellar in October', body: '1 wine to drink soon · 1 wine past the window · 1 ready\nFirst: Pb Wine 2015, Pa Wine 2015', url: '/?status=soon' })
     expect(digestMessage(buildDigest([], 2026), 'October')).toBeNull()
+  })
+
+  it('writes it in Italian for devices set to Italian', () => {
+    const d = buildDigest([wine('a', 2020, 2027), wine('b', 2018, 2024), wine('c', 2018, 2024), wine('d', 2020, 2040)], 2026)
+    const october = new Date('2026-10-01T08:00:00Z')
+    expect(digestMonth(october, 'it')).toBe('ottobre')
+    expect(digestMonth(october, 'en')).toBe('October')
+    expect(digestMessage(d, digestMonth(october, 'it'), 'it')).toEqual({
+      title: 'La tua cantina a ottobre',
+      body: "1 vino da bere presto · 2 vini oltre la finestra · 1 pronto\nPrima: Pb Wine 2015, Pc Wine 2015 +1 altro",
+      url: '/?status=soon',
+    })
   })
 })
 

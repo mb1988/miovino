@@ -37,20 +37,36 @@ export function digestLabel(w: Pick<DigestWine, 'producer' | 'name' | 'vintage'>
   return `${w.producer} ${w.name} ${w.vintage ?? 'NV'}`
 }
 
-const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`
+export type DigestLang = 'en' | 'it'
+
+/** The notification's few phrases in each language (the Worker has no access to the app's i18n bundle). */
+// [singular, plural] where the word agrees with the count.
+type Forms = [string, string]
+const WORDS: Record<DigestLang, { wine: Forms; soon: string; past: string; ready: Forms; opening: Forms; first: string; more: Forms; title: string }> = {
+  en: { wine: ['wine', 'wines'], soon: 'to drink soon', past: 'past the window', ready: ['ready', 'ready'], opening: ['opening next year', 'opening next year'], first: 'First', more: ['more', 'more'], title: 'Your cellar in {month}' },
+  it: { wine: ['vino', 'vini'], soon: 'da bere presto', past: 'oltre la finestra', ready: ['pronto', 'pronti'], opening: ["pronto l'anno prossimo", "pronti l'anno prossimo"], first: 'Prima', more: ['altro', 'altri'], title: 'La tua cantina a {month}' },
+}
+const pick = (n: number, f: Forms) => f[n === 1 ? 0 : 1]
 
 /** Notification text for the digest, or null when there's nothing in the cellar worth mentioning. */
-export function digestMessage(d: Digest, month: string): { title: string; body: string; url: string } | null {
+export function digestMessage(d: Digest, month: string, lang: DigestLang = 'en'): { title: string; body: string; url: string } | null {
+  const w = WORDS[lang]
   const urgent = [...d.past, ...d.soon]
   if (!urgent.length && !d.ready.length && !d.opening.length) return null
+  const wines = (n: number) => `${n} ${pick(n, w.wine)}`
   const parts: string[] = []
-  if (d.soon.length) parts.push(`${plural(d.soon.length, 'wine')} to drink soon`)
-  if (d.past.length) parts.push(`${plural(d.past.length, 'wine')} past the window`)
-  if (d.ready.length) parts.push(`${d.ready.length} ready`)
-  if (d.opening.length) parts.push(`${d.opening.length} opening next year`)
+  if (d.soon.length) parts.push(`${wines(d.soon.length)} ${w.soon}`)
+  if (d.past.length) parts.push(`${wines(d.past.length)} ${w.past}`)
+  if (d.ready.length) parts.push(`${d.ready.length} ${pick(d.ready.length, w.ready)}`)
+  if (d.opening.length) parts.push(`${d.opening.length} ${pick(d.opening.length, w.opening)}`)
   const names = urgent.slice(0, 2).map(digestLabel)
   const more = urgent.length - names.length
-  const body = parts.join(' · ') + (names.length ? `\nFirst: ${names.join(', ')}${more > 0 ? ` +${more} more` : ''}` : '')
+  const body = parts.join(' · ') + (names.length ? `\n${w.first}: ${names.join(', ')}${more > 0 ? ` +${more} ${pick(more, w.more)}` : ''}` : '')
   const url = d.soon.length ? '/?status=soon' : d.past.length ? '/?status=past' : '/?status=ready'
-  return { title: `Your cellar in ${month}`, body, url }
+  return { title: w.title.replace('{month}', month), body, url }
+}
+
+/** Month name for the title: "October" in English, "ottobre" in Italian (months aren't capitalised there). */
+export function digestMonth(now: Date, lang: DigestLang) {
+  return now.toLocaleString(lang === 'it' ? 'it-IT' : 'en-GB', { month: 'long', timeZone: 'Europe/London' })
 }

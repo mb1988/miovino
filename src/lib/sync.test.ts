@@ -256,7 +256,7 @@ describe('push reminders endpoints', () => {
     expect(k1).toHaveLength(87) // 65-byte P-256 point
 
     expect((await call('/api/push/subscribe', { subscription: { endpoint: 'https://evil.example/x', keys: await ua() } })).status).toBe(400)
-    expect((await call('/api/push/subscribe', { subscription: { endpoint: 'https://web.push.apple.com/one', keys: await ua() }, device: 'iPhone' })).status).toBe(200)
+    expect((await call('/api/push/subscribe', { subscription: { endpoint: 'https://web.push.apple.com/one', keys: await ua() }, device: 'iPhone', lang: 'it' })).status).toBe(200)
     expect((await call('/api/push/subscribe', { subscription: { endpoint: 'https://fcm.googleapis.com/fcm/send/two', keys: await ua() } })).status).toBe(200)
 
     // A wine closing this year with one bottle in the cellar.
@@ -279,8 +279,8 @@ describe('push reminders endpoints', () => {
       expect(res).toEqual({ sent: 1, devices: 2 })
       expect(sent[0].headers.get('content-encoding')).toBe('aes128gcm')
       expect(sent[0].headers.get('authorization')).toMatch(new RegExp(`^vapid t=[\\w-]+\\.[\\w-]+\\.[\\w-]+, k=${k1}$`))
-      // The expired subscription is gone.
-      expect(db.raw.prepare('SELECT endpoint FROM push_subscriptions').all()).toEqual([{ endpoint: 'https://web.push.apple.com/one' }])
+      // Each device keeps its language; the expired subscription is gone.
+      expect(db.raw.prepare('SELECT endpoint, lang FROM push_subscriptions').all()).toEqual([{ endpoint: 'https://web.push.apple.com/one', lang: 'it' }])
 
       // The monthly cron sends to the remaining device.
       sent.length = 0

@@ -1,3 +1,4 @@
+import { getLang } from './i18n'
 /** Monthly drinking reminders by Web Push (see worker/push.ts). */
 
 export type PushSupport = 'ok' | 'install-first' | 'unsupported'
@@ -49,7 +50,14 @@ export async function enablePush() {
     sub = null
   }
   sub ??= await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(publicKey) })
-  await post('/api/push/subscribe', { subscription: sub.toJSON(), device: deviceName() })
+  await post('/api/push/subscribe', { subscription: sub.toJSON(), device: deviceName(), lang: getLang() })
+}
+
+/** After a language change: tell the server, so the next reminder arrives in the new language. */
+export async function updatePushLanguage() {
+  if (pushSupport() !== 'ok' || Notification.permission !== 'granted') return
+  const sub = await (await navigator.serviceWorker.getRegistration())?.pushManager.getSubscription()
+  if (sub) await post('/api/push/subscribe', { subscription: sub.toJSON(), device: deviceName(), lang: getLang() }).catch(() => undefined)
 }
 
 export async function disablePush() {
