@@ -602,4 +602,5 @@ export const IT: Record<string, string> = {
   'Exit demo': 'Esci dalla demo',
   'Best on a phone: open this link there and add it to the Home Screen.': 'Al meglio sul telefono: apri questo link lì e aggiungilo alla schermata Home.',
   'MioVino demo': 'Demo di MioVino',
+  ' — settings, backup, rack map': ' — impostazioni, backup, mappa scaffali',
 }

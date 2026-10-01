@@ -188,7 +188,7 @@ export default function CellarPage() {
           </Chip>
           {(Object.keys(stats?.byType ?? {}) as WineType[]).map((ty) => (
             <Chip key={ty} active={type === ty} onClick={() => set('type', type === ty ? null : ty)}>
-              {t(WINE_TYPE_LABEL[ty])} <span className="opacity-60">{stats?.byType[ty]}</span>
+              {t(WINE_TYPE_LABEL[ty])} <span className="opacity-80">{stats?.byType[ty]}</span>
             </Chip>
           ))}
           <Chip active={fav} onClick={() => set('fav', fav ? null : '1')}>
@@ -261,21 +261,21 @@ export default function CellarPage() {
         <FilterGroup label={t('Vintage')}>
           {facets.vintages.map(([v, n]) => (
             <Chip key={v} active={vintage === v} onClick={() => set('vintage', vintage === v ? null : v)}>
-              {v} <span className="opacity-60">{n}</span>
+              {v} <span className="opacity-80">{n}</span>
             </Chip>
           ))}
         </FilterGroup>
         <FilterGroup label={t('Country')}>
           {facets.countries.map(([c, n]) => (
             <Chip key={c} active={country === c} onClick={() => set('country', country === c ? null : c)}>
-              {c} <span className="opacity-60">{n}</span>
+              {c} <span className="opacity-80">{n}</span>
             </Chip>
           ))}
         </FilterGroup>
         <FilterGroup label={t('Region')}>
           {facets.regions.map(([r, n]) => (
             <Chip key={r} active={region === r} onClick={() => set('region', region === r ? null : r)}>
-              {r} <span className="opacity-60">{n}</span>
+              {r} <span className="opacity-80">{n}</span>
             </Chip>
           ))}
         </FilterGroup>
@@ -283,7 +283,7 @@ export default function CellarPage() {
           <FilterGroup label={t('Location')}>
             {facets.locations.map(([l, n]) => (
               <Chip key={l} active={location === l} onClick={() => set('loc', location === l ? null : l)}>
-                {l} <span className="opacity-60">{n}</span>
+                {l} <span className="opacity-80">{n}</span>
               </Chip>
             ))}
           </FilterGroup>
