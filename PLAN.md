@@ -164,7 +164,7 @@ Feedback after using the app. Each item is one PR; CI must be green before mergi
 
 ### Phase 6 — public repo for the CV (owner asked 2026-10-01)
 1. [x] **Repo ready to go public** — README for recruiters (screenshots, architecture, quality), synthetic test fixture (no real cellar rows or guide text), email out of config, stray screenshot removed
-2. [ ] **Desktop presentation of the demo** — phone frame + intro panel on wide screens
+2. [x] **Desktop presentation of the demo** — phone frame + intro panel on wide screens
 3. [ ] **Lighthouse pass** — performance / PWA / best practices
 4. [ ] **After the owner merges #19–#26:** rewrite history to drop test/fixtures/sample.xlsx and the email from old commits (git filter-repo), force-push main, delete merged branches, then make the repo public
 

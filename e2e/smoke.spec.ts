@@ -189,3 +189,19 @@ test('several cellars: "Show in rack" opens the right rack even when another cel
   await expect(page.locator('header p', { hasText: 'Rack A' })).toBeVisible()
   await expect(page.getByRole('button', { name: /^A1: Gaja Barbaresco 2016/ })).toBeVisible()
 })
+
+test.describe('demo on a laptop', () => {
+  test.use({ viewport: { width: 1366, height: 860 }, isMobile: false, hasTouch: false })
+
+  test('shows the intro beside the app in a phone frame', async ({ page }) => {
+    await page.goto('/demo')
+    await expect(page.getByRole('heading', { name: 'Your wine cellar, in your pocket.' })).toBeVisible()
+    const phone = page.frameLocator('iframe[title="MioVino demo"]')
+    await expect(phone.getByText('38 wines · 78 bottles')).toBeVisible()
+    await expect(phone.getByRole('dialog')).toHaveCount(0) // the intro is beside it, not on top of it
+    await page.getByRole('button', { name: 'Rack map' }).click()
+    await expect(phone.getByRole('heading', { name: 'Rack map' })).toBeVisible()
+    const { violations } = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()
+    expect(violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`)).toEqual([])
+  })
+})

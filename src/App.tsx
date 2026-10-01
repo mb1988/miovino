@@ -4,6 +4,7 @@ import { useEffect } from 'react'
 import { NavLink, Route, Routes, useLocation, useNavigationType } from 'react-router-dom'
 import { cx } from './components/ui'
 import { DemoBanner } from './components/DemoBanner'
+import { DemoShowcase, showcaseWanted } from './components/DemoShowcase'
 import { DEMO } from './lib/demo'
 import AddPage from './pages/AddPage'
 import CellarPage from './pages/CellarPage'
@@ -36,6 +37,8 @@ export default function App() {
   }, [loc.pathname, navType])
   const sync = useSync()
   const lang = useLang()
+  // Demo on a laptop: intro + the app in a phone frame (the frame loads the app itself).
+  if (DEMO && showcaseWanted()) return <DemoShowcase />
   const hideNav = /\/(drink|edit)$|^\/add\/|^\/import/.test(loc.pathname)
   // Setup links always show the setup screen; otherwise lock the app while the server says we're signed out.
   // Offline (no server answer) the app keeps working on this device's own copy.

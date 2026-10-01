@@ -35,5 +35,6 @@ export function exitDemo() {
   } catch {
     /* nothing stored */
   }
-  window.location.assign('/')
+  // From inside the desktop showcase's phone frame, leave the whole page.
+  ;(window.top ?? window).location.assign('/')
 }
