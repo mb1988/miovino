@@ -5,12 +5,14 @@ import { plural, t } from '../lib/i18n'
 import { formatMoney } from '../lib/settings'
 import { currentYear } from '../lib/status'
 import { cellarTimeline, type YearRow } from '../lib/timeline'
+import { cellarValueNow, signedPct } from '../lib/value'
 import { BarChart3 } from 'lucide-react'
 
 /** Cellar over time: what you spent each year, and bottles in and out. */
 export default function StatsPage() {
   const cellar = useCellar()
   const data = useMemo(() => (cellar ? cellarTimeline(cellar) : undefined), [cellar])
+  const value = useMemo(() => cellarValueNow(cellar ?? []), [cellar])
   if (!cellar || !data) return null
   const thisYear = currentYear()
   const inCellar = cellar.reduce((n, w) => n + w.inCellar, 0)
@@ -24,6 +26,16 @@ export default function StatsPage() {
         <Tile value={inCellar} label={t('bottles now')} />
         <Tile value={formatMoney(spentThisYear)} label={t('spent in {year}', { year: thisYear })} />
       </div>
+      {value.repriced > 0 && (
+        <p className="-mt-3 mb-6 flex items-center justify-between rounded-xl bg-ink-850 px-4 py-2.5 text-sm ring-1 ring-ink-700">
+          <span className="text-cream-300">{t('At today’s prices: {value}', { value: formatMoney(value.now) })}</span>
+          <span className={value.gain >= 0 ? 'font-semibold text-emerald-300 tabular-nums' : 'font-semibold text-rose-300 tabular-nums'}>
+            {value.gain >= 0 ? '+' : '−'}
+            {formatMoney(Math.abs(value.gain))}
+            {value.atCost > 0 ? ` (${signedPct((value.gain / value.atCost) * 100)})` : ''}
+          </span>
+        </p>
+      )}
       {data.unpriced > 0 && <p className="-mt-4 mb-6 text-xs text-cream-500">{plural(data.unpriced, '{n} bottle in the cellar has no price, so the value is a floor.', '{n} bottles in the cellar have no price, so the value is a floor.')}</p>}
 
       {data.years.length === 0 ? (

@@ -30,6 +30,7 @@ export interface WineDraft {
   peakYear: string
   personalNotes: string
   barcode: string
+  marketPrice: string
   external: ExternalInfo[]
   photo?: Blob
 }
@@ -79,6 +80,7 @@ const EMPTY: WineDraft = {
   peakYear: '',
   personalNotes: '',
   barcode: '',
+  marketPrice: '',
   external: [],
 }
 
@@ -99,6 +101,7 @@ function fromWine(w: Wine): WineDraft {
     peakYear: w.peakYear?.toString() ?? '',
     personalNotes: w.personalNotes ?? '',
     barcode: w.barcode ?? '',
+    marketPrice: w.marketPrice?.toString() ?? '',
     external: w.external,
     photo: w.photo,
   }
@@ -121,6 +124,8 @@ export default function EditWinePage() {
   const locations = useLocations()
   const [draft, setDraft] = useState<WineDraft>(() => ({ ...EMPTY, ...state.draft }))
   const [loaded, setLoaded] = useState(editId == null)
+  const [initialMarket, setInitialMarket] = useState<number>()
+  const [initialMarketDate, setInitialMarketDate] = useState<string>()
   const [bottles, setBottles] = useState({ count: 1, location: '', price: '', date: today(), seller: '' })
   const [error, setError] = useState('')
   const photoUrl = useBlobUrl(draft.photo)
@@ -164,7 +169,11 @@ export default function EditWinePage() {
   useEffect(() => {
     if (editId == null) return
     db.wines.get(editId).then((w) => {
-      if (w) setDraft(fromWine(w))
+      if (w) {
+        setDraft(fromWine(w))
+        setInitialMarket(w.marketPrice)
+        setInitialMarketDate(w.marketPriceDate)
+      }
       setLoaded(true)
     })
   }, [editId])
@@ -192,6 +201,9 @@ export default function EditWinePage() {
       peakYear: int(draft.peakYear),
       personalNotes: draft.personalNotes.trim() || undefined,
       barcode: normalizeBarcode(draft.barcode) ?? undefined,
+      marketPrice: num(draft.marketPrice),
+      // Date the price only when it was set or changed.
+      marketPriceDate: num(draft.marketPrice) == null ? undefined : num(draft.marketPrice) === initialMarket ? initialMarketDate : today(),
       external: draft.external,
       photo: draft.photo,
       hasPhoto: !!draft.photo,
@@ -390,6 +402,10 @@ export default function EditWinePage() {
       <Section title={t('Your notes')}>
         <textarea className="field" rows={3} value={draft.personalNotes} onChange={(e) => up({ personalNotes: e.target.value })} placeholder={t('Why you bought it, who recommended it…')} />
         <label className="mt-3 block">
+          <Label hint={t('what a bottle sells for today')}>{t('Current price / bottle')}</Label>
+          <input className="field mb-3" inputMode="decimal" value={draft.marketPrice} onChange={(e) => up({ marketPrice: e.target.value })} placeholder={t('optional')} />
+        </label>
+        <label className="block">
           <Label hint={t('scan it from Add → Scan barcode')}>{t('Barcode')}</Label>
           <input className="field" inputMode="numeric" value={draft.barcode} onChange={(e) => up({ barcode: e.target.value })} placeholder={t('EAN on the back label')} />
         </label>

@@ -1,5 +1,5 @@
 import { BookOpen, ExternalLink, Grape, Grid3x3, Share2, Heart, MapPin, Pencil, Plus, Trash2, Utensils, Wine as WineIcon } from 'lucide-react'
-import { t } from '../lib/i18n'
+import { locale, t } from '../lib/i18n'
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Bottle as BottleIcon, Button, cx, Flag, Label, PageHeader, Section, Sheet, Stars, StatusChip, WindowBar } from '../components/ui'
@@ -9,6 +9,7 @@ import { classicPairing } from '../lib/pairing'
 import { parseWindow } from '../lib/importer'
 import { formatMoney } from '../lib/settings'
 import { shareWineCard } from '../lib/shareCard'
+import { priceChange, signedPct } from '../lib/value'
 import { drinkStatus } from '../lib/status'
 import { WINE_TYPE_LABEL, type Bottle, type BottleStatus } from '../lib/types'
 
@@ -31,6 +32,7 @@ export default function WinePage() {
 
   const status = drinkStatus(wine)
   const cellarBottles = wine.bottles.filter((b) => b.status === 'cellar')
+  const change = priceChange(wine)
   const pastBottles = wine.bottles.filter((b) => b.status !== 'cellar')
 
   return (
@@ -149,6 +151,15 @@ export default function WinePage() {
       >
         <div className="card divide-y divide-ink-700">
           {cellarBottles.length === 0 && <p className="p-4 text-sm text-cream-400">{t('None left in the cellar.')}</p>}
+          {change && (
+            <p className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
+              <span className="text-cream-300">
+                {t('Paid {paid} · now {now}', { paid: formatMoney(change.paid), now: formatMoney(change.now) })}
+                {wine.marketPriceDate && <span className="text-cream-500"> · {new Date(wine.marketPriceDate).toLocaleDateString(locale(), { month: 'short', year: 'numeric' })}</span>}
+              </span>
+              <span className={cx('font-semibold tabular-nums', change.diff >= 0 ? 'text-emerald-300' : 'text-rose-300')}>{signedPct(change.pct)}</span>
+            </p>
+          )}
           {cellarBottles.map((b, i) => (
             <button key={b.id} onClick={() => setEditing(b)} className="flex w-full items-center gap-3 p-3.5 text-left hover:bg-ink-800">
               <span className="flex h-8 w-8 items-center justify-center rounded-full bg-ink-700 text-xs font-semibold text-cream-200">#{i + 1}</span>
