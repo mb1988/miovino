@@ -66,6 +66,17 @@ describe('AI providers', () => {
     expect(JSON.stringify(bodies[2])).toContain('"source":{"type":"base64","media_type":"image/jpeg","data":"AAAA"}')
   })
 
+  it('tolerates a key pasted with quotes, spaces or a NAME= prefix, and explains a rejected key', async () => {
+    const keys: string[] = []
+    vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
+      keys.push(new Headers(init.headers).get('x-goog-api-key')!)
+      return Response.json({ error: { code: 400, message: 'API key not valid. Please pass a valid API key.', status: 'INVALID_ARGUMENT' } }, { status: 400 })
+    })
+    await expect(ai.generateText({ GEMINI_API_KEY: ' GEMINI_API_KEY="AIzaTest" ' }, ask)).rejects.toMatchObject({ message: expect.stringContaining('npx wrangler secret put GEMINI_API_KEY') })
+    expect(keys).toEqual(['AIzaTest'])
+    expect(ai.aiProvider({ GEMINI_API_KEY: '  ' })).toBeNull()
+  })
+
   it('reads JSON out of fenced or chatty replies', () => {
     expect(ai.parseJson('```json\n{"a":1}\n```')).toEqual({ a: 1 })
     expect(ai.parseJson('Here you go: {"a":{"b":2}} — cheers')).toEqual({ a: { b: 2 } })
