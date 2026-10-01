@@ -585,4 +585,15 @@ export const IT: Record<string, string> = {
   'works straight from Chrome, Edge, Firefox or Samsung Internet, no install needed. Installing (⋮ → Install app) makes a tap on the reminder open the app.': 'funziona direttamente da Chrome, Edge, Firefox o Samsung Internet, senza installare nulla. Se installi l’app (⋮ → Installa app), toccando il promemoria si apre l’app.',
   'needs iOS 16.4 or later, and MioVino added to the Home Screen: in Safari tap Share → Add to Home Screen (recent iOS also allows it from Chrome or Edge). Then open it from the Home Screen and turn reminders on there.': 'serve iOS 16.4 o successivo e MioVino nella schermata Home: in Safari tocca Condividi → Aggiungi alla schermata Home (con iOS recenti anche da Chrome o Edge). Poi aprila dalla schermata Home e attiva lì i promemoria.',
   'Each device you turn on gets its own reminder, in its own language.': 'Ogni dispositivo attivato riceve il suo promemoria, nella sua lingua.',
+  // Demo: about
+  About: 'Info',
+  'About MioVino': 'Cos’è MioVino',
+  'A private wine-cellar app, built as a personal project and used every day for a real cellar. This demo runs on made-up wines, entirely in your browser: change anything, nothing is sent anywhere.': 'Un’app privata per la cantina, nata come progetto personale e usata ogni giorno per una cantina vera. Questa demo usa vini inventati e funziona tutta nel browser: cambia quello che vuoi, non viene inviato nulla.',
+  'Offline-first PWA: the cellar lives on the phone (IndexedDB) and syncs to a Cloudflare Worker with a D1 database.': 'PWA offline-first: la cantina vive sul telefono (IndexedDB) e si sincronizza con un Cloudflare Worker e un database D1.',
+  'Passkey sign-in (Face ID / fingerprint), no passwords.': 'Accesso con passkey (Face ID / impronta), senza password.',
+  'AI label scanner, “Ask my cellar” chat and a restaurant wine-list reader, on free AI models with automatic fallback.': 'Scanner AI delle etichette, chat «Chiedi alla cantina» e lettore della carta dei vini, su modelli AI gratuiti con riserva automatica.',
+  'Rack map with slot suggestions, drinking windows, monthly push reminders, several cellars.': 'Mappa degli scaffali con posizioni suggerite, finestre di beva, promemoria push mensili, più cantine.',
+  'English and Italian, accessibility-checked, end-to-end tests in CI, preview deploy for every change.': 'Inglese e italiano, accessibilità verificata, test end-to-end in CI, anteprima pubblicata per ogni modifica.',
+  'Things to try:': 'Da provare:',
+  'Start exploring': 'Inizia a esplorare',
 }

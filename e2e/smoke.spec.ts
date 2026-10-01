@@ -109,6 +109,10 @@ test('demo mode: sample cellar with no server, then back to the real app', async
   await page.goto('/demo')
   await expect(page).toHaveURL(/\/$/)
   await expect(page.getByRole('note')).toContainText('Demo')
+  // First visit: a short intro for visitors, shown once.
+  await expect(page.getByRole('dialog', { name: 'About MioVino' })).toBeVisible()
+  await page.getByRole('button', { name: 'Start exploring' }).click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
   await expect(page.getByText('38 wines · 78 bottles')).toBeVisible()
   // The fake AI answers in the browser.
   await page.goto('/ask')
