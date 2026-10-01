@@ -596,4 +596,10 @@ export const IT: Record<string, string> = {
   'English and Italian, accessibility-checked, end-to-end tests in CI, preview deploy for every change.': 'Inglese e italiano, accessibilità verificata, test end-to-end in CI, anteprima pubblicata per ogni modifica.',
   'Things to try:': 'Da provare:',
   'Start exploring': 'Inizia a esplorare',
+  // Demo on wide screens
+  'Your wine cellar, in your pocket.': 'La tua cantina, in tasca.',
+  'Open full screen': 'Apri a schermo intero',
+  'Exit demo': 'Esci dalla demo',
+  'Best on a phone: open this link there and add it to the Home Screen.': 'Al meglio sul telefono: apri questo link lì e aggiungilo alla schermata Home.',
+  'MioVino demo': 'Demo di MioVino',
 }

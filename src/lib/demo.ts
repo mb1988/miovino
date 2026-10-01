@@ -35,5 +35,18 @@ export function exitDemo() {
   } catch {
     /* nothing stored */
   }
-  window.location.assign('/')
+  // From inside the desktop showcase's phone frame, leave the whole page.
+  ;(window.top ?? window).location.assign('/')
+}
+
+export const SHOWCASE_FULL = 'miovino.demo.full'
+
+/** On a wide screen (and not already inside its own frame), the demo opens as a showcase: intro + app in a phone frame. */
+export function showcaseWanted() {
+  try {
+    if (window.top !== window || sessionStorage.getItem(SHOWCASE_FULL)) return false
+  } catch {
+    return false
+  }
+  return window.matchMedia('(min-width: 1024px)').matches
 }
