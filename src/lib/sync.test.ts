@@ -340,3 +340,53 @@ describe('ask my cellar endpoint', () => {
     expect(text).toContain('- Vietti Barolo Rocche (for the 2030 birthday)')
   })
 })
+
+describe('wine-list scanner endpoint', () => {
+  const jpeg = 'A'.repeat(200)
+  async function setup(key?: string) {
+    const db = sqliteD1()
+    const worker = ((await import(/* @vite-ignore */ new URL('../../worker/index.ts', import.meta.url).href)) as { default: { fetch: (req: Request, env: unknown) => Promise<Response> } }).default
+    const env = { DB: db, ALLOW_NO_AUTH: 'true', ASSETS: { fetch: async () => new Response('index') }, ...(key ? { ANTHROPIC_API_KEY: key } : {}) }
+    return (body: unknown) => worker.fetch(new Request('https://cellar.test/api/winelist', { method: 'POST', body: JSON.stringify(body) }), env)
+  }
+
+  it('checks the request and explains a missing key', async () => {
+    const call = await setup()
+    expect((await call({ images: [jpeg] })).status).toBe(501)
+    const withKey = await setup('sk-test')
+    expect((await withKey({ images: [] })).status).toBe(400)
+    expect((await withKey({ images: [jpeg, jpeg, jpeg, jpeg] })).status).toBe(400) // more than 3 pages
+    expect((await withKey({ images: [jpeg], budget: -5 })).status).toBe(400)
+  })
+
+  it('sends the photos with the cellar and returns ranked picks', async () => {
+    const call = await setup('sk-test')
+    const picks = {
+      isWineList: true,
+      currency: '£',
+      picks: [{ producer: 'Vietti', name: 'Barbera d’Asti Tre Vigne', vintage: 2021.0, price: 48, byTheGlass: false, fit: 'great', why: 'Bright Piedmont red, like the Barolos you rate highly.', inCellar: false }],
+      note: 'Good value in the Piedmont section.',
+    }
+    let sent: { model: string; fallbacks: unknown; system: { text: string }[]; messages: { content: { type: string; text?: string }[] }[] } | undefined
+    vi.stubGlobal('fetch', async (url: string | URL | Request, init?: RequestInit) => {
+      expect(String(url instanceof Request ? url.url : url)).toContain('api.anthropic.com/v1/messages')
+      sent = JSON.parse(String(init?.body))
+      const message = { id: 'msg_1', type: 'message', role: 'assistant', model: 'claude-opus-5-5', content: [{ type: 'text', text: JSON.stringify(picks) }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } }
+      return new Response(JSON.stringify(message), { status: 200, headers: { 'content-type': 'application/json' } })
+    })
+    try {
+      const res = await call({ images: [jpeg, jpeg], food: 'brasato', budget: 60, lang: 'it' })
+      expect(res.status).toBe(200)
+      const { result } = (await res.json()) as { result: typeof picks }
+      expect(result.picks[0]).toMatchObject({ name: 'Barbera d’Asti Tre Vigne', vintage: 2021, fit: 'great' })
+      expect(sent!.model).toBe('claude-opus-5-5')
+      expect(sent!.fallbacks).toBe('default')
+      expect(sent!.system[1].text).toContain('## In the cellar')
+      const content = sent!.messages[0].content
+      expect(content.filter((c) => c.type === 'image')).toHaveLength(2)
+      expect(content.at(-1)!.text).toMatch(/brasato[\s\S]*up to 60[\s\S]*in Italian/)
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+})

@@ -20,6 +20,7 @@ import AskPage from './pages/AskPage'
 import BarcodePage from './pages/BarcodePage'
 import RackPage from './pages/RackPage'
 import StatsPage from './pages/StatsPage'
+import WineListPage from './pages/WineListPage'
 import WishlistPage from './pages/WishlistPage'
 import WinePage from './pages/WinePage'
 
@@ -64,6 +65,7 @@ export default function App() {
           <Route path="/rack" element={<RackPage />} />
           <Route path="/ask" element={<AskPage />} />
           <Route path="/stats" element={<StatsPage />} />
+          <Route path="/winelist" element={<WineListPage />} />
           <Route path="*" element={<CellarPage />} />
         </Routes>
       </main>
