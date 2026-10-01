@@ -1,8 +1,11 @@
 @import 'tailwindcss';
+/* Self-hosted variable fonts: no render-blocking request to Google, and they work offline. */
+@import '@fontsource-variable/inter/wght.css';
+@import '@fontsource-variable/fraunces/opsz.css';
 
 @theme {
-  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
-  --font-display: 'Fraunces', ui-serif, Georgia, serif;
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Fraunces Variable', ui-serif, Georgia, serif;
 
   --color-ink-950: #0f080b;
   --color-ink-900: #160c11;

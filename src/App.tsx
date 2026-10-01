@@ -1,32 +1,34 @@
 import { BookOpen, Home, MoreHorizontal, Plus, Sparkles } from 'lucide-react'
 import { t } from './lib/i18n'
-import { useEffect } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { NavLink, Route, Routes, useLocation, useNavigationType } from 'react-router-dom'
 import { cx } from './components/ui'
 import { DemoBanner } from './components/DemoBanner'
-import { DemoShowcase } from './components/DemoShowcase'
 import { DEMO, showcaseWanted } from './lib/demo'
-import AddPage from './pages/AddPage'
 import CellarPage from './pages/CellarPage'
-import DrinkPage from './pages/DrinkPage'
-import EditWinePage from './pages/EditWinePage'
-import ImportPage from './pages/ImportPage'
-import JournalPage from './pages/JournalPage'
-import MorePage from './pages/MorePage'
-import ScanPage from './pages/ScanPage'
 import SignInPage from './pages/SignInPage'
 import { useSync } from './lib/sync'
 import { useLang } from './lib/i18n'
-import SuggestPage from './pages/SuggestPage'
-import TastePage from './pages/TastePage'
-import AskPage from './pages/AskPage'
-import BarcodePage from './pages/BarcodePage'
-import RackPage from './pages/RackPage'
-import StatsPage from './pages/StatsPage'
-import WineListPage from './pages/WineListPage'
-import WindowsPage from './pages/WindowsPage'
-import WishlistPage from './pages/WishlistPage'
-import WinePage from './pages/WinePage'
+
+// Screens load on first visit, so the cellar (the first screen) starts faster.
+const AddPage = lazy(() => import('./pages/AddPage'))
+const DrinkPage = lazy(() => import('./pages/DrinkPage'))
+const EditWinePage = lazy(() => import('./pages/EditWinePage'))
+const ImportPage = lazy(() => import('./pages/ImportPage'))
+const JournalPage = lazy(() => import('./pages/JournalPage'))
+const MorePage = lazy(() => import('./pages/MorePage'))
+const ScanPage = lazy(() => import('./pages/ScanPage'))
+const SuggestPage = lazy(() => import('./pages/SuggestPage'))
+const TastePage = lazy(() => import('./pages/TastePage'))
+const AskPage = lazy(() => import('./pages/AskPage'))
+const BarcodePage = lazy(() => import('./pages/BarcodePage'))
+const RackPage = lazy(() => import('./pages/RackPage'))
+const StatsPage = lazy(() => import('./pages/StatsPage'))
+const WineListPage = lazy(() => import('./pages/WineListPage'))
+const WindowsPage = lazy(() => import('./pages/WindowsPage'))
+const WishlistPage = lazy(() => import('./pages/WishlistPage'))
+const WinePage = lazy(() => import('./pages/WinePage'))
+const DemoShowcase = lazy(() => import('./components/DemoShowcase').then((m) => ({ default: m.DemoShowcase })))
 
 export default function App() {
   const loc = useLocation()
@@ -38,7 +40,12 @@ export default function App() {
   const sync = useSync()
   const lang = useLang()
   // Demo on a laptop: intro + the app in a phone frame (the frame loads the app itself).
-  if (DEMO && showcaseWanted()) return <DemoShowcase />
+  if (DEMO && showcaseWanted())
+    return (
+      <Suspense fallback={null}>
+        <DemoShowcase />
+      </Suspense>
+    )
   const hideNav = /\/(drink|edit)$|^\/add\/|^\/import/.test(loc.pathname)
   // Setup links always show the setup screen; otherwise lock the app while the server says we're signed out.
   // Offline (no server answer) the app keeps working on this device's own copy.
@@ -54,6 +61,7 @@ export default function App() {
     <div key={lang} className="mx-auto min-h-dvh max-w-2xl px-4">
       {DEMO && <DemoBanner />}
       <main className={cx(hideNav ? 'pb-10' : 'pb-28')}>
+        <Suspense fallback={null}>
         <Routes>
           <Route path="/" element={<CellarPage />} />
           <Route path="/wine/:id" element={<WinePage />} />
@@ -76,6 +84,7 @@ export default function App() {
           <Route path="/windows" element={<WindowsPage />} />
           <Route path="*" element={<CellarPage />} />
         </Routes>
+        </Suspense>
       </main>
       {!hideNav && <BottomNav />}
     </div>
@@ -83,14 +92,15 @@ export default function App() {
 }
 
 function BottomNav() {
-  const item = (to: string, label: string, Icon: typeof Home) => (
+  const item = (to: string, label: string, Icon: typeof Home, description?: string) => (
     <NavLink
       to={to}
       end={to === '/'}
       className={({ isActive }) => cx('flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium transition', isActive ? 'text-cream-50' : 'text-cream-500 hover:text-cream-300')}
     >
-      <Icon size={22} strokeWidth={1.8} />
+      <Icon size={22} strokeWidth={1.8} aria-hidden />
       {t(label)}
+      {description && <span className="sr-only">{t(description)}</span>}
     </NavLink>
   )
   return (
@@ -104,7 +114,7 @@ function BottomNav() {
           </span>
         </NavLink>
         {item('/journal', 'Journal', BookOpen)}
-        {item('/more', 'More', MoreHorizontal)}
+        {item('/more', 'More', MoreHorizontal, ' — settings, backup, rack map')}
       </div>
     </nav>
   )
