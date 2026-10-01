@@ -145,7 +145,7 @@ Bottom nav: **Cellar · Drink · ＋Add (big) · Journal · More**
 1. [x] **Restaurant wine-list scanner** — photo of a wine list → Claude reads it and ranks picks by your taste (Wine DNA), budget and food; `/api/winelist` in the Worker
 2. [x] **Reminder texts in Italian** — push digest and Worker messages follow the language saved with the subscription
 3. [x] **"What should I drink?" reasons in Italian** — `src/lib/recommend.ts` reason strings through `t()`
-4. [ ] **Drinking-window suggestions** — for wines with no window, ask Claude (server) for a typical window; owner confirms per wine
+4. [x] **Drinking-window suggestions** — for wines with no window, ask Claude (server) for a typical window; owner confirms per wine
 5. [ ] **Wine page: price paid vs. now** — optional "current price" field and the difference in Cellar over time
 6. [ ] **Accessibility pass** — focus rings, labels, contrast check on every screen at 390px and desktop
 7. [ ] **End-to-end smoke test in CI** — Playwright against `vite preview` with a seeded IndexedDB and mocked `/api`
