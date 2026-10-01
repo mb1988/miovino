@@ -162,6 +162,12 @@ Feedback after using the app. Each item is one PR; CI must be green before mergi
 7. [x] **Reminders on Android + iPhone** — clear per-platform guidance in More → Reminders.
 8. [x] **CV polish** — "About MioVino" intro in the demo (once per visitor), link-preview card (`public/og.png`, Open Graph tags) for LinkedIn/WhatsApp.
 
+### Phase 6 — public repo for the CV (owner asked 2026-10-01)
+1. [x] **Repo ready to go public** — README for recruiters (screenshots, architecture, quality), synthetic test fixture (no real cellar rows or guide text), email out of config, stray screenshot removed
+2. [ ] **Desktop presentation of the demo** — phone frame + intro panel on wide screens
+3. [ ] **Lighthouse pass** — performance / PWA / best practices
+4. [ ] **After the owner merges #19–#26:** rewrite history to drop test/fixtures/sample.xlsx and the email from old commits (git filter-repo), force-push main, delete merged branches, then make the repo public
+
 Answers to the owner's questions
 - *More than one cellar?* Today: several **locations/racks** (each with its own grid) but no "cellar" level above them — item 5 adds it.
 - *Monthly reminder only with Safari?* On iPhone, web push only works once the app is on the Home Screen (iOS 16.4+); adding it from Safari is the reliable way. On **Android it works in Chrome/Edge/Firefox directly**, installed or not.

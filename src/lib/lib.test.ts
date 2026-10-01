@@ -54,7 +54,7 @@ async function load(rel: string) {
   return { mapping, parsed: rows.map((r, i) => normalizeRow(r, mapping, i + 2, 'Vitae (AIS)')) }
 }
 
-describe('spreadsheet import (fixture: real rows with the tricky cases)', async () => {
+describe('spreadsheet import (fixture: made-up rows with the tricky cases)', async () => {
   const { mapping, parsed } = await load('../../test/fixtures/sample.xlsx')
 
   it('auto-maps every column', () => {
