@@ -1,26 +1,15 @@
 import { LogOut, Maximize2 } from 'lucide-react'
 import { useRef } from 'react'
-import { exitDemo } from '../lib/demo'
+import { exitDemo, SHOWCASE_FULL } from '../lib/demo'
 import { t } from '../lib/i18n'
 import { DemoAbout } from './DemoAbout'
 import { Button } from './ui'
-
-const FULL = 'miovino.demo.full'
 
 /**
  * The demo on a wide screen (e.g. opened from a CV on a laptop): what MioVino is on the left,
  * the real app running in a phone frame on the right. The frame is an iframe of the app itself,
  * so everything inside behaves exactly as on a phone.
  */
-export function showcaseWanted() {
-  try {
-    if (window.top !== window || sessionStorage.getItem(FULL)) return false
-  } catch {
-    return false
-  }
-  return window.matchMedia('(min-width: 1024px)').matches
-}
-
 export function DemoShowcase() {
   const frame = useRef<HTMLIFrameElement>(null)
   // The intro is already on screen here; don't pop the About sheet inside the phone too.
@@ -38,7 +27,7 @@ export function DemoShowcase() {
   }
   const fullScreen = () => {
     try {
-      sessionStorage.setItem(FULL, '1')
+      sessionStorage.setItem(SHOWCASE_FULL, '1')
     } catch {
       /* stays framed */
     }
