@@ -166,7 +166,19 @@ Feedback after using the app. Each item is one PR; CI must be green before mergi
 1. [x] **Repo ready to go public** — README for recruiters (screenshots, architecture, quality), synthetic test fixture (no real cellar rows or guide text), email out of config, stray screenshot removed
 2. [x] **Desktop presentation of the demo** — phone frame + intro panel on wide screens
 3. [x] **Lighthouse pass** — performance / PWA / best practices
-4. [ ] **After the owner merges #19–#26:** rewrite history to drop test/fixtures/sample.xlsx and the email from old commits (git filter-repo), force-push main, delete merged branches, then make the repo public
+4. [x] **Published for the CV** — this repo renamed to `miovino-private`; public `mb1988/miovino` is a history-rewritten copy (no email, no real cellar rows). It does not auto-sync: re-publish on request (rewrite again, never push private history there).
+
+### Phase 7 — prices (owner asked 2026-10-01; one PR each, owner merges)
+1. [ ] **Wine list: is the price fair?** In the restaurant wine-list scanner, every pick (and any other wine worth flagging on the list) gets a price verdict: **Steal**, **Fair**, **Pricey** or **Rip-off**.
+   - Basis: the AI's estimate of the typical UK retail price for that wine and vintage, compared with the list price → markup. UK restaurants usually charge 2.5–3.5× retail: ≤2× = steal, 2–3.5× = fair, 3.5–5× = pricey, >5× = rip-off (thresholds in one shared constant, tested).
+   - If the same wine is in the owner's cellar, use what they paid as the anchor ("you paid £38; here £95 = 2.5×").
+   - Shown as a coloured badge + one line ("~£30 in shops · 2.2× · good value"); a "best value on this list" callout. Estimates are clearly labelled as estimates.
+   - Extend `WineListSchema` (retailEstimate, verdict, valueNote, plus a `deals` list for non-picks), the prompt, demo canned data, Italian strings, unit tests for the verdict maths, e2e with a mocked `/api/winelist`.
+2. [ ] **Wishlist: where to buy.** Each wishlist item gets a "Where to buy" section:
+   - **Where you bought it before** (from your bottles' `seller` field) — first, because it's real.
+   - **Search links** that open live prices: Wine-Searcher (UK), plus a short list of UK merchants that suit the wine (e.g. The Wine Society, Berry Bros, Majestic, Lay & Wheeler, Hedonism) as search URLs — no paid API, no scraping.
+   - Optional **AI hint** (one call per item, cached on the item): typical UK price range + which kinds of merchant stock it.
+   - Live price feeds (Wine-Searcher API) are paid — not planned unless the owner wants to pay.
 
 Answers to the owner's questions
 - *More than one cellar?* Today: several **locations/racks** (each with its own grid) but no "cellar" level above them — item 5 adds it.
