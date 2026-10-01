@@ -29,7 +29,7 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2,wasm}'],
-        globIgnores: ['push-sw.js'],
+        globIgnores: ['push-sw.js', 'og.png'], // og.png is only for link previews
         // Push notifications (monthly drinking reminder).
         importScripts: ['push-sw.js'],
         // Pages always try the network first, so an expired Cloudflare Access session can redirect to login;

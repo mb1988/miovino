@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 import { IT } from './i18n-it'
 
 // Strings that are the same in both languages (names, examples, commands).
-const SAME = new Set(['Barolo DOCG', 'Nebbiolo', 'npm run auth:invite', 'sk-ant-…', 'Orange', 'No', 'Excel / CSV'])
+const SAME = new Set(['Barolo DOCG', 'Nebbiolo', 'npm run auth:invite', 'Orange', 'No', 'Excel / CSV'])
 
 function files(dir: string): string[] {
   return readdirSync(dir).flatMap((f) => {

@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
+import { cellarNames, inCellar, setActiveCellar, useActiveCellar, validCellar } from './cellars'
 import { db, joinWine, loadCellar } from './db'
+import { useSettings } from './settings'
 
 export function useCellar() {
   return useLiveQuery(() => loadCellar(), [])
@@ -29,4 +31,16 @@ export function useBlobUrl(blob?: Blob) {
     return () => URL.revokeObjectURL(u)
   }, [blob])
   return url
+}
+
+/** The cellar as seen from the cellar chosen on this device (all cellars by default), plus the switcher's state. */
+export function useCellarView() {
+  const all = useCellar()
+  const locations = useLocations()
+  const main = useSettings().cellarName
+  const chosen = useActiveCellar()
+  const names = cellarNames(locations ?? [], main)
+  const active = validCellar(chosen, names)
+  const wines = all && locations ? inCellar(all, locations, active, main) : undefined
+  return { wines, all, names, active, setActive: setActiveCellar, main }
 }

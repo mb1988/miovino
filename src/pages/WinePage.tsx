@@ -130,7 +130,7 @@ export default function WinePage() {
               </Link>{' '}
               {t('or')}{' '}
               <Link className="text-wine-300 underline" to={`/windows?w=${id}`}>
-                {t('ask Claude')}
+                {t('ask the AI')}
               </Link>
             </p>
           ) : (
@@ -142,11 +142,15 @@ export default function WinePage() {
       <Section
         title={t('Your bottles · {n}', { n: cellarBottles.length })}
         action={
-          cellarBottles.some((b) => b.slot) && (
-            <Link to={`/rack?w=${id}`} className="flex items-center gap-1 text-xs text-wine-300">
+          cellarBottles.some((b) => b.slot) ? (
+            <Link to={`/rack?w=${id}`} className="flex min-h-9 items-center gap-1 text-xs text-wine-300">
               <Grid3x3 size={13} /> {t('Show in rack')}
             </Link>
-          )
+          ) : cellarBottles.length > 0 ? (
+            <Link to={`/rack?place=${id}`} className="flex min-h-9 items-center gap-1 text-xs text-wine-300">
+              <Grid3x3 size={13} /> {t('Place in a rack')}
+            </Link>
+          ) : null
         }
       >
         <div className="card divide-y divide-ink-700">
@@ -182,7 +186,7 @@ export default function WinePage() {
       <Section
         title={t('Your notes')}
         action={
-          <button className="text-xs text-wine-300" onClick={() => setNotesOpen(true)}>
+          <button className="-my-2 min-h-10 px-2 text-xs text-wine-300" onClick={() => setNotesOpen(true)}>
             {t('Edit')}
           </button>
         }
@@ -295,7 +299,7 @@ export default function WinePage() {
 
       <div className="mt-8 flex justify-center">
         <button
-          className="flex items-center gap-2 text-sm text-rose-300/80 hover:text-rose-300"
+          className="flex min-h-11 items-center gap-2 px-3 text-sm text-rose-300/80 hover:text-rose-300"
           onClick={async () => {
             if (confirm(`Delete ${wine.producer} ${wine.name} ${wine.vintage ?? 'NV'} with all its bottles and tastings?`)) {
               await deleteWine(id)

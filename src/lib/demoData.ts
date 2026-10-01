@@ -12,7 +12,7 @@ type Row = [string, string, WineType, string, string, string, string[], number |
 const RACK_A = 'Cellar rack A'
 const RACK_B = 'Cellar rack B'
 const FRIDGE = 'Kitchen fridge'
-const COUNTRY = 'Country house'
+const COUNTRY = 'Barn rack' // in a second cellar, "Country house"
 
 const ROWS: Row[] = [
   ['Giacomo Conterno', 'Barolo Cascina Francia', 'red', 'Italy', 'Piedmont', 'Barolo DOCG', ['Nebbiolo'], 9, -1, 15, 145, 3, RACK_A],
@@ -123,7 +123,7 @@ export function demoData(now = new Date()): DemoData {
     { id: 'demo-loc-a', name: RACK_A, order: 0, rows: 5, cols: 8, updatedAt: ts },
     { id: 'demo-loc-b', name: RACK_B, order: 1, rows: 4, cols: 6, updatedAt: ts },
     { id: 'demo-loc-f', name: FRIDGE, order: 2, updatedAt: ts },
-    { id: 'demo-loc-c', name: COUNTRY, order: 3, rows: 3, cols: 6, updatedAt: ts },
+    { id: 'demo-loc-c', name: COUNTRY, order: 3, rows: 3, cols: 6, cellar: 'Country house', updatedAt: ts },
   ]
   const wines: Wine[] = []
   const bottles: Bottle[] = []

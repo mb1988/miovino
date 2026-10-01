@@ -1,11 +1,13 @@
-import { ArrowUpDown, Camera, FileSpreadsheet, LayoutList, PenLine, Rows3, Search, SlidersHorizontal, Sparkles, Wine as WineIcon, X } from 'lucide-react'
+import { ArrowUpDown, ChevronDown, Camera, FileSpreadsheet, LayoutList, PenLine, Rows3, Search, SlidersHorizontal, Sparkles, Wine as WineIcon, X } from 'lucide-react'
 import { plural, t } from '../lib/i18n'
 import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { MonthlyDigest } from '../components/MonthlyDigest'
 import { locationsOf, WineCard, WineRow } from '../components/WineCard'
 import { Button, Chip, cx, Empty, Sheet } from '../components/ui'
-import { useCellar } from '../lib/hooks'
+import { useCellarView } from '../lib/hooks'
+import { storageKey } from '../lib/demo'
+import { CellarSwitcher } from '../components/CellarSwitcher'
 import { normalizeText } from '../lib/knowledge'
 import { bottlePrice } from '../lib/recommend'
 import { formatMoney, useSettings } from '../lib/settings'
@@ -23,8 +25,24 @@ const SORTS = {
 } as const
 type SortKey = keyof typeof SORTS
 
+const VIEW_KEY = storageKey('miovino.view')
+function savedView() {
+  try {
+    return localStorage.getItem(VIEW_KEY) === 'list' ? 'list' : 'cards'
+  } catch {
+    return 'cards'
+  }
+}
+function saveView(v: string) {
+  try {
+    localStorage.setItem(VIEW_KEY, v)
+  } catch {
+    /* remembered for this visit only */
+  }
+}
+
 export default function CellarPage() {
-  const cellar = useCellar()
+  const { wines: cellar, all, names, active, setActive } = useCellarView()
   const settings = useSettings()
   const [params, setParams] = useSearchParams()
   const [filtersOpen, setFiltersOpen] = useState(false)
@@ -38,7 +56,8 @@ export default function CellarPage() {
   const fav = params.get('fav') === '1'
   const showGone = params.get('gone') === '1'
   const sort = (params.get('sort') as SortKey) ?? 'urgency'
-  const view = params.get('view') ?? 'cards'
+  // Cards or list: the URL wins, else this device's last choice.
+  const view = params.get('view') ?? savedView()
 
   const set = (k: string, v: string | null) => {
     const p = new URLSearchParams(params)
@@ -89,16 +108,17 @@ export default function CellarPage() {
     return sortWines(filtered, sort)
   }, [cellar, q, type, status, country, region, location, vintage, fav, showGone, sort])
 
-  if (!cellar) return null
+  if (!cellar || !all) return null
   const activeFilters = [type, status, country, region, location, vintage, fav ? '1' : null, showGone ? '1' : null].filter(Boolean).length
 
-  if (cellar.length === 0) return <Welcome name={settings.cellarName} />
+  if (all.length === 0) return <Welcome name={settings.cellarName} />
 
   return (
     <div>
       <header className="pt-[calc(env(safe-area-inset-top)+1.5rem)] pb-4">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-wine-300">{t('MioVino')}</p>
-        <h1 className="font-display text-3xl font-semibold text-cream-50">{settings.cellarName}</h1>
+        <h1 className="font-display text-3xl font-semibold text-cream-50">{active || (names.length > 1 ? t('All cellars') : settings.cellarName)}</h1>
+        <CellarSwitcher names={names} active={active} onChange={(n) => (setActive(n), set('loc', null))} className="mt-3" />
       </header>
 
       {stats && (
@@ -115,7 +135,7 @@ export default function CellarPage() {
                 <button
                   key={s}
                   onClick={() => set('status', status === s ? null : s)}
-                  className={cx('flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs ring-1 transition', status === s ? STATUS_META[s].chip : 'text-cream-300 ring-ink-700 hover:ring-ink-600')}
+                  className={cx('flex min-h-8 shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs ring-1 transition', status === s ? STATUS_META[s].chip : 'text-cream-300 ring-ink-700 hover:ring-ink-600')}
                 >
                   <span className={cx('h-2 w-2 rounded-full', STATUS_META[s].dot)} />
                   <span className="font-semibold text-cream-50">{stats.byStatus[s]}</span> {t(STATUS_META[s].label)}
@@ -146,11 +166,19 @@ export default function CellarPage() {
               </button>
             )}
           </label>
-          <button onClick={() => setFiltersOpen(true)} className="relative rounded-xl bg-ink-800 px-3 text-cream-200 ring-1 ring-ink-600" aria-label={t('Filters')}>
+          <button onClick={() => setFiltersOpen(true)} className="relative min-h-11 min-w-11 rounded-xl bg-ink-800 px-3 text-cream-200 ring-1 ring-ink-600" aria-label={t('Filters')}>
             <SlidersHorizontal size={18} />
             {activeFilters > 0 && <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-wine-500 text-[10px] font-bold">{activeFilters}</span>}
           </button>
-          <button onClick={() => set('view', view === 'cards' ? 'list' : null)} className="rounded-xl bg-ink-800 px-3 text-cream-200 ring-1 ring-ink-600" aria-label={t('Toggle view')}>
+          <button
+            onClick={() => {
+              const next = view === 'cards' ? 'list' : 'cards'
+              saveView(next)
+              set('view', next)
+            }}
+            className="min-h-11 min-w-11 rounded-xl bg-ink-800 px-3 text-cream-200 ring-1 ring-ink-600"
+            aria-label={view === 'cards' ? t('Show as list') : t('Show as cards')}
+          >
             {view === 'cards' ? <LayoutList size={18} /> : <Rows3 size={18} />}
           </button>
         </div>
@@ -169,26 +197,29 @@ export default function CellarPage() {
         </div>
       </div>
 
-      <div className="mt-2 mb-2 flex items-center justify-between text-xs text-cream-400">
-        <span>
+      <div className="mt-2 mb-2 flex flex-wrap items-center justify-between gap-x-2 text-xs text-cream-400">
+        <span className="whitespace-nowrap">
           {plural(list.length, '{n} wine', '{n} wines')} · {plural(list.reduce((s, w) => s + w.inCellar, 0), '{n} bottle', '{n} bottles')}
         </span>
-        <span className="flex items-center gap-2">
-        <select aria-label={t('Vintage')} className="rounded-lg bg-transparent py-1 text-right text-cream-200 outline-none" value={vintage ?? ''} onChange={(e) => set('vintage', e.target.value || null)}>
-          <option value="" className="bg-ink-850">
-            {t('All vintages')}
-          </option>
-          {facets.vintages.map(([v, n]) => (
-            <option key={v} value={v} className="bg-ink-850">
-              {v} ({n})
-            </option>
-          ))}
-        </select>
+        <span className="ml-auto flex items-center gap-1 whitespace-nowrap">
+        <label className="relative flex min-h-9 items-center gap-1 rounded-full px-2 text-cream-200">
+          {vintage ?? t('All vintages')}
+          <ChevronDown size={13} className="text-cream-400" aria-hidden />
+          {/* Invisible native select on top: the phone's own picker, at 16px so iPhone Safari doesn't zoom. */}
+          <select aria-label={t('Vintage')} className="absolute inset-0 cursor-pointer text-base opacity-0" value={vintage ?? ''} onChange={(e) => set('vintage', e.target.value || null)}>
+            <option value="">{t('All vintages')}</option>
+            {facets.vintages.map(([v, n]) => (
+              <option key={v} value={v}>
+                {v} ({n})
+              </option>
+            ))}
+          </select>
+        </label>
         {/* A visible pill; the native select on top keeps the phone's own picker. */}
-        <label className="relative flex items-center gap-1.5 rounded-full bg-ink-800 px-3 py-1.5 font-medium text-cream-100 ring-1 ring-ink-600">
+        <label className="relative flex min-h-9 items-center gap-1.5 rounded-full bg-ink-800 px-3 py-1.5 font-medium text-cream-100 ring-1 ring-ink-600">
           <ArrowUpDown size={13} className="text-cream-400" />
-          {t('Sort: {s}', { s: t(SORTS[sort] ?? SORTS.urgency) })}
-          <select aria-label={t('Sort')} className="absolute inset-0 cursor-pointer opacity-0" value={sort} onChange={(e) => set('sort', e.target.value === 'urgency' ? null : e.target.value)}>
+          {t(SORTS[sort] ?? SORTS.urgency)}
+          <select aria-label={t('Sort')} className="absolute inset-0 cursor-pointer text-base opacity-0" value={sort} onChange={(e) => set('sort', e.target.value === 'urgency' ? null : e.target.value)}>
             {Object.entries(SORTS).map(([k, v]) => (
               <option key={k} value={k}>
                 {t(v)}

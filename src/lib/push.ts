@@ -6,6 +6,17 @@ export type PushSupport = 'ok' | 'install-first' | 'unsupported'
 const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
 const standalone = () => matchMedia('(display-mode: standalone)').matches || (navigator as { standalone?: boolean }).standalone === true
 
+export type Platform = 'ios' | 'android' | 'other'
+export function platform(): Platform {
+  if (isIOS()) return 'ios'
+  return /Android/i.test(navigator.userAgent) ? 'android' : 'other'
+}
+
+/** True when the owner said no to notifications for this site; only the phone's settings can undo that. */
+export function pushBlocked() {
+  return 'Notification' in window && Notification.permission === 'denied'
+}
+
 /** On iPhone, push only exists once the app is opened from the Home Screen (iOS 16.4+). */
 export function pushSupport(): PushSupport {
   if ('serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window) return 'ok'

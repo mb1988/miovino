@@ -4,7 +4,8 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { locationsOf } from '../components/WineCard'
 import { Bottle, Button, Chip, Empty, Label, PageHeader, StatusChip } from '../components/ui'
-import { useCellar } from '../lib/hooks'
+import { useCellarView } from '../lib/hooks'
+import { CellarSwitcher } from '../components/CellarSwitcher'
 import { FOODS, type Food } from '../lib/knowledge'
 import { suggest, type SuggestOptions } from '../lib/recommend'
 import { formatMoney } from '../lib/settings'
@@ -13,7 +14,7 @@ import { drinkStatus } from '../lib/status'
 import { WINE_TYPE_LABEL, type WineType } from '../lib/types'
 
 export default function SuggestPage() {
-  const cellar = useCellar()
+  const { wines: cellar, names, active, setActive } = useCellarView()
   const [opts, setOpts] = useState<SuggestOptions>({ type: 'any', occasion: 'any', readyOnly: true })
   const [page, setPage] = useState(0)
   const results = useMemo(() => (cellar ? suggest(cellar, opts) : []), [cellar, opts])
@@ -26,7 +27,8 @@ export default function SuggestPage() {
 
   return (
     <div>
-      <PageHeader title={t('What should I drink?')} subtitle={t('Picks from your own cellar')} />
+      <PageHeader title={t('What should I drink?')} subtitle={active ? t('Picks from {cellar}', { cellar: active }) : t('Picks from your own cellar')} />
+      <CellarSwitcher names={names} active={active} onChange={setActive} className="mb-3" />
 
 <div className="mb-4 grid gap-2">
       <Link to="/ask" className="card flex items-center gap-3 p-4 hover:ring-ink-600">
@@ -95,8 +97,8 @@ export default function SuggestPage() {
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <label className="flex items-center gap-2 text-sm text-cream-200">
-            <input type="checkbox" className="accent-wine-500" checked={opts.readyOnly} onChange={(e) => up({ readyOnly: e.target.checked })} />
+          <label className="flex min-h-10 items-center gap-2.5 text-sm text-cream-200">
+            <input type="checkbox" className="h-5 w-5 accent-wine-500" checked={opts.readyOnly} onChange={(e) => up({ readyOnly: e.target.checked })} />
             {t('Ready to drink only')}
           </label>
           <label className="ml-auto flex items-center gap-2 text-sm text-cream-300">

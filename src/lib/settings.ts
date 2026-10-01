@@ -3,13 +3,11 @@ import { DEMO, storageKey } from './demo'
 
 export interface Settings {
   currency: string
-  apiKey: string
-  model: string
   cellarName: string
 }
 
 const KEY = storageKey('miovino.settings')
-const DEFAULTS: Settings = { currency: 'GBP', apiKey: '', model: 'claude-opus-5-5', cellarName: DEMO ? 'Demo Cellar' : 'My Cellar' }
+const DEFAULTS: Settings = { currency: 'GBP', cellarName: DEMO ? 'Home' : 'My Cellar' }
 
 let cache: Settings = load()
 const listeners = new Set<() => void>()

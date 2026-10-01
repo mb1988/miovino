@@ -307,11 +307,11 @@ describe('ask my cellar endpoint', () => {
     return { db, call, ask }
   }
 
-  it('explains when the server has no Claude key, and checks the conversation shape', async () => {
+  it('explains when the server has no AI key, and checks the conversation shape', async () => {
     const { call, ask } = await setup()
     const res = await call('/api/ask', { messages: [{ role: 'user', content: 'Hi' }] })
     expect(res.status).toBe(501)
-    expect(((await res.json()) as { error: string }).error).toMatch(/ANTHROPIC_API_KEY/)
+    expect(((await res.json()) as { error: string }).error).toMatch(/GEMINI_API_KEY/)
     expect(ask.validateTurns({ messages: [{ role: 'user', content: 'Hi' }] })).toBeTruthy()
     expect(ask.validateTurns({ messages: [{ role: 'assistant', content: 'Hi' }] })).toBeNull() // must start with the user
     expect(ask.validateTurns({ messages: [{ role: 'user', content: 'a' }, { role: 'assistant', content: 'b' }] })).toBeNull() // must end with the user
@@ -346,7 +346,7 @@ describe('wine-list scanner endpoint', () => {
   async function setup(key?: string) {
     const db = sqliteD1()
     const worker = ((await import(/* @vite-ignore */ new URL('../../worker/index.ts', import.meta.url).href)) as { default: { fetch: (req: Request, env: unknown) => Promise<Response> } }).default
-    const env = { DB: db, ALLOW_NO_AUTH: 'true', ASSETS: { fetch: async () => new Response('index') }, ...(key ? { ANTHROPIC_API_KEY: key } : {}) }
+    const env = { DB: db, ALLOW_NO_AUTH: 'true', ASSETS: { fetch: async () => new Response('index') }, ...(key ? { GEMINI_API_KEY: key } : {}) }
     return (body: unknown) => worker.fetch(new Request('https://cellar.test/api/winelist', { method: 'POST', body: JSON.stringify(body) }), env)
   }
 
@@ -367,24 +367,27 @@ describe('wine-list scanner endpoint', () => {
       picks: [{ producer: 'Vietti', name: 'Barbera d’Asti Tre Vigne', vintage: 2021.0, price: 48, byTheGlass: false, fit: 'great', why: 'Bright Piedmont red, like the Barolos you rate highly.', inCellar: false }],
       note: 'Good value in the Piedmont section.',
     }
-    let sent: { model: string; fallbacks: unknown; system: { text: string }[]; messages: { content: { type: string; text?: string }[] }[] } | undefined
+    let sent: { systemInstruction: { parts: { text: string }[] }; contents: { parts: { text?: string; inlineData?: unknown }[] }[]; generationConfig: { responseMimeType?: string } } | undefined
+    let headers: Headers | undefined
     vi.stubGlobal('fetch', async (url: string | URL | Request, init?: RequestInit) => {
-      expect(String(url instanceof Request ? url.url : url)).toContain('api.anthropic.com/v1/messages')
+      expect(String(url)).toBe('https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent')
+      headers = new Headers(init?.headers)
       sent = JSON.parse(String(init?.body))
-      const message = { id: 'msg_1', type: 'message', role: 'assistant', model: 'claude-opus-5-5', content: [{ type: 'text', text: JSON.stringify(picks) }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } }
-      return new Response(JSON.stringify(message), { status: 200, headers: { 'content-type': 'application/json' } })
+      // A fenced JSON answer is fine too.
+      return Response.json({ candidates: [{ content: { parts: [{ text: '```json\n' + JSON.stringify(picks) + '\n```' }] }, finishReason: 'STOP' }] })
     })
     try {
       const res = await call({ images: [jpeg, jpeg], food: 'brasato', budget: 60, lang: 'it' })
       expect(res.status).toBe(200)
       const { result } = (await res.json()) as { result: typeof picks }
       expect(result.picks[0]).toMatchObject({ name: 'Barbera d’Asti Tre Vigne', vintage: 2021, fit: 'great' })
-      expect(sent!.model).toBe('claude-opus-5-5')
-      expect(sent!.fallbacks).toBe('default')
-      expect(sent!.system[1].text).toContain('## In the cellar')
-      const content = sent!.messages[0].content
-      expect(content.filter((c) => c.type === 'image')).toHaveLength(2)
-      expect(content.at(-1)!.text).toMatch(/brasato[\s\S]*up to 60[\s\S]*in Italian/)
+      expect(headers!.get('x-goog-api-key')).toBe('sk-test')
+      expect(sent!.generationConfig.responseMimeType).toBe('application/json')
+      expect(sent!.systemInstruction.parts[1].text).toContain('## In the cellar')
+      const parts = sent!.contents[0].parts
+      expect(parts.filter((p) => p.inlineData)).toHaveLength(2)
+      expect(parts.at(-2)!.text).toMatch(/brasato[\s\S]*up to 60[\s\S]*in Italian/)
+      expect(parts.at(-1)!.text).toContain('JSON Schema')
     } finally {
       vi.unstubAllGlobals()
     }
@@ -396,7 +399,7 @@ describe('drinking-window suggestions', () => {
   async function setup(key?: string) {
     const db = sqliteD1()
     const worker = ((await import(/* @vite-ignore */ new URL('../../worker/index.ts', import.meta.url).href)) as { default: { fetch: (req: Request, env: unknown) => Promise<Response> } }).default
-    const env = { DB: db, ALLOW_NO_AUTH: 'true', ASSETS: { fetch: async () => new Response('index') }, ...(key ? { ANTHROPIC_API_KEY: key } : {}) }
+    const env = { DB: db, ALLOW_NO_AUTH: 'true', ASSETS: { fetch: async () => new Response('index') }, ...(key ? { GEMINI_API_KEY: key } : {}) }
     return (body: unknown) => worker.fetch(new Request('https://cellar.test/api/windows', { method: 'POST', body: JSON.stringify(body) }), env)
   }
 
@@ -418,9 +421,8 @@ describe('drinking-window suggestions', () => {
     }
     let prompt = ''
     vi.stubGlobal('fetch', async (_url: unknown, init?: RequestInit) => {
-      prompt = JSON.parse(String(init?.body)).messages[0].content
-      const message = { id: 'msg_1', type: 'message', role: 'assistant', model: 'claude-opus-5-5', content: [{ type: 'text', text: JSON.stringify(answer) }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } }
-      return new Response(JSON.stringify(message), { status: 200, headers: { 'content-type': 'application/json' } })
+      prompt = JSON.parse(String(init?.body)).contents[0].parts[0].text
+      return Response.json({ candidates: [{ content: { parts: [{ text: JSON.stringify(answer) }] }, finishReason: 'STOP' }] })
     })
     try {
       const res = await call({ wines: [wine], lang: 'it' })

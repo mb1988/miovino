@@ -1,4 +1,4 @@
-/** Shared by the browser (direct mode) and the Worker (/api/scan) so both ask Claude the same way. */
+/** Label scanning: the schema and prompt the Worker (/api/scan) sends to the AI, shared with the app for the result type. */
 import { z } from 'zod'
 
 import { WINE_TYPES } from './wine'
@@ -30,8 +30,6 @@ fields (region, grapes, drinking window, style) from your wine knowledge for thi
 Drinking window: give a realistic range for this specific wine and vintage, as a sommelier would. Current year: ${year}.
 If the text is ambiguous, pick the most likely reading and lower the confidence.`
 }
-
-export const SCAN_MODELS = ['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-4-5'] as const
 
 /** Rounds year-like numbers the model may return as floats. */
 export function tidyLabel(r: LabelResult): LabelResult {

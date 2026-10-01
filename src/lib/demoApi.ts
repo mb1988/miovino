@@ -33,13 +33,18 @@ export function installDemoApi() {
   window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(input instanceof Request ? input.url : String(input), window.location.href)
     if (url.origin !== window.location.origin || !url.pathname.startsWith('/api/')) return real(input, init)
-    const body = init?.body && typeof init.body === 'string' ? (JSON.parse(init.body) as Record<string, unknown>) : {}
+    let body: Record<string, unknown> = {}
+    try {
+      if (typeof init?.body === 'string') body = JSON.parse(init.body) as Record<string, unknown>
+    } catch {
+      /* not JSON (e.g. a photo upload): the route doesn't need it */
+    }
     return route(url.pathname, init?.method ?? 'GET', body)
   }
 }
 
 async function route(path: string, method: string, body: Record<string, unknown>): Promise<Response> {
-  if (path === '/api/health') return json({ ok: true, authenticated: true, devices: 1, scan: true })
+  if (path === '/api/health') return json({ ok: true, authenticated: true, devices: 1, scan: true, ai: 'Demo AI' })
   if (path === '/api/sync') return json({ cursor: 0, changes: [], more: false, accepted: (body.changes as unknown[] | undefined)?.length ?? 0 })
   if (path === '/api/auth/devices' && method === 'GET') return json({ devices: [{ id: 'demo', device_name: t('Demo device'), created_at: Date.now() - 86_400_000 * 30, last_used_at: Date.now() }] })
   if (path === '/api/scan') return pause(1200).then(() => json({ result: demoLabel() }))

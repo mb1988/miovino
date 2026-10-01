@@ -1,6 +1,6 @@
 import { Fragment, type ReactNode } from 'react'
 
-/** Minimal, safe markdown for chat answers: paragraphs, "- " / "1. " lists, **bold** and *italic*. No HTML is ever injected. */
+/** Minimal, safe markdown for chat answers: paragraphs, "- " / "1. " lists, **bold** and *italic* / _italic_. No HTML is ever injected. */
 export function Markdown({ text }: { text: string }) {
   const blocks: ReactNode[] = []
   let list: { ordered: boolean; items: string[] } | null = null
@@ -29,6 +29,9 @@ export function Markdown({ text }: { text: string }) {
   return <div className="space-y-2">{blocks}</div>
 }
 
+// *italic* or _italic_ (underscores only at word edges, so snake_case stays as is).
+const ITALIC = /(\*[^*\s][^*]*\*|(?<!\w)_[^_\s][^_]*_(?!\w))/g
+
 function inline(s: string): ReactNode {
   // **bold** first, then *italic* inside the remaining pieces.
   return s.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
@@ -37,7 +40,7 @@ function inline(s: string): ReactNode {
         {part.slice(2, -2)}
       </strong>
     ) : (
-      <Fragment key={i}>{part.split(/(\*[^*\s][^*]*\*)/g).map((p, j) => (p.length > 2 && p.startsWith('*') && p.endsWith('*') ? <em key={j}>{p.slice(1, -1)}</em> : p))}</Fragment>
+      <Fragment key={i}>{part.split(ITALIC).map((p, j) => (p.length > 2 && /^([*_]).*\1$/s.test(p) ? <em key={j}>{p.slice(1, -1)}</em> : p))}</Fragment>
     ),
   )
 }

@@ -1,4 +1,4 @@
-import { BarChart3, CalendarRange, ChevronRight, Dna, Grid3x3, ShoppingBag, Download, Eye, EyeOff, FileJson, FileSpreadsheet, GripVertical, MapPin, Trash2, Upload } from 'lucide-react'
+import { BarChart3, CalendarRange, ChevronRight, Dna, Grid3x3, ShoppingBag, Download, FileJson, FileSpreadsheet, GripVertical, MapPin, Trash2, Upload } from 'lucide-react'
 import { LANGS, locale, setLang, t, useLang } from '../lib/i18n'
 import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -6,18 +6,20 @@ import { Button, Chip, cx, Label, PageHeader, Section } from '../components/ui'
 import { exportCsv, exportJson, exportXlsx, restoreBackup } from '../lib/backup'
 import { db, deleteAllData, ensureLocation } from '../lib/db'
 import { useLocations } from '../lib/hooks'
+import { cellarNames } from '../lib/cellars'
 import { saveSettings, useSettings } from '../lib/settings'
 import { syncNow, useSync } from '../lib/sync'
 import { DevicesSection } from '../components/DevicesSection'
 import { updatePushLanguage } from '../lib/push'
 import { RemindersSection } from '../components/RemindersSection'
 
+const NEW_CELLAR = '__new_cellar__'
+
 export default function MorePage() {
   const s = useSettings()
   const lang = useLang()
   const sync = useSync()
   const locations = useLocations()
-  const [showKey, setShowKey] = useState(false)
   const [newLoc, setNewLoc] = useState('')
   const [msg, setMsg] = useState('')
   const restoreRef = useRef<HTMLInputElement>(null)
@@ -25,6 +27,14 @@ export default function MorePage() {
   const flash = (m: string) => {
     setMsg(m)
     setTimeout(() => setMsg(''), 3500)
+  }
+
+  const moveToCellar = async (id: string, choice: string) => {
+    let name = choice
+    if (choice === NEW_CELLAR) name = prompt(t('Name of the new cellar, e.g. Country house'))?.trim() ?? ''
+    if (!name) return
+    // The main cellar is stored as "no cellar", so renaming it in Settings keeps its locations.
+    await db.locations.update(id, { cellar: name === s.cellarName ? undefined : name })
   }
 
   const renameLocation = async (id: string, oldName: string) => {
@@ -138,17 +148,31 @@ export default function MorePage() {
           {locations?.map((l) => (
             <div key={l.id} className="flex items-center gap-3 px-4 py-2.5">
               <GripVertical size={14} className="text-ink-600" />
-              <button className="flex-1 text-left text-sm text-cream-100" onClick={() => renameLocation(l.id!, l.name)}>
+              <button className="min-h-10 min-w-0 flex-1 truncate text-left text-sm text-cream-100" onClick={() => renameLocation(l.id!, l.name)}>
                 <MapPin size={14} className="mr-1.5 inline text-cream-400" />
                 {l.name}
                 {l.rows && l.cols ? <span className="ml-1.5 text-xs text-cream-500">{l.rows}×{l.cols}</span> : null}
               </button>
-              <Link to={`/rack?loc=${l.id}`} aria-label={`Rack map of ${l.name}`} className="text-cream-500 hover:text-cream-200">
+              <label className="relative flex min-h-9 max-w-[8.5rem] items-center rounded-lg bg-ink-800 px-2 text-xs text-cream-200 ring-1 ring-ink-600">
+                <span className="truncate">{l.cellar?.trim() || s.cellarName}</span>
+                <select
+                  aria-label={t('Cellar of {name}', { name: l.name })}
+                  className="absolute inset-0 cursor-pointer text-base opacity-0"
+                  value={l.cellar?.trim() || s.cellarName}
+                  onChange={(e) => moveToCellar(l.id!, e.target.value)}
+                >
+                  {cellarNames(locations, s.cellarName).map((n) => (
+                    <option key={n}>{n}</option>
+                  ))}
+                  <option value={NEW_CELLAR}>{t('New cellar…')}</option>
+                </select>
+              </label>
+              <Link to={`/rack?loc=${l.id}`} aria-label={`Rack map of ${l.name}`} className="-my-1 flex h-10 w-9 items-center justify-center rounded-full text-cream-500 hover:text-cream-200">
                 <Grid3x3 size={16} />
               </Link>
               <button
                 aria-label={`Delete ${l.name}`}
-                className="text-cream-500 hover:text-rose-300"
+                className="-my-1 flex h-10 w-9 items-center justify-center rounded-full text-cream-500 hover:text-rose-300"
                 onClick={async () => {
                   const used = await db.bottles.where('location').equals(l.name).count()
                   if (used && !confirm(`${used} bottle(s) are in "${l.name}". Remove the location anyway? (Bottles keep the text.)`)) return
@@ -174,6 +198,7 @@ export default function MorePage() {
           </form>
         </div>
         <p className="mt-2 text-xs text-cream-500">{t('Tap a location to rename it — bottles move with it.')}</p>
+        <p className="mt-1 text-xs text-cream-500">{t('More than one cellar? Pick a cellar for each location (or “New cellar…”), then switch between cellars on the Cellar screen.')}</p>
       </Section>
 
       <Section title={t('Import & export')}>
@@ -234,29 +259,18 @@ export default function MorePage() {
         </div>
       </Section>
 
-      <Section title={t('AI label scanner')} className="scroll-mt-20">
-        <div id="ai" className="card space-y-4 p-4">
-          <label className="block">
-            {sync.scan && <p className="mb-3 rounded-lg bg-emerald-500/10 p-2.5 text-xs text-emerald-200 ring-1 ring-emerald-500/30">{t('Scanning runs on your MioVino server — no key needed on this device.')}</p>}
-            <Label hint={t('optional · stored on this device only')}>{t('Anthropic API key')}</Label>
-            <div className="flex gap-2">
-              <input className="field font-mono text-xs" type={showKey ? 'text' : 'password'} value={s.apiKey} onChange={(e) => saveSettings({ apiKey: e.target.value.trim() })} placeholder={t('sk-ant-…')} autoComplete="off" />
-              <Button variant="secondary" aria-label={showKey ? t('Hide key') : t('Show key')} onClick={() => setShowKey(!showKey)}>
-                {showKey ? <EyeOff size={16} /> : <Eye size={16} />}
-              </Button>
-            </div>
-          </label>
-          <label className="block">
-            <Label>{t('Model')}</Label>
-            <select className="field" value={s.model} onChange={(e) => saveSettings({ model: e.target.value })}>
-              <option value="claude-opus-5-5">Claude Opus 5.5 (best)</option>
-              <option value="claude-sonnet-5-5">Claude Sonnet 5.5 (cheaper)</option>
-              <option value="claude-haiku-4-5">Claude Haiku 4.5 (cheapest)</option>
-            </select>
-          </label>
-          <p className="text-xs text-cream-500">
-            {t('Label photos are sent to the Anthropic API to be read. Get a key at console.anthropic.com. A scan costs roughly a cent.')}
+      <Section title={t('AI features')} className="scroll-mt-20">
+        <div id="ai" className="card space-y-3 p-4 text-sm">
+          {sync.scan ? (
+            <p className="rounded-lg bg-emerald-500/10 p-2.5 text-emerald-200 ring-1 ring-emerald-500/30">{t('On — label scan, Ask my cellar, wine lists and window suggestions use {provider}.', { provider: sync.ai ?? 'AI' })}</p>
+          ) : (
+            <p className="rounded-lg bg-ink-800 p-2.5 text-cream-300 ring-1 ring-ink-600">{t('Off — the server has no AI key yet. Everything else works.')}</p>
+          )}
+          <p className="text-xs text-cream-400">
+            {t('AI runs on your MioVino server, so no key is ever stored on this phone. Free options: a Google Gemini key from aistudio.google.com, or an OpenRouter key from openrouter.ai. Add it with:')}
           </p>
+          <code className="block overflow-x-auto rounded-lg bg-ink-950 p-2.5 text-xs whitespace-nowrap text-cream-200">npx wrangler secret put GEMINI_API_KEY</code>
+          <p className="text-xs text-cream-500">{t('On the free Gemini tier Google may use what you send to improve its models; photos of labels and wine lists are low-risk, but keep that in mind.')}</p>
         </div>
       </Section>
 

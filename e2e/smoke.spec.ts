@@ -78,7 +78,7 @@ test('rack map: lay out a rack and place a bottle', async ({ page }) => {
   })
   await page.goto('/rack')
   await page.getByRole('button', { name: 'Save' }).click() // default 4 × 6 grid
-  await page.getByRole('button', { name: 'Place' }).click()
+  await page.getByRole('button', { name: /Barbaresco 2016 Place$/ }).click() // the bottle in "Not on the grid yet"
   await page.getByRole('button', { name: 'B2: empty' }).click()
   await expect(page.getByRole('button', { name: /^B2: Gaja Barbaresco 2016/ })).toBeVisible()
   await expect(page.getByText('1 of 24 slots filled')).toBeVisible()
@@ -109,6 +109,10 @@ test('demo mode: sample cellar with no server, then back to the real app', async
   await page.goto('/demo')
   await expect(page).toHaveURL(/\/$/)
   await expect(page.getByRole('note')).toContainText('Demo')
+  // First visit: a short intro for visitors, shown once.
+  await expect(page.getByRole('dialog', { name: 'About MioVino' })).toBeVisible()
+  await page.getByRole('button', { name: 'Start exploring' }).click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
   await expect(page.getByText('38 wines · 78 bottles')).toBeVisible()
   // The fake AI answers in the browser.
   await page.goto('/ask')
@@ -118,4 +122,70 @@ test('demo mode: sample cellar with no server, then back to the real app', async
   await page.getByRole('button', { name: 'Exit' }).click()
   await expect(page.getByRole('note')).toHaveCount(0)
   await expect(page.getByText('38 wines · 78 bottles')).toHaveCount(0)
+})
+
+test('rack map: place a wine — pick it first, get slots next to its other bottles', async ({ page }) => {
+  await seed(page, {
+    wines: [wine('w1'), wine('w2', { producer: 'Leflaive', name: 'Puligny-Montrachet', type: 'white' })],
+    bottles: [
+      { id: 'b1', wineId: 'w1', status: 'cellar', location: 'Rack A', slot: 'A1', createdAt: now, updatedAt: now },
+      { id: 'b2', wineId: 'w1', status: 'cellar', location: 'Rack A', createdAt: now, updatedAt: now },
+      { id: 'b3', wineId: 'w1', status: 'cellar', createdAt: now, updatedAt: now },
+      { id: 'b4', wineId: 'w2', status: 'drunk', createdAt: now, updatedAt: now },
+    ],
+    locations: [{ id: 'l1', name: 'Rack A', order: 0, rows: 2, cols: 3, updatedAt: now }],
+  })
+  await page.goto('/rack')
+  await page.getByRole('button', { name: 'Place a wine' }).click()
+  const sheet = page.getByRole('dialog')
+  await expect(sheet.getByText('Puligny-Montrachet')).toHaveCount(0) // nothing left in the cellar to place
+  await sheet.getByRole('button', { name: /Barbaresco 2016/ }).click()
+  await expect(sheet.getByText('2 without a slot')).toBeVisible()
+  await expect(sheet.getByRole('button', { name: 'More' })).toBeDisabled() // can't place more than you have
+  await sheet.getByRole('button', { name: 'Suggest slots' }).click()
+  await expect(page.getByRole('button', { name: 'A2: chosen' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'A3: chosen' })).toBeVisible()
+  await page.getByRole('button', { name: 'Place 2 bottles' }).click()
+  await expect(page.getByText('3 of 6 slots filled')).toBeVisible()
+})
+
+test('several cellars: give a location its own cellar, then switch on the Cellar screen', async ({ page }) => {
+  await seed(page, {
+    wines: [wine('w1'), wine('w2', { producer: 'Leflaive', name: 'Puligny-Montrachet', type: 'white' })],
+    bottles: [
+      { id: 'b1', wineId: 'w1', status: 'cellar', location: 'Rack A', createdAt: now, updatedAt: now },
+      { id: 'b2', wineId: 'w2', status: 'cellar', location: 'Barn', createdAt: now, updatedAt: now },
+    ],
+    locations: [
+      { id: 'l1', name: 'Rack A', order: 0, updatedAt: now },
+      { id: 'l2', name: 'Barn', order: 1, updatedAt: now },
+    ],
+  })
+  await expect(page.getByRole('group', { name: 'Cellar' })).toHaveCount(0) // one cellar: no switcher
+  await page.goto('/more')
+  page.once('dialog', (d) => d.accept('Country house'))
+  await page.getByRole('combobox', { name: 'Cellar of Barn' }).selectOption({ label: 'New cellar…' })
+  await expect(page.getByRole('combobox', { name: 'Cellar of Barn' })).toHaveValue('Country house')
+
+  await page.getByRole('link', { name: 'Cellar', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'All cellars' })).toBeVisible()
+  await page.getByRole('group', { name: 'Cellar' }).getByRole('button', { name: 'Country house' }).click()
+  await expect(page.getByRole('heading', { name: 'Country house' })).toBeVisible()
+  await expect(page.getByText('1 wine · 1 bottle')).toBeVisible()
+  await expect(page.getByText('Puligny-Montrachet')).toBeVisible()
+})
+
+test('several cellars: "Show in rack" opens the right rack even when another cellar is chosen', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('miovino.cellar', 'Country house'))
+  await seed(page, {
+    wines: [wine('w1')],
+    bottles: [{ id: 'b1', wineId: 'w1', status: 'cellar', location: 'Rack A', slot: 'A1', createdAt: now, updatedAt: now }],
+    locations: [
+      { id: 'l1', name: 'Rack A', order: 0, rows: 2, cols: 2, updatedAt: now },
+      { id: 'l2', name: 'Barn', order: 1, rows: 2, cols: 2, cellar: 'Country house', updatedAt: now },
+    ],
+  })
+  await page.goto('/rack?w=w1')
+  await expect(page.locator('header p', { hasText: 'Rack A' })).toBeVisible()
+  await expect(page.getByRole('button', { name: /^A1: Gaja Barbaresco 2016/ })).toBeVisible()
 })
