@@ -159,7 +159,7 @@ Feedback after using the app. Each item is one PR; CI must be green before mergi
 4. [x] **Rack map: "Place a wine"** — pick a wine first, see how many of its bottles still need a slot, the app suggests slots (next to the same wine, then same producer/type, keeping a row together); you can never place more bottles than are in the cellar.
 5. [x] **Several cellars** — group racks/locations into cellars (e.g. Home, Parents'), switch cellar on the Cellar screen; "All cellars" stays the default.
 6. [ ] **Mobile experience pass** — safe areas, tap targets ≥44px, sheets that fit small screens, no horizontal scroll at 360px.
-7. [ ] **Reminders on Android + iPhone** — clear per-platform guidance in More → Reminders.
+7. [x] **Reminders on Android + iPhone** — clear per-platform guidance in More → Reminders.
 
 Answers to the owner's questions
 - *More than one cellar?* Today: several **locations/racks** (each with its own grid) but no "cellar" level above them — item 5 adds it.

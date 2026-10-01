@@ -577,4 +577,12 @@ export const IT: Record<string, string> = {
   'New cellar…': 'Nuova cantina…',
   'More than one cellar? Pick a cellar for each location (or “New cellar…”), then switch between cellars on the Cellar screen.': 'Più di una cantina? Scegli la cantina di ogni posizione (o «Nuova cantina…»), poi passa da una all’altra nella schermata Cantina.',
   'Picks from {cellar}': 'Scelte da {cellar}',
+  // Reminders: phones
+  'Notifications are blocked. Turn them on in the iPhone Settings → Notifications → MioVino, then come back.': 'Le notifiche sono bloccate. Attivale in Impostazioni dell’iPhone → Notifiche → MioVino, poi torna qui.',
+  'Notifications are blocked for this site. Tap the icon left of the address (or ⋮ → Settings → Site settings) → Notifications → Allow, then reload.': 'Le notifiche sono bloccate per questo sito. Tocca l’icona a sinistra dell’indirizzo (o ⋮ → Impostazioni → Impostazioni sito) → Notifiche → Consenti, poi ricarica.',
+  'Notifications are blocked for this site. Allow them in the browser’s site settings, then reload.': 'Le notifiche sono bloccate per questo sito. Consentile nelle impostazioni del sito del browser, poi ricarica.',
+  'Which phones work?': 'Quali telefoni funzionano?',
+  'works straight from Chrome, Edge, Firefox or Samsung Internet, no install needed. Installing (⋮ → Install app) makes a tap on the reminder open the app.': 'funziona direttamente da Chrome, Edge, Firefox o Samsung Internet, senza installare nulla. Se installi l’app (⋮ → Installa app), toccando il promemoria si apre l’app.',
+  'needs iOS 16.4 or later, and MioVino added to the Home Screen: in Safari tap Share → Add to Home Screen (recent iOS also allows it from Chrome or Edge). Then open it from the Home Screen and turn reminders on there.': 'serve iOS 16.4 o successivo e MioVino nella schermata Home: in Safari tocca Condividi → Aggiungi alla schermata Home (con iOS recenti anche da Chrome o Edge). Poi aprila dalla schermata Home e attiva lì i promemoria.',
+  'Each device you turn on gets its own reminder, in its own language.': 'Ogni dispositivo attivato riceve il suo promemoria, nella sua lingua.',
 }
