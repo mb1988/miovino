@@ -169,7 +169,7 @@ Feedback after using the app. Each item is one PR; CI must be green before mergi
 4. [x] **Published for the CV** — this repo renamed to `miovino-private`; public `mb1988/miovino` is a history-rewritten copy (no email, no real cellar rows). It does not auto-sync: re-publish on request (rewrite again, never push private history there).
 
 ### Phase 7 — prices (owner asked 2026-10-01; one PR each, owner merges)
-1. [ ] **Wine list: is the price fair?** In the restaurant wine-list scanner, every pick (and any other wine worth flagging on the list) gets a price verdict: **Steal**, **Fair**, **Pricey** or **Rip-off**.
+1. [x] **Wine list: is the price fair?** In the restaurant wine-list scanner, every pick (and any other wine worth flagging on the list) gets a price verdict: **Steal**, **Fair**, **Pricey** or **Rip-off**.
    - Basis: the AI's estimate of the typical UK retail price for that wine and vintage, compared with the list price → markup. UK restaurants usually charge 2.5–3.5× retail: ≤2× = steal, 2–3.5× = fair, 3.5–5× = pricey, >5× = rip-off (thresholds in one shared constant, tested).
    - If the same wine is in the owner's cellar, use what they paid as the anchor ("you paid £38; here £95 = 2.5×").
    - Shown as a coloured badge + one line ("~£30 in shops · 2.2× · good value"); a "best value on this list" callout. Estimates are clearly labelled as estimates.
