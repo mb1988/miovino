@@ -1,5 +1,5 @@
 import { MAX_WINDOW_WINES, tidyWindows, validateWindowsRequest, windowsPrompt, WindowsSchema } from '../src/shared/windows'
-import { MAX_LIST_PAGES, validateWineListRequest, wineListPrompt, WineListSchema } from '../src/shared/winelist'
+import { MAX_LIST_PAGES, tidyWineList, validateWineListRequest, wineListPrompt, WineListSchema } from '../src/shared/winelist'
 import { drinkStatus, type DrinkStatus } from '../src/shared/status'
 import { aiErrorResponse, generateJson, generateText, type AiEnv } from './ai'
 import { json } from './auth'
@@ -134,7 +134,7 @@ export async function handleWineList(req: Request, db: AskDb, env: AiEnv) {
       WineListSchema,
     )
     if (!result.isWineList) return json({ error: "That doesn't look like a wine list. Photograph the pages with the wines." }, 422)
-    return json({ result: { ...result, picks: result.picks.slice(0, 5).map((p) => ({ ...p, vintage: p.vintage == null ? null : Math.round(p.vintage) })) } })
+    return json({ result: tidyWineList(result) })
   } catch (e) {
     return aiErrorResponse(e)
   }

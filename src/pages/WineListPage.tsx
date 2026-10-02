@@ -1,12 +1,39 @@
-import { Camera, Check, ImageUp, Loader2, Plus, ShoppingBag, X } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { Camera, Check, ImageUp, Loader2, Plus, ShoppingBag, Sparkles, X } from 'lucide-react'
+import { useMemo, useRef, useState } from 'react'
 import { LiveCamera } from '../components/LiveCamera'
+import { VerdictBadge } from '../components/PriceVerdict'
 import { Button, cx, Label, PageHeader } from '../components/ui'
+import { useCellar } from '../lib/hooks'
 import { getLang, t } from '../lib/i18n'
 import { imageToBase64 } from '../lib/image'
+import { sameWineKey } from '../lib/importer'
+import { priceLine, times } from '../lib/prices'
 import { useSync } from '../lib/sync'
+import type { WineWithBottles } from '../lib/types'
 import { addWish } from '../lib/wishlist'
+import { bestValue, isPounds, priceCheck } from '../shared/prices'
 import { MAX_LIST_PAGES, type WineListPick, type WineListResult } from '../shared/winelist'
+
+/**
+ * What the owner paid for the same wine (same vintage if they have it). Only an exact producer + name match counts:
+ * a Riserva in the cellar says nothing about the normale on the list.
+ */
+function paidFor(cellar: WineWithBottles[], w: { producer: string; name: string; vintage: number | null }) {
+  const key = sameWineKey({ ...w, vintage: null })
+  const matches = cellar.filter((c) => sameWineKey({ ...c, vintage: null }) === key)
+  const wine = matches.find((m) => m.vintage === w.vintage) ?? matches[0]
+  return (wine?.bottles ?? []).map((b) => b.purchasePrice).filter((p): p is number => typeof p === 'number' && p > 0)
+}
+
+/** Adds a price check to every bottle: the owner's own purchase price beats the AI's retail estimate. */
+function withChecks(result: WineListResult, cellar: WineWithBottles[]) {
+  const pounds = isPounds(result.currency)
+  const check = (w: { producer: string; name: string; vintage: number | null; price: number | null; retailEstimate: number | null }) =>
+    pounds ? priceCheck(w.price, w.retailEstimate, paidFor(cellar, w)) : null
+  const picks = result.picks.map((p) => ({ ...p, check: check(p) }))
+  const deals = result.deals.map((d) => ({ ...d, check: check(d) }))
+  return { picks, deals, best: bestValue([...picks, ...deals]) }
+}
 
 const FIT_STYLE: Record<WineListPick['fit'], string> = {
   great: 'bg-emerald-400/15 text-emerald-200 ring-emerald-400/30',
@@ -27,6 +54,8 @@ export default function WineListPage() {
   const [result, setResult] = useState<WineListResult>()
   const [saved, setSaved] = useState<Set<number>>(new Set())
   const fileRef = useRef<HTMLInputElement>(null)
+  const cellar = useCellar()
+  const priced = useMemo(() => (result ? withChecks(result, cellar ?? []) : undefined), [result, cellar])
 
   const addPages = (files: Blob[]) => setPages((p) => [...p, ...files.map((blob) => ({ blob, url: URL.createObjectURL(blob) }))].slice(0, MAX_LIST_PAGES))
 
@@ -109,10 +138,22 @@ export default function WineListPage() {
       {busy && <p className="mt-2 text-center text-xs text-cream-500">{t('Usually under a minute for a long list')}</p>}
       {error && <p className="mt-3 text-sm text-rose-300">{error}</p>}
 
-      {result && (
+      {result && priced && (
         <section className="mt-6 space-y-3">
+          {priced.best && (
+            <p className="flex items-start gap-2 rounded-xl bg-emerald-400/10 p-3 text-sm text-emerald-100 ring-1 ring-emerald-400/30">
+              <Sparkles size={16} className="mt-0.5 shrink-0" aria-hidden />
+              <span>
+                {t('Best value on this list: {wine} — {x} {basis}', {
+                  wine: [priced.best.producer, priced.best.name, priced.best.vintage].filter(Boolean).join(' '),
+                  x: times(priced.best.check!.markup),
+                  basis: priced.best.check!.basis === 'paid' ? t('what you paid') : t('shop price'),
+                })}
+              </span>
+            </p>
+          )}
           {result.picks.length === 0 && <p className="text-sm text-cream-400">{t('Nothing on this list fits — the note below may help.')}</p>}
-          {result.picks.map((p, i) => (
+          {priced.picks.map((p, i) => (
             <div key={i} className="card p-4">
               <div className="mb-1 flex items-start gap-2">
                 <span className="mt-0.5 font-display text-lg text-cream-400">{i + 1}</span>
@@ -133,8 +174,10 @@ export default function WineListPage() {
                 <span className={cx('rounded-full px-2 py-0.5 text-[11px] font-medium ring-1', FIT_STYLE[p.fit])}>{t(FIT_LABEL[p.fit])}</span>
                 {p.byTheGlass && <span className="rounded-full px-2 py-0.5 text-[11px] text-cream-300 ring-1 ring-ink-600">{t('by the glass')}</span>}
                 {p.inCellar && <span className="rounded-full px-2 py-0.5 text-[11px] text-gold-400 ring-1 ring-gold-400/40">{t('also in your cellar')}</span>}
+                {p.check && <VerdictBadge verdict={p.check.verdict} />}
               </div>
               <p className="pl-6 text-sm text-cream-200">{p.why}</p>
+              {priceLine(p.check, p.retailEstimate, p.valueNote) && <p className="mt-1 pl-6 text-xs text-cream-400">{priceLine(p.check, p.retailEstimate, p.valueNote)}</p>}
               <button
                 disabled={saved.has(i)}
                 onClick={async () => {
@@ -147,6 +190,31 @@ export default function WineListPage() {
               </button>
             </div>
           ))}
+          {priced.deals.length > 0 && (
+            <div className="card p-4">
+              <h2 className="mb-2 font-display text-base text-cream-50">{t('Prices worth knowing')}</h2>
+              <ul className="space-y-2.5">
+                {priced.deals.map((d, i) => (
+                  <li key={i}>
+                    <div className="flex items-start gap-2">
+                      <p className="min-w-0 flex-1 text-sm text-cream-100">{[d.producer, d.name, d.vintage].filter(Boolean).join(' ')}</p>
+                      <span className="shrink-0 text-sm font-semibold text-cream-100 tabular-nums">
+                        {result.currency ?? ''}
+                        {d.price}
+                      </span>
+                    </div>
+                    <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                      {d.check && <VerdictBadge verdict={d.check.verdict} />}
+                      <span className="text-xs text-cream-400">{priceLine(d.check, d.retailEstimate, d.valueNote)}</span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {[...priced.picks, ...priced.deals].some((x) => x.check?.basis === 'retail') && (
+            <p className="text-xs text-cream-500">{t('Shop prices are AI estimates, not quotes. UK restaurants usually charge 2.5–3.5× retail.')}</p>
+          )}
           {result.note && <p className="rounded-xl bg-ink-800 p-3 text-sm text-cream-300">💡 {result.note}</p>}
           <button className="flex w-full items-center justify-center gap-1.5 py-2 text-sm text-cream-400" onClick={() => (setPages([]), setResult(undefined))}>
             <Plus size={14} /> {t('Another list')}

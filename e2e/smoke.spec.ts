@@ -205,3 +205,42 @@ test.describe('demo on a laptop', () => {
     expect(violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`)).toEqual([])
   })
 })
+
+test('wine list: price verdicts, anchored on what you paid when the wine is in your cellar', async ({ page }) => {
+  await seed(page, {
+    wines: [wine('wine-gaja-0001')],
+    bottles: [{ id: 'bottle-gaja-0001', wineId: 'wine-gaja-0001', status: 'cellar', purchasePrice: 38, createdAt: now, updatedAt: now }],
+  })
+  const pick = { byTheGlass: false, fit: 'great', why: 'Your favourite Nebbiolo.', valueNote: 'about 3× shop price' }
+  await page.route('**/api/winelist', (route) =>
+    route.fulfill({
+      json: {
+        result: {
+          isWineList: true,
+          currency: '£',
+          picks: [
+            { ...pick, producer: 'Gaja', name: 'Barbaresco', vintage: 2016, price: 95, inCellar: true, retailEstimate: 30, verdict: 'fair' },
+            { ...pick, producer: 'Vietti', name: 'Barolo Castiglione', vintage: 2019, price: 180, inCellar: false, retailEstimate: 32, verdict: 'ripoff' },
+          ],
+          deals: [{ producer: 'Ridge', name: 'Geyserville', vintage: 2021, price: 70, retailEstimate: 45, valueNote: 'a bargain', verdict: 'steal' }],
+          note: null,
+        },
+      },
+    }),
+  )
+  await page.goto('/winelist')
+  // A 1×1 PNG stands in for a photo of the list.
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64')
+  await page.locator('input[type=file]').setInputFiles({ name: 'list.png', mimeType: 'image/png', buffer: png })
+  await page.getByRole('button', { name: 'Find my bottle' }).click()
+
+  await expect(page.getByText('You paid £38 · here 2.5×')).toBeVisible() // their own price beats the estimate
+  await expect(page.getByText('Fair price')).toBeVisible()
+  await expect(page.getByText('Rip-off')).toBeVisible()
+  await expect(page.getByText('~£32 in shops · 5.6× · about 3× shop price')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Prices worth knowing' })).toBeVisible()
+  await expect(page.getByText('Steal', { exact: true })).toBeVisible()
+  await expect(page.getByText('Best value on this list: Ridge Geyserville 2021 — 1.6× shop price')).toBeVisible()
+  await expect(page.getByText(/Shop prices are AI estimates/)).toBeVisible()
+  expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'best-practice']).analyze()).violations).toEqual([])
+})

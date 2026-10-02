@@ -364,7 +364,7 @@ describe('wine-list scanner endpoint', () => {
     const picks = {
       isWineList: true,
       currency: '£',
-      picks: [{ producer: 'Vietti', name: 'Barbera d’Asti Tre Vigne', vintage: 2021.0, price: 48, byTheGlass: false, fit: 'great', why: 'Bright Piedmont red, like the Barolos you rate highly.', inCellar: false }],
+      picks: [{ producer: 'Vietti', name: 'Barbera d’Asti Tre Vigne', vintage: 2021.0, price: 48, byTheGlass: false, fit: 'great', why: 'Bright Piedmont red, like the Barolos you rate highly.', inCellar: false, retailEstimate: 20, valueNote: 'about 2.4× shop price' }],
       note: 'Good value in the Piedmont section.',
     }
     let sent: { systemInstruction: { parts: { text: string }[] }; contents: { parts: { text?: string; inlineData?: unknown }[] }[]; generationConfig: { responseMimeType?: string } } | undefined
@@ -379,14 +379,15 @@ describe('wine-list scanner endpoint', () => {
     try {
       const res = await call({ images: [jpeg, jpeg], food: 'brasato', budget: 60, lang: 'it' })
       expect(res.status).toBe(200)
-      const { result } = (await res.json()) as { result: typeof picks }
-      expect(result.picks[0]).toMatchObject({ name: 'Barbera d’Asti Tre Vigne', vintage: 2021, fit: 'great' })
+      const { result } = (await res.json()) as { result: typeof picks & { deals: unknown[] } }
+      expect(result.picks[0]).toMatchObject({ name: 'Barbera d’Asti Tre Vigne', vintage: 2021, fit: 'great', verdict: 'fair' })
+      expect(result.deals).toEqual([]) // left out by the AI: filled in, not an error
       expect(headers!.get('x-goog-api-key')).toBe('sk-test')
       expect(sent!.generationConfig.responseMimeType).toBe('application/json')
       expect(sent!.systemInstruction.parts[1].text).toContain('## In the cellar')
       const parts = sent!.contents[0].parts
       expect(parts.filter((p) => p.inlineData)).toHaveLength(2)
-      expect(parts.at(-2)!.text).toMatch(/brasato[\s\S]*up to 60[\s\S]*in Italian/)
+      expect(parts.at(-2)!.text).toMatch(/brasato[\s\S]*up to 60[\s\S]*UK retail price[\s\S]*in Italian/)
       expect(parts.at(-1)!.text).toContain('JSON Schema')
     } finally {
       vi.unstubAllGlobals()

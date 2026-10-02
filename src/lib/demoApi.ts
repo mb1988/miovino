@@ -1,5 +1,5 @@
 import type { LabelResult } from '../shared/label'
-import type { WineListResult } from '../shared/winelist'
+import { tidyWineList, type WineListResult } from '../shared/winelist'
 import type { WindowSuggestion, WindowWine } from '../shared/windows'
 import { asRemote, db, loadCellar } from './db'
 import { demoData } from './demoData'
@@ -92,16 +92,21 @@ async function demoAnswer(turns: { role: string; content: string }[] = []) {
 function demoWineList(food?: string): WineListResult {
   const it = getLang() === 'it'
   const pairing = food ? (it ? ` e si abbina a ${food}` : ` and works with ${food}`) : ''
-  return {
+  return tidyWineList({
     isWineList: true,
     currency: '£',
     picks: [
-      { producer: 'Produttori del Barbaresco', name: 'Barbaresco', vintage: currentYear() - 6, price: 68, byTheGlass: false, fit: 'great', why: (it ? 'Nebbiolo come quelli che voti di più' : 'Nebbiolo, like the wines you rate highest') + pairing + '.', inCellar: true },
-      { producer: 'Domaine Huet', name: 'Vouvray Sec Le Haut-Lieu', vintage: currentYear() - 5, price: 54, byTheGlass: false, fit: 'good', why: it ? 'Chenin fresco e minerale: ami i bianchi tesi come il Chablis.' : 'Fresh, mineral Chenin: you love taut whites like Chablis.', inCellar: false },
-      { producer: 'Bodegas Muga', name: 'Rioja Reserva', vintage: currentYear() - 7, price: 45, byTheGlass: true, fit: 'safe', why: it ? 'Affidabile e a buon prezzo; anche al calice.' : 'Reliable and fairly priced; also by the glass.', inCellar: true },
+      { producer: 'Produttori del Barbaresco', name: 'Barbaresco', vintage: currentYear() - 6, price: 68, byTheGlass: false, fit: 'great', why: (it ? 'Nebbiolo come quelli che voti di più' : 'Nebbiolo, like the wines you rate highest') + pairing + '.', inCellar: true, retailEstimate: 32, valueNote: it ? 'ricarico normale per Londra' : 'a normal London markup' },
+      { producer: 'Domaine Huet', name: 'Vouvray Sec Le Haut-Lieu', vintage: currentYear() - 5, price: 54, byTheGlass: false, fit: 'good', why: it ? 'Chenin fresco e minerale: ami i bianchi tesi come il Chablis.' : 'Fresh, mineral Chenin: you love taut whites like Chablis.', inCellar: false, retailEstimate: 24, valueNote: it ? 'prezzo onesto' : 'fairly priced' },
+      // Muga is in the demo cellar, so the app compares the list price with what was paid for it.
+      { producer: 'Bodegas Muga', name: 'Rioja Reserva', vintage: currentYear() - 7, price: 45, byTheGlass: true, fit: 'safe', why: it ? 'Affidabile e a buon prezzo; anche al calice.' : 'Reliable and fairly priced; also by the glass.', inCellar: true, retailEstimate: 20, valueNote: null },
+    ],
+    deals: [
+      { producer: 'Ridge', name: 'Geyserville', vintage: currentYear() - 5, price: 72, retailEstimate: 45, valueNote: it ? 'meno di 2× il prezzo in enoteca: un affare' : 'under 2× shop price — a bargain' },
+      { producer: 'Château d’Esclans', name: 'Whispering Angel', vintage: currentYear() - 1, price: 110, retailEstimate: 20, valueNote: it ? 'più di 5× il prezzo al dettaglio' : 'over 5× retail — skip' },
     ],
     note: it ? 'Demo: risultato di esempio, nessuna foto è stata letta.' : 'Demo: a sample result, no photo was read.',
-  }
+  })
 }
 
 /** Rough windows by style, so "Suggest windows" has something sensible to show in the demo. */
