@@ -1,5 +1,6 @@
 import type { LabelResult } from '../shared/label'
 import { tidyWineList, type WineListResult } from '../shared/winelist'
+import type { PriceHint } from '../shared/whereToBuy'
 import type { WindowSuggestion, WindowWine } from '../shared/windows'
 import { asRemote, db, loadCellar } from './db'
 import { demoData } from './demoData'
@@ -50,6 +51,7 @@ async function route(path: string, method: string, body: Record<string, unknown>
   if (path === '/api/scan') return pause(1200).then(() => json({ result: demoLabel() }))
   if (path === '/api/ask') return pause(900).then(async () => json({ answer: await demoAnswer(body.messages as { role: string; content: string }[]) }))
   if (path === '/api/winelist') return pause(1500).then(() => json({ result: demoWineList(body.food as string | undefined) }))
+  if (path === '/api/pricehint') return pause(800).then(() => json({ hint: demoPriceHint(String(body.name ?? '')) }))
   if (path === '/api/windows') return pause(1000).then(() => json({ windows: (body.wines as WindowWine[]).map(demoWindow) }))
   return json({ error: t('Not available in the demo.') }, 501)
 }
@@ -107,6 +109,17 @@ function demoWineList(food?: string): WineListResult {
     ],
     note: it ? 'Demo: risultato di esempio, nessuna foto è stata letta.' : 'Demo: a sample result, no photo was read.',
   })
+}
+
+/** A plausible UK price range, so "Typical UK price" has something to show in the demo. */
+function demoPriceHint(name: string): PriceHint {
+  const fine = /barolo|barbaresco|brunello|bourgogne|burgundy|champagne|riserva|grand cru|premier cru/i.test(name)
+  const [low, high] = fine ? [45, 70] : [14, 22]
+  const it = getLang() === 'it'
+  const where = fine
+    ? it ? 'Demo: enoteche di vini pregiati e l’importatore britannico del produttore.' : 'Demo: fine-wine merchants and the producer’s UK importer.'
+    : it ? 'Demo: grandi enoteche e catene di vino.' : 'Demo: most wine merchants and the bigger wine chains.'
+  return { low, high, where }
 }
 
 /** Rough windows by style, so "Suggest windows" has something sensible to show in the demo. */

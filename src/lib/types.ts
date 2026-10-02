@@ -105,6 +105,7 @@ export interface WishItem extends Synced {
   note?: string
   wineId?: string // the cellar wine it came from, if any
   done?: boolean // bought
+  priceHint?: { low: number | null; high: number | null; where: string; at: string } // AI "where to buy" hint, cached; at = yyyy-mm-dd
   createdAt: number
 }
 

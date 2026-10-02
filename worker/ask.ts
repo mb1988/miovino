@@ -1,6 +1,7 @@
 import { MAX_WINDOW_WINES, tidyWindows, validateWindowsRequest, windowsPrompt, WindowsSchema } from '../src/shared/windows'
 import { MAX_LIST_PAGES, tidyWineList, validateWineListRequest, wineListPrompt, WineListSchema } from '../src/shared/winelist'
 import { drinkStatus, type DrinkStatus } from '../src/shared/status'
+import { priceHintPrompt, PriceHintSchema, tidyPriceHint, validatePriceHintRequest } from '../src/shared/whereToBuy'
 import { aiErrorResponse, generateJson, generateText, type AiEnv } from './ai'
 import { json } from './auth'
 
@@ -135,6 +136,17 @@ export async function handleWineList(req: Request, db: AskDb, env: AiEnv) {
     )
     if (!result.isWineList) return json({ error: "That doesn't look like a wine list. Photograph the pages with the wines." }, 422)
     return json({ result: tidyWineList(result) })
+  } catch (e) {
+    return aiErrorResponse(e)
+  }
+}
+
+/** POST /api/pricehint — a typical UK price range for a wishlist wine, and who stocks it. The app caches it on the item. */
+export async function handlePriceHint(req: Request, env: AiEnv) {
+  const body = validatePriceHintRequest(await req.json())
+  if (!body) return json({ error: 'Send {producer, name, vintage?} for one wine.' }, 400)
+  try {
+    return json({ hint: tidyPriceHint(await generateJson(env, { messages: [{ role: 'user', content: priceHintPrompt(body) }] }, PriceHintSchema)) })
   } catch (e) {
     return aiErrorResponse(e)
   }
