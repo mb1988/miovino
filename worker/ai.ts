@@ -4,7 +4,7 @@ import { json } from './auth'
 /**
  * One way to call an AI model, whichever provider has a key:
  *   1. Google Gemini (free tier)     GEMINI_API_KEY      model GEMINI_MODEL      (default gemini-flash-latest)
- *   2. OpenRouter (free models)      OPENROUTER_API_KEY  model OPENROUTER_MODEL  (default openrouter/free)
+ *   2. OpenRouter (free models)      OPENROUTER_API_KEY  models OPENROUTER_MODEL (comma list, tried in order)
  *   3. Anthropic Claude (paid)       ANTHROPIC_API_KEY   model ANTHROPIC_MODEL   (default claude-opus-5-5)
  * Providers are tried in that order (or AI_PROVIDERS, e.g. "openrouter,gemini"). A rate limit, outage or an
  * unreadable answer moves on to the next one, so the free tiers back each other up.
@@ -80,7 +80,7 @@ export function providers(env: AiEnv): Provider[] {
   const [g, o, a] = [cleanKey(env.GEMINI_API_KEY), cleanKey(env.OPENROUTER_API_KEY), cleanKey(env.ANTHROPIC_API_KEY)]
   const all: Record<ProviderId, Provider | null> = {
     gemini: g ? gemini(g, env.GEMINI_MODEL || 'gemini-flash-latest') : null,
-    openrouter: o ? openrouter(o, env.OPENROUTER_MODEL || 'openrouter/free') : null,
+    openrouter: o ? openrouter(o, env.OPENROUTER_MODEL || OPENROUTER_MODELS) : null,
     anthropic: a ? anthropic(a, env.ANTHROPIC_MODEL || 'claude-opus-5-5') : null,
   }
   const order = (env.AI_PROVIDERS || 'gemini,openrouter,anthropic').split(',').map((s) => s.trim()) as ProviderId[]
@@ -205,26 +205,24 @@ async function httpError(provider: ProviderId, res: Response): Promise<AiError> 
   return new AiError(502, `${name} error ${res.status}${detail ? `: ${detail}` : ''}`)
 }
 
+// When the main model is overloaded (503), rate-limited (429) or gone (404), try Google's lighter model before
+// leaving Gemini: it usually has room, and is much quicker than falling back to another provider.
+export const GEMINI_BACKUP_MODEL = 'gemini-flash-lite-latest'
+const GEMINI_RETRY = new Set([404, 429, 503])
+
 // ——— Google Gemini (native API: JSON mode guarantees parseable output) ———
 function gemini(key: string, model: string): Provider {
   return {
     id: 'gemini',
     async call(req) {
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', 'x-goog-api-key': key },
-        signal: AbortSignal.timeout(TIMEOUT),
-        body: JSON.stringify({
-          ...(req.system?.length ? { systemInstruction: { parts: req.system.map((text) => ({ text })) } } : {}),
-          contents: req.messages.map((m) => ({
-            role: m.role === 'assistant' ? 'model' : 'user',
-            parts: partsOf(m.content).map((p) => (p.type === 'text' ? { text: p.text } : { inlineData: { mimeType: 'image/jpeg', data: p.data } })),
-          })),
-          generationConfig: { maxOutputTokens: req.maxTokens ?? 8192, ...(req.json ? { responseMimeType: 'application/json' } : {}) },
-        }),
-      })
-      if (!res.ok) throw await httpError('gemini', res)
-      const body = (await res.json()) as {
+      let res: Response | undefined
+      for (const m of [...new Set([model, GEMINI_BACKUP_MODEL])]) {
+        res = await geminiFetch(key, m, req)
+        if (res.ok || !GEMINI_RETRY.has(res.status)) break
+        console.warn(`AI gemini ${m} answered ${res.status}; trying the next Gemini model`)
+      }
+      if (!res!.ok) throw await httpError('gemini', res!)
+      const body = (await res!.json()) as {
         candidates?: { content?: { parts?: { text?: string; thought?: boolean }[] }; finishReason?: string }[]
         promptFeedback?: { blockReason?: string }
       }
@@ -236,8 +234,36 @@ function gemini(key: string, model: string): Provider {
   }
 }
 
-// ——— OpenRouter (OpenAI-compatible; "openrouter/free" picks a free model that can handle the request, images included) ———
-function openrouter(key: string, model: string): Provider {
+function geminiFetch(key: string, model: string, req: AiRequest) {
+  return fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-goog-api-key': key },
+    signal: AbortSignal.timeout(TIMEOUT),
+    body: JSON.stringify({
+      ...(req.system?.length ? { systemInstruction: { parts: req.system.map((text) => ({ text })) } } : {}),
+      contents: req.messages.map((m) => ({
+        role: m.role === 'assistant' ? 'model' : 'user',
+        parts: partsOf(m.content).map((p) => (p.type === 'text' ? { text: p.text } : { inlineData: { mimeType: 'image/jpeg', data: p.data } })),
+      })),
+      generationConfig: { maxOutputTokens: req.maxTokens ?? 8192, ...(req.json ? { responseMimeType: 'application/json' } : {}) },
+    }),
+  })
+}
+
+// ——— OpenRouter (OpenAI-compatible) ———
+// Named free chat models that read images, tried in order by OpenRouter itself ("models" fallback list).
+// Not "openrouter/free": that router can pick a safety-classifier model, which answers "User safety: safe"
+// instead of the question.
+export const OPENROUTER_MODELS = 'google/gemma-4-31b-it:free,qwen/qwen3.8-27b:free,google/gemma-4-26b-a4b-it:free'
+
+/** A safety classifier's verdict instead of an answer (e.g. "User Safety: safe\nResponse Safety: safe"). */
+export function isSafetyVerdict(text: string) {
+  return /^\s*(user|response|prompt)[ _-]?safety\s*:/im.test(text) && text.length < 300
+}
+
+function openrouter(key: string, modelList: string): Provider {
+  const models = modelList.split(',').map((m) => m.trim()).filter(Boolean).slice(0, 3)
+  const model = models[0]
   return {
     id: 'openrouter',
     async call(req) {
@@ -252,14 +278,16 @@ function openrouter(key: string, model: string): Provider {
         method: 'POST',
         headers: { 'content-type': 'application/json', authorization: `Bearer ${key}`, 'x-title': 'MioVino' },
         signal: AbortSignal.timeout(TIMEOUT),
-        body: JSON.stringify({ model, messages, max_tokens: req.maxTokens ?? 8192 }),
+        body: JSON.stringify({ model, ...(models.length > 1 ? { models } : {}), messages, max_tokens: req.maxTokens ?? 8192 }),
       })
       if (!res.ok) throw await httpError('openrouter', res)
       const body = (await res.json()) as { choices?: { message?: { content?: string | null }; finish_reason?: string }[]; error?: { message?: string; code?: number } }
       // OpenRouter can answer 200 with an error from the upstream model.
       if (body.error) throw new AiError(body.error.code === 429 ? 429 : 502, `OpenRouter: ${body.error.message ?? 'error'}`)
       const choice = body.choices?.[0]
-      return { text: choice?.message?.content ?? '', truncated: choice?.finish_reason === 'length', provider: 'openrouter' }
+      const text = choice?.message?.content ?? ''
+      if (isSafetyVerdict(text)) throw new AiError(502, 'OpenRouter sent a safety check instead of an answer.')
+      return { text, truncated: choice?.finish_reason === 'length', provider: 'openrouter' }
     },
   }
 }

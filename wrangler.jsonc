@@ -19,7 +19,7 @@
     "ALLOWED_EMAILS": "",
     // AI: free Gemini first, then OpenRouter free models, then Claude — whichever has a key (Worker secrets).
     "GEMINI_MODEL": "gemini-flash-latest",
-    "OPENROUTER_MODEL": "openrouter/free"
+    "OPENROUTER_MODEL": "google/gemma-4-31b-it:free,qwen/qwen3.8-27b:free,google/gemma-4-26b-a4b-it:free"
   },
   "env": {
     // Preview deployments for pull requests: separate database and bucket, never touches real data.
@@ -31,7 +31,7 @@
         "ACCESS_AUD": "",
         "ALLOWED_EMAILS": "",
         "GEMINI_MODEL": "gemini-flash-lite-latest",
-        "OPENROUTER_MODEL": "openrouter/free"
+        "OPENROUTER_MODEL": "google/gemma-4-31b-it:free,qwen/qwen3.8-27b:free,google/gemma-4-26b-a4b-it:free"
       }
     }
   }
