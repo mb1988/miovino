@@ -41,12 +41,26 @@ describe('AI providers', () => {
     vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
       urls.push(url)
       if (url.includes('googleapis')) return new Response('quota', { status: 429 })
-      expect(JSON.parse(String(init.body)).model).toBe('openrouter/free')
+      expect(JSON.parse(String(init.body))).toMatchObject({ model: 'google/gemma-4-31b-it:free', models: ['google/gemma-4-31b-it:free', 'qwen/qwen3.8-27b:free', 'google/gemma-4-26b-a4b-it:free'] })
       return router('Sure: {"name": "Barolo", "year": 2019} enjoy')
     })
     const out = await ai.generateJson({ GEMINI_API_KEY: 'g', OPENROUTER_API_KEY: 'o' }, ask, Schema)
     expect(out).toEqual({ name: 'Barolo', year: 2019 })
-    expect(urls).toEqual(['https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent', 'https://openrouter.ai/api/v1/chat/completions'])
+    expect(urls).toEqual([
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent',
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent',
+      'https://openrouter.ai/api/v1/chat/completions',
+    ])
+  })
+
+  it("tries Gemini's lighter model when the main one is overloaded, before leaving Gemini", async () => {
+    const urls: string[] = []
+    vi.stubGlobal('fetch', async (url: string) => {
+      urls.push(url)
+      return url.includes('gemini-flash-latest') ? Response.json({ error: { code: 503, message: 'high demand' } }, { status: 503 }) : gem('Ciao!')
+    })
+    expect(await ai.generateText({ GEMINI_API_KEY: 'g', OPENROUTER_API_KEY: 'o' }, ask)).toMatchObject({ text: 'Ciao!', provider: 'gemini' })
+    expect(urls.map((u) => u.split('/models/')[1])).toEqual(['gemini-flash-latest:generateContent', 'gemini-flash-lite-latest:generateContent'])
   })
 
   it('treats an answer that does not fit the schema as a failure, and reports the last error', async () => {
@@ -64,8 +78,9 @@ describe('AI providers', () => {
     const out = await ai.generateText({ GEMINI_API_KEY: 'g', OPENROUTER_API_KEY: 'o', ANTHROPIC_API_KEY: 'a' }, req)
     expect(out.provider).toBe('anthropic')
     expect(JSON.stringify(bodies[0])).toContain('"inlineData":{"mimeType":"image/jpeg","data":"AAAA"}')
-    expect(JSON.stringify(bodies[1])).toContain('"url":"data:image/jpeg;base64,AAAA"')
-    expect(JSON.stringify(bodies[2])).toContain('"source":{"type":"base64","media_type":"image/jpeg","data":"AAAA"}')
+    // bodies[1] is Gemini's lighter model (also down), then OpenRouter, then Claude.
+    expect(JSON.stringify(bodies[2])).toContain('"url":"data:image/jpeg;base64,AAAA"')
+    expect(JSON.stringify(bodies[3])).toContain('"source":{"type":"base64","media_type":"image/jpeg","data":"AAAA"}')
   })
 
   it('tolerates a key pasted with quotes, spaces or a NAME= prefix, and explains a rejected key', async () => {
@@ -81,6 +96,13 @@ describe('AI providers', () => {
     keys.length = 0
     await ai.generateText({ GEMINI_API_KEY: '\x1b[200~AQ.Ab8Test\u200b\x16\x1b[201~\r\n' }, ask).catch(() => undefined)
     expect(keys).toEqual(['AQ.Ab8Test'])
+  })
+
+  it('never shows a safety classifier verdict as the answer', async () => {
+    vi.stubGlobal('fetch', async (url: string) =>
+      url.includes('openrouter') ? router('User Safety: safe\nResponse Safety: safe') : Response.json({ content: [{ type: 'text', text: 'Try the Barolo.' }], stop_reason: 'end_turn' }),
+    )
+    expect(await ai.generateText({ OPENROUTER_API_KEY: 'o', ANTHROPIC_API_KEY: 'a' }, ask)).toMatchObject({ text: 'Try the Barolo.', provider: 'anthropic' })
   })
 
   it('reads JSON out of fenced or chatty replies', () => {

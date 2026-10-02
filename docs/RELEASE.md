@@ -50,7 +50,7 @@ All AI features (label scan, Ask my cellar, wine-list scanner, window suggestion
 | Order | Provider | Secret | Model (var) | Cost |
 |---|---|---|---|---|
 | 1 | **Google Gemini** | `GEMINI_API_KEY` | `GEMINI_MODEL` = `gemini-flash-latest` (an alias that follows Google's current Flash model) | Free tier (Flash models only, daily limits) |
-| 2 | **OpenRouter** | `OPENROUTER_API_KEY` | `OPENROUTER_MODEL` = `openrouter/free` (picks a free model that can read images) | Free: 50 requests/day, 1,000/day after a one-off $10 top-up |
+| 2 | **OpenRouter** | `OPENROUTER_API_KEY` | `OPENROUTER_MODEL` = `google/gemma-4-31b-it:free,qwen/qwen3.8-27b:free,google/gemma-4-26b-a4b-it:free` (free models that read images, tried in order) | Free: 50 requests/day, 1,000/day after a one-off $10 top-up |
 | 3 | Anthropic Claude | `ANTHROPIC_API_KEY` | `ANTHROPIC_MODEL` = `claude-opus-5-5` | Paid, only used if set |
 
 Change the order with the `AI_PROVIDERS` var (e.g. `openrouter,gemini`). `/api/health` reports which provider is active, and More → AI features shows it.
