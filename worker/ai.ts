@@ -59,11 +59,18 @@ interface Provider {
 const TIMEOUT = 60_000
 
 /**
- * A key as pasted into `wrangler secret put`: tolerate surrounding spaces or quotes and a pasted
- * "NAME=" prefix (easy to do when copying from a .dev.vars line).
+ * A key as pasted into `wrangler secret put`: tolerate surrounding spaces or quotes, a pasted
+ * "NAME=" prefix (easy to do when copying from a .dev.vars line) and invisible characters from the terminal.
  */
 export function cleanKey(raw: string | undefined) {
-  const k = (raw ?? '').trim().replace(/^[A-Z_]+=/, '').replace(/^["']|["']$/g, '').trim()
+  const k = (raw ?? '')
+    // Terminals can store a paste with bracketed-paste markers (ESC[200~ … ESC[201~) or a literal ^V.
+    .replace(/\x1b\[20[01]~/g, '')
+    // API keys are printable ASCII: drop control characters, invisible Unicode and spaces. A header with
+    // any of those is rejected before it leaves Cloudflare (an empty 400 for every provider).
+    .replace(/[^\x21-\x7e]/g, '')
+    .replace(/^[A-Z_]+=/, '')
+    .replace(/^["']|["']$/g, '')
   return k || undefined
 }
 
