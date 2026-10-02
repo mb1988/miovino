@@ -1,9 +1,10 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { t } from '../lib/i18n'
-import { Check, Heart, Plus, ShoppingBag, Trash2, Wine as WineIcon } from 'lucide-react'
+import { Check, ChevronDown, Heart, Plus, ShoppingBag, Trash2, Wine as WineIcon } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Button, Empty, Label, PageHeader, Section, Sheet, Stars } from '../components/ui'
+import { Button, cx, Empty, Label, PageHeader, Section, Sheet, Stars } from '../components/ui'
+import { WhereToBuy } from '../components/WhereToBuy'
 import { db } from '../lib/db'
 import { useCellar } from '../lib/hooks'
 import type { WishItem } from '../lib/types'
@@ -15,6 +16,7 @@ export default function WishlistPage() {
   const nav = useNavigate()
   const [adding, setAdding] = useState(false)
   const [showDone, setShowDone] = useState(false)
+  const [expanded, setExpanded] = useState<string>()
   if (!cellar || !list) return null
 
   const open = list.filter((i) => !i.done).sort((a, b) => b.createdAt - a.createdAt)
@@ -71,20 +73,35 @@ export default function WishlistPage() {
         ) : (
           <div className="card divide-y divide-ink-700">
             {open.map((i) => (
-              <div key={i.id} className="flex items-center gap-3 p-3.5">
-                <WineIcon size={16} className="shrink-0 text-cream-400" />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm text-cream-50">
-                    {i.producer} · {i.name} {i.vintage ?? ''}
-                  </p>
-                  {i.note && <p className="truncate text-xs text-cream-400">{i.note}</p>}
+              <div key={i.id}>
+                <div className="flex items-center gap-3 p-3.5">
+                  <WineIcon size={16} className="shrink-0 text-cream-400" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm text-cream-50">
+                      {i.producer} · {i.name} {i.vintage ?? ''}
+                    </p>
+                    {i.note && <p className="truncate text-xs text-cream-400">{i.note}</p>}
+                    <button
+                      aria-expanded={expanded === i.id}
+                      aria-controls={`buy-${i.id}`}
+                      onClick={() => setExpanded(expanded === i.id ? undefined : i.id)}
+                      className="mt-0.5 flex min-h-6 items-center gap-0.5 text-xs text-wine-300"
+                    >
+                      {t('Where to buy')} <ChevronDown size={12} className={cx('transition-transform', expanded === i.id && 'rotate-180')} aria-hidden />
+                    </button>
+                  </div>
+                  <button aria-label={t('Bought')} title={t('Bought — add to cellar')} className="rounded-full bg-emerald-500/15 p-2 text-emerald-300" onClick={() => bought(i)}>
+                    <Check size={16} />
+                  </button>
+                  <button aria-label={t('Remove')} className="p-2 text-cream-500 hover:text-rose-300" onClick={() => db.wishlist.delete(i.id!)}>
+                    <Trash2 size={16} />
+                  </button>
                 </div>
-                <button aria-label={t('Bought')} title={t('Bought — add to cellar')} className="rounded-full bg-emerald-500/15 p-2 text-emerald-300" onClick={() => bought(i)}>
-                  <Check size={16} />
-                </button>
-                <button aria-label={t('Remove')} className="p-2 text-cream-500 hover:text-rose-300" onClick={() => db.wishlist.delete(i.id!)}>
-                  <Trash2 size={16} />
-                </button>
+                {expanded === i.id && (
+                  <div id={`buy-${i.id}`}>
+                    <WhereToBuy item={i} cellar={cellar} />
+                  </div>
+                )}
               </div>
             ))}
           </div>

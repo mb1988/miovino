@@ -174,7 +174,7 @@ Feedback after using the app. Each item is one PR; CI must be green before mergi
    - If the same wine is in the owner's cellar, use what they paid as the anchor ("you paid £38; here £95 = 2.5×").
    - Shown as a coloured badge + one line ("~£30 in shops · 2.2× · good value"); a "best value on this list" callout. Estimates are clearly labelled as estimates.
    - Extend `WineListSchema` (retailEstimate, verdict, valueNote, plus a `deals` list for non-picks), the prompt, demo canned data, Italian strings, unit tests for the verdict maths, e2e with a mocked `/api/winelist`.
-2. [ ] **Wishlist: where to buy.** Each wishlist item gets a "Where to buy" section:
+2. [x] **Wishlist: where to buy.** Each wishlist item gets a "Where to buy" section:
    - **Where you bought it before** (from your bottles' `seller` field) — first, because it's real.
    - **Search links** that open live prices: Wine-Searcher (UK), plus a short list of UK merchants that suit the wine (e.g. The Wine Society, Berry Bros, Majestic, Lay & Wheeler, Hedonism) as search URLs — no paid API, no scraping.
    - Optional **AI hint** (one call per item, cached on the item): typical UK price range + which kinds of merchant stock it.

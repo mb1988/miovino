@@ -244,3 +244,39 @@ test('wine list: price verdicts, anchored on what you paid when the wine is in y
   await expect(page.getByText(/Shop prices are AI estimates/)).toBeVisible()
   expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'best-practice']).analyze()).violations).toEqual([])
 })
+
+test('wishlist: where to buy — past sellers, live-price links, and an AI price hint saved on the item', async ({ page }) => {
+  await seed(page, {
+    wines: [wine('wine-gaja-0001')],
+    bottles: [{ id: 'bottle-gaja-0001', wineId: 'wine-gaja-0001', status: 'drunk', seller: 'Lay & Wheeler', purchasePrice: 150, purchaseDate: '2024-05-10', createdAt: now, updatedAt: now }],
+    wishlist: [{ id: 'wish-gaja-0001', producer: 'Gaja', name: 'Barbaresco', vintage: 2019, wineId: 'wine-gaja-0001', createdAt: now, updatedAt: now }],
+  })
+  let asked = 0
+  await page.route('**/api/pricehint', (route) => {
+    asked++
+    return route.fulfill({ json: { hint: { low: 160, high: 210, where: 'Fine-wine merchants and the UK importer.' } } })
+  })
+  await page.goto('/wishlist')
+  const toggle = page.getByRole('button', { name: 'Where to buy' })
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false')
+  await toggle.click()
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true')
+
+  await expect(page.getByText('Where you bought it before')).toBeVisible()
+  await expect(page.getByText('Lay & Wheeler', { exact: true })).toBeVisible()
+  await expect(page.getByText(/£150 · May 2024/)).toBeVisible()
+  await expect(page.getByRole('link', { name: /Wine-Searcher \(UK\)/ })).toHaveAttribute('href', 'https://www.wine-searcher.com/find/gaja+barbaresco/2019/uk')
+  // £150 paid before: fine-wine merchants come first.
+  await expect(page.getByRole('link').filter({ hasText: /Berry Bros|Wine Society/ }).first()).toContainText('Berry Bros')
+
+  await page.getByRole('button', { name: 'Typical UK price (AI)' }).click()
+  await expect(page.getByText('Usually £160–210 in UK shops.')).toBeVisible()
+  await expect(page.getByText(/AI estimate/)).toBeVisible()
+  expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'best-practice']).analyze()).violations).toEqual([])
+
+  // Cached on the item: no second AI call after a reload.
+  await page.reload()
+  await page.getByRole('button', { name: 'Where to buy' }).click()
+  await expect(page.getByText('Usually £160–210 in UK shops.')).toBeVisible()
+  expect(asked).toBe(1)
+})

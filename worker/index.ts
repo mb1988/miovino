@@ -2,7 +2,7 @@ import { labelPrompt, LabelSchema, tidyLabel } from '../src/shared/label'
 import { aiErrorResponse, aiProvider, generateJson, type AiEnv } from './ai'
 import { authorize, json, type AuthEnv } from './auth'
 import { authStatus, handleAuth } from './passkeys'
-import { handleAsk, handleWindows, handleWineList, type AskDb } from './ask'
+import { handleAsk, handlePriceHint, handleWindows, handleWineList, type AskDb } from './ask'
 import { handlePush, monthlyReminder, type PushDb } from './push'
 import { BadRequest, sync, validate, type Db } from './sync'
 
@@ -85,6 +85,9 @@ export default {
 
       // POST /api/winelist — restaurant wine-list scanner
       if (url.pathname === '/api/winelist' && req.method === 'POST') return handleWineList(req, env.DB as unknown as AskDb, env)
+
+      // POST /api/pricehint — wishlist "where to buy": typical UK price range
+      if (url.pathname === '/api/pricehint' && req.method === 'POST') return handlePriceHint(req, env)
 
       // POST /api/windows — drinking-window suggestions
       if (url.pathname === '/api/windows' && req.method === 'POST') return handleWindows(req, env)

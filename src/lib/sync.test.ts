@@ -436,3 +436,33 @@ describe('drinking-window suggestions', () => {
     }
   })
 })
+
+describe('wishlist price hint endpoint', () => {
+  async function setup(key?: string) {
+    const worker = ((await import(/* @vite-ignore */ new URL('../../worker/index.ts', import.meta.url).href)) as { default: { fetch: (req: Request, env: unknown) => Promise<Response> } }).default
+    const env = { DB: sqliteD1(), ALLOW_NO_AUTH: 'true', ASSETS: { fetch: async () => new Response('index') }, ...(key ? { GEMINI_API_KEY: key } : {}) }
+    return (body: unknown) => worker.fetch(new Request('https://cellar.test/api/pricehint', { method: 'POST', body: JSON.stringify(body) }), env)
+  }
+
+  it('checks the request and explains a missing key', async () => {
+    expect((await (await setup())({ producer: 'Gaja', name: 'Barbaresco' })).status).toBe(501)
+    expect((await (await setup('sk-test'))({ producer: '', name: '' })).status).toBe(400)
+  })
+
+  it('asks for a UK price range and returns it tidied', async () => {
+    const call = await setup('sk-test')
+    let prompt = ''
+    vi.stubGlobal('fetch', async (_url: string | URL | Request, init?: RequestInit) => {
+      prompt = (JSON.parse(String(init?.body)) as { contents: { parts: { text: string }[] }[] }).contents[0].parts[0].text
+      return Response.json({ candidates: [{ content: { parts: [{ text: JSON.stringify({ low: 210.4, high: 160, where: 'Fine-wine merchants.' }) }] }, finishReason: 'STOP' }] })
+    })
+    try {
+      const res = await call({ producer: 'Gaja', name: 'Barbaresco', vintage: 2016, lang: 'it' })
+      expect(res.status).toBe(200)
+      expect(await res.json()).toEqual({ hint: { low: 160, high: 210, where: 'Fine-wine merchants.' } })
+      expect(prompt).toMatch(/Gaja Barbaresco 2016[\s\S]*UK retail price range[\s\S]*in Italian/)
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+})
