@@ -169,14 +169,17 @@ function toAiError(e: unknown): AiError {
 
 /** Maps an HTTP failure from any provider to a message for the owner. */
 async function httpError(provider: ProviderId, res: Response): Promise<AiError> {
-  const detail = (await res.text().catch(() => '')).slice(0, 300)
+  const body = await res.text().catch((e: Error) => `(body unreadable: ${e.message})`)
+  // Diagnostics for the logs (never includes the key): what exactly did the provider send back?
+  console.warn(`AI ${provider} HTTP ${res.status} type=${res.headers.get('content-type')} len=${body.length} server=${res.headers.get('server')} body=${body.slice(0, 500).replace(/s+/g, ' ')}`)
+  const detail = body.slice(0, 300)
   const name = PROVIDER_NAMES[provider]
   if (res.status === 429) return new AiError(429, 'Rate limited — the free AI quota is used up for now. Try again in a minute.')
   if (res.status === 401 || res.status === 403) return new AiError(502, `The server's ${name} key was rejected.`)
   // Google answers a bad key, or a region without the free tier, with 400 + a message: show it plainly.
   const reason = (() => {
     try {
-      return (JSON.parse(detail) as { error?: { message?: string } }).error?.message
+      return (JSON.parse(body) as { error?: { message?: string } }).error?.message
     } catch {
       return undefined
     }
