@@ -40,9 +40,10 @@ export function WhereToBuy({ item, cellar, saveHint }: { item: BuyTarget; cellar
         credentials: 'same-origin',
         body: JSON.stringify({ producer: item.producer, name: item.name, vintage: item.vintage ?? null, lang: getLang() }),
       })
-      const data = (await res.json().catch(() => ({}))) as { hint?: PriceHint; error?: string }
+      const data = (await res.json().catch(() => ({}))) as { hint?: PriceHint; at?: string; error?: string }
       if (!res.ok || !data.hint) throw new Error(data.error ?? t('Something went wrong ({status}).', { status: res.status }))
-      await saveHint({ ...data.hint, at: new Date().toISOString().slice(0, 10) })
+      // A remembered answer keeps the date it was first looked up.
+      await saveHint({ ...data.hint, at: data.at ?? new Date().toISOString().slice(0, 10) })
     } catch (e) {
       setError((e as Error).message)
     } finally {
