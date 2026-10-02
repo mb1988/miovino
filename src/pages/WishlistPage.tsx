@@ -1,6 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { t } from '../lib/i18n'
-import { Check, ChevronDown, Heart, Plus, ShoppingBag, Trash2, Wine as WineIcon } from 'lucide-react'
+import { Check, ChevronDown, Heart, Plus, Search, ShoppingBag, Trash2, Wine as WineIcon } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Button, cx, Empty, Label, PageHeader, Section, Sheet, Stars } from '../components/ui'
@@ -41,6 +41,14 @@ export default function WishlistPage() {
           </Button>
         }
       />
+
+      <Link to="/buy" className="card mb-4 flex min-h-12 items-center gap-3 p-3.5 text-sm hover:ring-ink-600">
+        <Search size={18} className="shrink-0 text-gold-400" aria-hidden />
+        <span className="flex-1">
+          <span className="block font-medium text-cream-50">{t('Find a bottle')}</span>
+          <span className="text-xs text-cream-400">{t('Where to buy any wine, and at what price')}</span>
+        </span>
+      </Link>
 
       {suggestions.length > 0 && (
         <Section title={t('You said you\'d buy again')}>
@@ -99,7 +107,7 @@ export default function WishlistPage() {
                 </div>
                 {expanded === i.id && (
                   <div id={`buy-${i.id}`}>
-                    <WhereToBuy item={i} cellar={cellar} />
+                    <WhereToBuy item={i} cellar={cellar} saveHint={(priceHint) => db.wishlist.update(i.id!, { priceHint })} />
                   </div>
                 )}
               </div>

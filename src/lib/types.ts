@@ -55,9 +55,18 @@ export interface Wine extends Synced {
   barcode?: string // EAN/UPC from the back label, normalised to 13 digits
   marketPrice?: number // what a bottle sells for today (owner-entered), per bottle
   marketPriceDate?: string // yyyy-mm-dd when marketPrice was set
+  priceHint?: PriceHintCache // "buy again": AI typical UK price, cached
   tags: string[]
   needsReview?: string[] // import warnings still to confirm
   createdAt: number
+}
+
+/** AI "where to buy" hint, cached on the record it was asked for; at = yyyy-mm-dd. */
+export interface PriceHintCache {
+  low: number | null
+  high: number | null
+  where: string
+  at: string
 }
 
 export interface Bottle extends Synced {
@@ -105,7 +114,7 @@ export interface WishItem extends Synced {
   note?: string
   wineId?: string // the cellar wine it came from, if any
   done?: boolean // bought
-  priceHint?: { low: number | null; high: number | null; where: string; at: string } // AI "where to buy" hint, cached; at = yyyy-mm-dd
+  priceHint?: PriceHintCache
   createdAt: number
 }
 

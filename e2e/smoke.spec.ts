@@ -280,3 +280,31 @@ test('wishlist: where to buy — past sellers, live-price links, and an AI price
   await expect(page.getByText('Usually £160–210 in UK shops.')).toBeVisible()
   expect(asked).toBe(1)
 })
+
+test('buy again on a wine page, and find any bottle with its price', async ({ page }) => {
+  await seed(page, {
+    wines: [wine('wine-gaja-0001')],
+    bottles: [{ id: 'bottle-gaja-0001', wineId: 'wine-gaja-0001', status: 'cellar', seller: 'Hedonism', purchasePrice: 120, purchaseDate: '2025-03-02', createdAt: now, updatedAt: now }],
+  })
+  await page.route('**/api/pricehint', (route) => route.fulfill({ json: { hint: { low: 25, high: 32, where: 'Most good independents.' } } }))
+
+  // Buy again: collapsed until asked, then where you bought it + live-price links.
+  await page.goto('/wine/wine-gaja-0001')
+  await page.getByRole('button', { name: 'Where to buy and at what price' }).click()
+  await expect(page.getByText('Hedonism', { exact: true })).toBeVisible()
+  await expect(page.getByRole('link', { name: /Wine-Searcher \(UK\)/ })).toHaveAttribute('href', 'https://www.wine-searcher.com/find/gaja+barbaresco/2016/uk')
+
+  // Find a bottle: any wine, then save it to the wishlist with its price.
+  await page.goto('/buy')
+  await page.getByPlaceholder('e.g. Giacomo Fenocchio').fill('Vietti')
+  await page.getByPlaceholder('e.g. Barolo Villero').fill('Barbera d’Asti Tre Vigne')
+  await page.getByRole('button', { name: 'Find where to buy' }).click()
+  await expect(page.getByRole('link', { name: /Wine-Searcher \(UK\)/ })).toBeVisible()
+  await page.getByRole('button', { name: 'Typical UK price (AI)' }).click()
+  await expect(page.getByText('Usually £25–32 in UK shops.')).toBeVisible()
+  expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations).toEqual([])
+  await page.getByRole('button', { name: 'Add to wishlist' }).click()
+  await expect(page.getByRole('button', { name: 'On the wishlist' })).toBeDisabled()
+  await page.goto('/wishlist')
+  await expect(page.getByText(/Vietti · Barbera d’Asti Tre Vigne/)).toBeVisible()
+})
