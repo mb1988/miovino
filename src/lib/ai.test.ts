@@ -75,6 +75,10 @@ describe('AI providers', () => {
     await expect(ai.generateText({ GEMINI_API_KEY: ' GEMINI_API_KEY="AIzaTest" ' }, ask)).rejects.toMatchObject({ message: expect.stringContaining('npx wrangler secret put GEMINI_API_KEY') })
     expect(keys).toEqual(['AIzaTest'])
     expect(ai.aiProvider({ GEMINI_API_KEY: '  ' })).toBeNull()
+    // A paste stored with bracketed-paste markers, a ^V, a zero-width space and a Windows line ending.
+    keys.length = 0
+    await ai.generateText({ GEMINI_API_KEY: '\x1b[200~AQ.Ab8Test\u200b\x16\x1b[201~\r\n' }, ask).catch(() => undefined)
+    expect(keys).toEqual(['AQ.Ab8Test'])
   })
 
   it('reads JSON out of fenced or chatty replies', () => {
