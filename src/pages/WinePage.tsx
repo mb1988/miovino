@@ -1,10 +1,11 @@
-import { BookOpen, ExternalLink, Grape, Grid3x3, Share2, Heart, MapPin, Pencil, Plus, Trash2, Utensils, Wine as WineIcon } from 'lucide-react'
+import { BookOpen, ChevronDown, ExternalLink, Grape, Grid3x3, Share2, Heart, MapPin, Pencil, Plus, Trash2, Utensils, Wine as WineIcon } from 'lucide-react'
 import { locale, t } from '../lib/i18n'
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Bottle as BottleIcon, Button, cx, Flag, Label, PageHeader, Section, Sheet, Stars, StatusChip, WindowBar } from '../components/ui'
 import { addBottles, db, deleteWine, ensureLocation, today, updateWine } from '../lib/db'
-import { useBlobUrl, useLocations, useWine } from '../lib/hooks'
+import { useBlobUrl, useCellar, useLocations, useWine } from '../lib/hooks'
+import { WhereToBuy } from '../components/WhereToBuy'
 import { classicPairing } from '../lib/pairing'
 import { parseWindow } from '../lib/importer'
 import { formatMoney } from '../lib/settings'
@@ -182,6 +183,8 @@ export default function WinePage() {
           ))}
         </div>
       </Section>
+
+      <BuyAgain wine={wine} />
 
       <Section
         title={t('Your notes')}
@@ -501,5 +504,31 @@ function BottleSheet({ wineId, bottle, onClose }: { wineId: string; bottle: Bott
         )}
       </div>
     </Sheet>
+  )
+}
+
+/** "Buy again": where you bought it, live UK prices and the AI's typical price — the hint is cached on the wine. */
+function BuyAgain({ wine }: { wine: NonNullable<ReturnType<typeof useWine>> }) {
+  const cellar = useCellar()
+  const [open, setOpen] = useState(false)
+  return (
+    <Section title={t('Buy again')}>
+      <div className="card">
+        <button
+          aria-expanded={open}
+          aria-controls="buy-again"
+          onClick={() => setOpen(!open)}
+          className="flex min-h-11 w-full items-center gap-2 px-3.5 text-left text-sm text-cream-100"
+        >
+          <span className="flex-1">{t('Where to buy and at what price')}</span>
+          <ChevronDown size={16} className={cx('text-cream-400 transition-transform', open && 'rotate-180')} aria-hidden />
+        </button>
+        {open && cellar && (
+          <div id="buy-again">
+            <WhereToBuy item={{ ...wine, wineId: wine.id }} cellar={cellar} saveHint={(priceHint) => db.wines.update(wine.id, { priceHint })} />
+          </div>
+        )}
+      </div>
+    </Section>
   )
 }

@@ -1,17 +1,28 @@
 import { ExternalLink, Loader2, Sparkles, Store } from 'lucide-react'
 import { useState } from 'react'
-import { db } from '../lib/db'
 import { getLang, t } from '../lib/i18n'
 import { useSync } from '../lib/sync'
-import type { WineWithBottles, WishItem } from '../lib/types'
+import type { PriceHintCache, WineWithBottles } from '../lib/types'
 import { pastSellers, typicalPrice } from '../lib/wishlist'
 import { buyLinks, type PriceHint } from '../shared/whereToBuy'
 
 const month = (iso?: string) => (iso ? new Date(`${iso}T12:00:00`).toLocaleDateString(getLang() === 'it' ? 'it-IT' : 'en-GB', { month: 'short', year: 'numeric' }) : '')
 const range = (h: { low: number | null; high: number | null }) => (h.low === h.high ? `£${h.low}` : `£${h.low}–${h.high}`)
 
-/** Where you bought it before, search links for live UK prices, and an optional AI price hint cached on the item. */
-export function WhereToBuy({ item, cellar }: { item: WishItem; cellar: WineWithBottles[] }) {
+export interface BuyTarget {
+  producer: string
+  name: string
+  vintage?: number | null
+  wineId?: string // a cellar wine: its own bottles count as "where you bought it before"
+  priceHint?: PriceHintCache
+}
+
+/**
+ * Where you bought it before, search links for live UK prices, and an optional AI price hint.
+ * Used for wishlist items, for "buy again" on a wine page, and for any bottle on the Find a bottle screen;
+ * `saveHint` stores the AI answer wherever the caller keeps it.
+ */
+export function WhereToBuy({ item, cellar, saveHint }: { item: BuyTarget; cellar: WineWithBottles[]; saveHint: (hint: PriceHintCache) => unknown }) {
   const sync = useSync()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -31,7 +42,7 @@ export function WhereToBuy({ item, cellar }: { item: WishItem; cellar: WineWithB
       })
       const data = (await res.json().catch(() => ({}))) as { hint?: PriceHint; error?: string }
       if (!res.ok || !data.hint) throw new Error(data.error ?? t('Something went wrong ({status}).', { status: res.status }))
-      await db.wishlist.update(item.id!, { priceHint: { ...data.hint, at: new Date().toISOString().slice(0, 10) } })
+      await saveHint({ ...data.hint, at: new Date().toISOString().slice(0, 10) })
     } catch (e) {
       setError((e as Error).message)
     } finally {

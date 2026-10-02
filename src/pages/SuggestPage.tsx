@@ -1,4 +1,4 @@
-import { MapPin, MessageCircle, ScrollText, RefreshCw, Sparkles, Wine as WineIcon } from 'lucide-react'
+import { MapPin, MessageCircle, ScrollText, RefreshCw, ShoppingBag, Sparkles, Wine as WineIcon } from 'lucide-react'
 import { t } from '../lib/i18n'
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -43,6 +43,13 @@ export default function SuggestPage() {
           <span className="flex-1">
             <span className="block font-semibold text-cream-50">{t('At a restaurant?')}</span>
             <span className="text-sm text-cream-400">{t('Photograph the wine list — picks for your taste')}</span>
+          </span>
+        </Link>
+        <Link to="/buy" className="card flex items-center gap-3 p-4 hover:ring-ink-600">
+          <ShoppingBag className="text-gold-400" />
+          <span className="flex-1">
+            <span className="block font-semibold text-cream-50">{t('Find a bottle')}</span>
+            <span className="text-sm text-cream-400">{t('Where to buy any wine, and at what price')}</span>
           </span>
         </Link>
       </div>

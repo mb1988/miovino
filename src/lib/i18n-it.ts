@@ -623,4 +623,11 @@ export const IT: Record<string, string> = {
   'Best on a phone: open this link there and add it to the Home Screen.': 'Al meglio sul telefono: apri questo link lì e aggiungilo alla schermata Home.',
   'MioVino demo': 'Demo di MioVino',
   ' — settings, backup, rack map': ' — impostazioni, backup, mappa scaffali',
+  // Buy again / find a bottle
+  'Where to buy and at what price': 'Dove comprarlo e a che prezzo',
+  'Find a bottle': 'Trova una bottiglia',
+  'Where to buy any wine, and at what price': 'Dove comprare qualsiasi vino, e a che prezzo',
+  'Find where to buy': 'Trova dove comprarlo',
+  'In your cellar: {n} bottles': 'In cantina: {n} bottiglie',
+  'On the wishlist': 'Nella lista',
 }
