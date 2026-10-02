@@ -65,6 +65,7 @@ const TIMEOUT = 60_000
 export function cleanKey(raw: string | undefined) {
   const k = (raw ?? '')
     // Terminals can store a paste with bracketed-paste markers (ESC[200~ … ESC[201~) or a literal ^V.
+    // oxlint-disable-next-line no-control-regex -- deliberately matching the ESC of paste markers
     .replace(/\x1b\[20[01]~/g, '')
     // API keys are printable ASCII: drop control characters, invisible Unicode and spaces. A header with
     // any of those is rejected before it leaves Cloudflare (an empty 400 for every provider).
@@ -93,11 +94,19 @@ export function aiProvider(env: AiEnv): string | null {
 }
 
 export const NO_AI = 'AI features need a free key on the server: GEMINI_API_KEY (aistudio.google.com) or OPENROUTER_API_KEY (openrouter.ai).'
+export const EMPTY_KEY =
+  'An AI key is saved on the server but it is empty — the paste did not go through (in a Windows terminal, Ctrl+V types an invisible character instead). Add the key again in the Cloudflare dashboard: Workers & Pages → miovino → Settings → Variables and Secrets.'
+
+/** A key secret exists but holds no usable characters (e.g. only a ^V from a failed paste). */
+function onlyEmptyKeys(env: AiEnv) {
+  return [env.GEMINI_API_KEY, env.OPENROUTER_API_KEY, env.ANTHROPIC_API_KEY].some((raw) => raw != null && raw !== '' && !cleanKey(raw))
+}
+const noAi = (env: AiEnv) => new AiError(501, onlyEmptyKeys(env) ? EMPTY_KEY : NO_AI)
 
 /** Free text (chat). Tries each provider until one answers. */
 export async function generateText(env: AiEnv, req: AiRequest): Promise<AiAnswer> {
   const list = providers(env)
-  if (!list.length) throw new AiError(501, NO_AI)
+  if (!list.length) throw noAi(env)
   let last: AiError | undefined
   for (const p of list) {
     try {
@@ -115,7 +124,7 @@ export async function generateText(env: AiEnv, req: AiRequest): Promise<AiAnswer
 /** A JSON answer checked against `schema`. An answer that doesn't fit counts as a failure and the next provider is tried. */
 export async function generateJson<S extends z.ZodType>(env: AiEnv, req: AiRequest, schema: S): Promise<z.infer<S> & {}> {
   const list = providers(env)
-  if (!list.length) throw new AiError(501, NO_AI)
+  if (!list.length) throw noAi(env)
   const withSchema = { ...req, json: true, messages: appendText(req.messages, jsonInstructions(schema)) }
   let last: AiError | undefined
   for (const p of list) {
