@@ -5,6 +5,7 @@ import { authStatus, handleAuth } from './passkeys'
 import { handleAsk, handlePriceHint, handleWindows, handleWineList, type AskDb } from './ask'
 import { handlePush, monthlyReminder, type PushDb } from './push'
 import { BadRequest, sync, validate, type Db } from './sync'
+import { remember, type FactsDb } from './facts'
 
 interface Env extends AuthEnv, AiEnv {
   DB: D1Database
@@ -73,8 +74,11 @@ export default {
         const { image } = (await req.json()) as { image?: string }
         if (typeof image !== 'string' || image.length < 100 || image.length > 8_000_000) return json({ error: 'Send a base64 JPEG as `image`.' }, 400)
         try {
-          const result = await generateJson(env, { messages: [{ role: 'user', content: [{ type: 'image', data: image }, { type: 'text', text: labelPrompt() }] }] }, LabelSchema)
-          return json({ result: tidyLabel(result) })
+          const result = tidyLabel(await generateJson(env, { messages: [{ role: 'user', content: [{ type: 'image', data: image }, { type: 'text', text: labelPrompt() }] }] }, LabelSchema))
+          // The window the AI read for this label goes into the wine memory too.
+          if (result.isWineLabel && (result.drinkFrom != null || result.drinkTo != null))
+            await remember(env.DB as unknown as FactsDb, result, 'window', { drinkFrom: result.drinkFrom, drinkTo: result.drinkTo, peakYear: null, confidence: result.confidence, note: result.tastingNote ?? '' }, 'scan')
+          return json({ result })
         } catch (e) {
           return aiErrorResponse(e)
         }
@@ -84,13 +88,13 @@ export default {
       if (url.pathname === '/api/ask' && req.method === 'POST') return handleAsk(req, env.DB as unknown as AskDb, env)
 
       // POST /api/winelist — restaurant wine-list scanner
-      if (url.pathname === '/api/winelist' && req.method === 'POST') return handleWineList(req, env.DB as unknown as AskDb, env)
+      if (url.pathname === '/api/winelist' && req.method === 'POST') return handleWineList(req, env.DB as unknown as AskDb & FactsDb, env)
 
       // POST /api/pricehint — wishlist "where to buy": typical UK price range
-      if (url.pathname === '/api/pricehint' && req.method === 'POST') return handlePriceHint(req, env)
+      if (url.pathname === '/api/pricehint' && req.method === 'POST') return handlePriceHint(req, env.DB as unknown as FactsDb, env)
 
       // POST /api/windows — drinking-window suggestions
-      if (url.pathname === '/api/windows' && req.method === 'POST') return handleWindows(req, env)
+      if (url.pathname === '/api/windows' && req.method === 'POST') return handleWindows(req, env.DB as unknown as FactsDb, env)
 
       if (url.pathname.startsWith('/api/push/')) {
         const res = await handlePush(req, env.DB as unknown as PushDb, url.pathname)

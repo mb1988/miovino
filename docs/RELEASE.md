@@ -79,6 +79,12 @@ Change the order with the `AI_PROVIDERS` var (e.g. `openrouter,gemini`). `/api/h
 npm run db:query -- "SELECT producer, name, vintage, bottles, drink_from, drink_to FROM cellar"
 ```
 
+**Wine memory** (`migrations/0007_wine_facts.sql`): every price and drinking window the AI gives is kept in `wine_facts` (keyed by producer + wine + vintage, spelling-insensitive). The same question within 30 days (prices) or a year (windows) is answered from the database with no AI call, and prices build a history:
+
+```bash
+npm run db:query -- "SELECT * FROM price_history LIMIT 20"
+```
+
 **Schema changes** go in new numbered files in `migrations/`. CI backs up the database, applies migrations, then deploys.
 
 ## Setup (one time)

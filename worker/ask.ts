@@ -4,6 +4,9 @@ import { drinkStatus, type DrinkStatus } from '../src/shared/status'
 import { priceHintPrompt, PriceHintSchema, tidyPriceHint, validatePriceHintRequest } from '../src/shared/whereToBuy'
 import { aiErrorResponse, generateJson, generateText, type AiEnv } from './ai'
 import { json } from './auth'
+import { recall, remember, type FactsDb } from './facts'
+import type { PriceHint } from '../src/shared/whereToBuy'
+import type { WindowSuggestion } from '../src/shared/windows'
 
 /** "Ask my cellar": a chat with the AI that knows the synced cellar, tastings and wishlist. */
 
@@ -122,7 +125,7 @@ export async function handleAsk(req: Request, db: AskDb, env: AiEnv) {
 }
 
 /** POST /api/winelist — read restaurant wine-list photos and pick bottles for the owner's taste. */
-export async function handleWineList(req: Request, db: AskDb, env: AiEnv) {
+export async function handleWineList(req: Request, db: AskDb & FactsDb, env: AiEnv) {
   const body = validateWineListRequest(await req.json())
   if (!body) return json({ error: `Send 1–${MAX_LIST_PAGES} photos of the list as base64 JPEG in "images".` }, 400)
   try {
@@ -135,30 +138,54 @@ export async function handleWineList(req: Request, db: AskDb, env: AiEnv) {
       WineListSchema,
     )
     if (!result.isWineList) return json({ error: "That doesn't look like a wine list. Photograph the pages with the wines." }, 422)
-    return json({ result: tidyWineList(result) })
+    const tidy = tidyWineList(result)
+    // Every shop-price estimate goes into the wine memory (and its price history).
+    for (const w of [...tidy.picks, ...(tidy.deals ?? [])])
+      if (w.retailEstimate != null) await remember(db, w, 'price', { low: w.retailEstimate, high: w.retailEstimate, where: '' }, 'winelist')
+    return json({ result: tidy })
   } catch (e) {
     return aiErrorResponse(e)
   }
 }
 
 /** POST /api/pricehint — a typical UK price range for a wishlist wine, and who stocks it. The app caches it on the item. */
-export async function handlePriceHint(req: Request, env: AiEnv) {
+export async function handlePriceHint(req: Request, db: FactsDb, env: AiEnv) {
   const body = validatePriceHintRequest(await req.json())
   if (!body) return json({ error: 'Send {producer, name, vintage?} for one wine.' }, 400)
+  // Asked within the last 30 days (by anyone, from any screen)? Answer from memory: no AI call.
+  // A remembered estimate from a wine list has no "where", so only a full hint counts.
+  const known = await recall<PriceHint>(db, body, 'price')
+  if (known?.data.where) return json({ hint: known.data, cached: true, at: new Date(known.at).toISOString().slice(0, 10) })
   try {
-    return json({ hint: tidyPriceHint(await generateJson(env, { messages: [{ role: 'user', content: priceHintPrompt(body) }] }, PriceHintSchema)) })
+    const hint = tidyPriceHint(await generateJson(env, { messages: [{ role: 'user', content: priceHintPrompt(body) }] }, PriceHintSchema))
+    await remember(db, body, 'price', hint, 'pricehint')
+    return json({ hint })
   } catch (e) {
     return aiErrorResponse(e)
   }
 }
 
 /** POST /api/windows — suggest drinking windows for wines that have none. The app shows them for the owner to accept. */
-export async function handleWindows(req: Request, env: AiEnv) {
+export async function handleWindows(req: Request, db: FactsDb, env: AiEnv) {
   const body = validateWindowsRequest(await req.json())
   if (!body) return json({ error: `Send 1–${MAX_WINDOW_WINES} wines as {wines: [{id, producer, name, vintage, type, …}]}.` }, 400)
+  // Windows remembered within the year are reused; only the rest go to the AI.
+  const known: WindowSuggestion[] = []
+  const ask = []
+  for (const w of body.wines) {
+    const k = await recall<Omit<WindowSuggestion, 'id'>>(db, w, 'window')
+    if (k) known.push({ ...k.data, id: w.id })
+    else ask.push(w)
+  }
+  if (!ask.length) return json({ windows: known })
   try {
-    const result = await generateJson(env, { messages: [{ role: 'user', content: windowsPrompt(body.wines, body.lang) }] }, WindowsSchema)
-    return json({ windows: tidyWindows(body.wines, result) })
+    const result = await generateJson(env, { messages: [{ role: 'user', content: windowsPrompt(ask, body.lang) }] }, WindowsSchema)
+    const fresh = tidyWindows(ask, result)
+    for (const s of fresh) {
+      const w = ask.find((x) => x.id === s.id)!
+      if (s.drinkFrom != null || s.drinkTo != null) await remember(db, w, 'window', { drinkFrom: s.drinkFrom, drinkTo: s.drinkTo, peakYear: s.peakYear, confidence: s.confidence, note: s.note }, 'windows')
+    }
+    return json({ windows: [...known, ...fresh] })
   } catch (e) {
     return aiErrorResponse(e)
   }

@@ -412,6 +412,28 @@ describe('drinking-window suggestions', () => {
     expect((await call({ wines: Array.from({ length: 41 }, (_, i) => ({ ...wine, id: `wine-${i}-00000` })) })).status).toBe(400)
   })
 
+  it('reuses remembered windows and only asks the AI about new wines', async () => {
+    const call = await setup('sk-test')
+    const prompts: string[] = []
+    vi.stubGlobal('fetch', async (_url: unknown, init?: RequestInit) => {
+      const prompt = JSON.parse(String(init?.body)).contents[0].parts[0].text as string
+      prompts.push(prompt)
+      const ids = [...prompt.matchAll(/id=([\w-]+)/g)].map((m) => m[1])
+      return Response.json({ candidates: [{ content: { parts: [{ text: JSON.stringify({ windows: ids.map((id) => ({ id, drinkFrom: 2026, drinkTo: 2040, peakYear: null, confidence: 'high', note: 'n' })) }) }] }, finishReason: 'STOP' }] })
+    })
+    try {
+      await call({ wines: [wine] })
+      const other = { ...wine, id: 'wine-0000-0002', name: 'Barolo Ravera' }
+      const res = (await (await call({ wines: [{ ...wine, id: 'wine-0000-0009' }, other] })).json()) as { windows: { id: string; drinkTo: number }[] }
+      expect(prompts).toHaveLength(2)
+      expect(prompts[1]).toContain('Barolo Ravera')
+      expect(prompts[1]).not.toContain('Barolo Rocche')
+      expect(res.windows.map((w) => w.id).sort()).toEqual(['wine-0000-0002', 'wine-0000-0009']) // the remembered one keeps the id asked for
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
   it('returns tidy suggestions only for the wines asked about', async () => {
     const call = await setup('sk-test')
     const answer = {
@@ -447,6 +469,25 @@ describe('wishlist price hint endpoint', () => {
   it('checks the request and explains a missing key', async () => {
     expect((await (await setup())({ producer: 'Gaja', name: 'Barbaresco' })).status).toBe(501)
     expect((await (await setup('sk-test'))({ producer: '', name: '' })).status).toBe(400)
+  })
+
+  it('remembers the answer: the same wine (any spelling) is answered from the database for 30 days', async () => {
+    const call = await setup('sk-test')
+    let aiCalls = 0
+    vi.stubGlobal('fetch', async () => {
+      aiCalls++
+      return Response.json({ candidates: [{ content: { parts: [{ text: JSON.stringify({ low: 30, high: 38, where: 'Good independents.' }) }] }, finishReason: 'STOP' }] })
+    })
+    try {
+      const first = (await (await call({ producer: 'Château Léoville-Barton', name: 'Saint-Julien', vintage: 2016 })).json()) as { hint: object; cached?: boolean }
+      const again = (await (await call({ producer: 'chateau leoville barton', name: 'SAINT JULIEN', vintage: 2016 })).json()) as { hint: object; cached?: boolean }
+      expect(aiCalls).toBe(1)
+      expect(again).toEqual({ hint: first.hint, cached: true, at: new Date().toISOString().slice(0, 10) })
+      await call({ producer: 'Château Léoville-Barton', name: 'Saint-Julien', vintage: 2015 }) // another vintage: asked
+      expect(aiCalls).toBe(2)
+    } finally {
+      vi.unstubAllGlobals()
+    }
   })
 
   it('asks for a UK price range and returns it tidied', async () => {
