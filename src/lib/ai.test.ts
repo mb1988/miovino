@@ -25,8 +25,10 @@ describe('AI providers', () => {
     expect(ai.aiProvider({ GEMINI_API_KEY: 'g', ANTHROPIC_API_KEY: 'a', AI_PROVIDERS: 'anthropic,gemini' })).toBe('Anthropic Claude')
   })
 
-  it('says how to switch AI on when there is no key', async () => {
+  it('says how to switch AI on when there is no key, and when a saved key is empty', async () => {
     await expect(ai.generateText({}, ask)).rejects.toMatchObject({ status: 501, message: expect.stringMatching(/GEMINI_API_KEY/) })
+    // A failed paste in a Windows terminal stores just ^V (+ a line ending).
+    await expect(ai.generateText({ GEMINI_API_KEY: '\x16\r\n' }, ask)).rejects.toMatchObject({ status: 501, message: expect.stringMatching(/empty.*Cloudflare dashboard/) })
   })
 
   it('skips Gemini thought parts', async () => {
