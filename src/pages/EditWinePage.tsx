@@ -11,6 +11,7 @@ import { enrich } from '../lib/knowledge'
 import { normalizeBarcode } from '../lib/barcode'
 import { imageToBase64 } from '../lib/image'
 import { useCanScan } from '../lib/sync'
+import { estimatePrice } from '../lib/priceMemory'
 import type { LabelResult } from '../lib/scanner'
 import { WINE_TYPE_LABEL, WINE_TYPES, type ExternalInfo, type Wine, type WineType } from '../lib/types'
 
@@ -218,6 +219,9 @@ export default function EditWinePage() {
         purchaseDate: bottles.date || undefined,
         seller: bottles.seller.trim() || undefined,
       })
+      // Look up its typical UK price once in the background, so value today and price history start straight away.
+      // The server remembers it (and won't ask the AI again for 30 days); a failure is fine, it's only a nicety.
+      if (canScan && (wine.producer || wine.name)) void estimatePrice({ id, producer: wine.producer, name: wine.name, vintage: wine.vintage }).catch(() => undefined)
       nav(`/wine/${id}`, { replace: true })
     }
   }
