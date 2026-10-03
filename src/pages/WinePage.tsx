@@ -1,11 +1,13 @@
 import { BookOpen, ChevronDown, ExternalLink, Grape, Grid3x3, Share2, Heart, MapPin, Pencil, Plus, Trash2, Utensils, Wine as WineIcon } from 'lucide-react'
 import { locale, t } from '../lib/i18n'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Bottle as BottleIcon, Button, cx, Flag, Label, PageHeader, Section, Sheet, Stars, StatusChip, WindowBar } from '../components/ui'
 import { addBottles, db, deleteWine, ensureLocation, today, updateWine } from '../lib/db'
 import { useBlobUrl, useCellar, useLocations, useWine } from '../lib/hooks'
 import { WhereToBuy } from '../components/WhereToBuy'
+import { PriceHistory } from '../components/PriceHistory'
+import { usePriceMemory } from '../lib/priceMemory'
 import { classicPairing } from '../lib/pairing'
 import { parseWindow } from '../lib/importer'
 import { formatMoney } from '../lib/settings'
@@ -511,6 +513,9 @@ function BottleSheet({ wineId, bottle, onClose }: { wineId: string; bottle: Bott
 function BuyAgain({ wine }: { wine: NonNullable<ReturnType<typeof useWine>> }) {
   const cellar = useCellar()
   const [open, setOpen] = useState(false)
+  const me = useMemo(() => (open ? [{ id: wine.id, producer: wine.producer, name: wine.name, vintage: wine.vintage }] : undefined), [open, wine.id, wine.producer, wine.name, wine.vintage])
+  // Reloads after the AI price is asked for, so the new point shows up.
+  const { prices, reload } = usePriceMemory(me)
   return (
     <Section title={t('Buy again')}>
       <div className="card">
@@ -525,7 +530,19 @@ function BuyAgain({ wine }: { wine: NonNullable<ReturnType<typeof useWine>> }) {
         </button>
         {open && cellar && (
           <div id="buy-again">
-            <WhereToBuy item={{ ...wine, wineId: wine.id }} cellar={cellar} saveHint={(priceHint) => db.wines.update(wine.id, { priceHint })} />
+            <WhereToBuy
+              item={{ ...wine, wineId: wine.id }}
+              cellar={cellar}
+              saveHint={async (priceHint) => {
+                await db.wines.update(wine.id, { priceHint })
+                await reload()
+              }}
+            />
+            {prices[wine.id] && (
+              <div className="px-3.5 pb-3.5">
+                <PriceHistory points={prices[wine.id]} />
+              </div>
+            )}
           </div>
         )}
       </div>

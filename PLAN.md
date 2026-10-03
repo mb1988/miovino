@@ -180,6 +180,13 @@ Feedback after using the app. Each item is one PR; CI must be green before mergi
    - Optional **AI hint** (one call per item, cached on the item): typical UK price range + which kinds of merchant stock it.
    - Live price feeds (Wine-Searcher API) are paid — not planned unless the owner wants to pay.
 
+### Phase 8 — after real use (2026-10-03)
+1. [x] **Wine memory** — AI prices and windows saved in D1 (wine_facts, 0007); asked again only after 30 days (prices) / a year (windows); price history kept
+2. [x] **Value today + price history** — Cellar over time values the cellar at your price → remembered AI price → what you paid; estimate missing prices 10 at a time; Buy again shows each wine's price history
+3. [ ] **Public repo refreshes itself** — GitHub Action: rewrite (no email / real rows) and push to the public repo after each merge
+4. [ ] **Own domain** (owner buys it, e.g. miovino.app) — then add it as a Workers custom domain and update links
+5. [ ] Wishlist price alerts — needs live shop prices (paid feed); parked
+
 Answers to the owner's questions
 - *More than one cellar?* Today: several **locations/racks** (each with its own grid) but no "cellar" level above them — item 5 adds it.
 - *Monthly reminder only with Safari?* On iPhone, web push only works once the app is on the Home Screen (iOS 16.4+); adding it from Safari is the reliable way. On **Android it works in Chrome/Edge/Firefox directly**, installed or not.

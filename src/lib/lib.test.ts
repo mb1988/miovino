@@ -228,7 +228,19 @@ describe('price paid vs. today', async () => {
       { bottles: [b('cellar', 30), b('cellar')] },
       { marketPrice: 20, bottles: [b('cellar')] }, // no purchase price: counts now, not in cost
     ] as unknown as WineWithBottles[]
-    expect(cellarValueNow(cellar)).toEqual({ atCost: 150, now: 230, gain: 80, repriced: 3 })
+    expect(cellarValueNow(cellar)).toEqual({ atCost: 150, now: 230, gain: 80, repriced: 3, estimated: 0 })
+  })
+  it('uses the AI’s remembered price when you haven’t set one, but never over yours', () => {
+    const cellar = [
+      { id: 'mine', marketPrice: 90, bottles: [b('cellar', 50)] },
+      { id: 'ai', bottles: [b('cellar', 30), b('cellar', 30)] },
+      { id: 'none', bottles: [b('cellar', 10)] },
+    ] as unknown as WineWithBottles[]
+    const estimates = new Map([
+      ['mine', 999], // ignored: your own price wins
+      ['ai', 45],
+    ])
+    expect(cellarValueNow(cellar, estimates)).toEqual({ atCost: 120, now: 90 + 45 * 2 + 10, gain: 70, repriced: 3, estimated: 2 })
   })
   it('formats signed percentages', () => {
     expect([signedPct(12.4), signedPct(-4.6), signedPct(0.2)]).toEqual(['+12%', '−5%', '±0%'])

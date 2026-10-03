@@ -51,7 +51,11 @@ async function route(path: string, method: string, body: Record<string, unknown>
   if (path === '/api/scan') return pause(1200).then(() => json({ result: demoLabel() }))
   if (path === '/api/ask') return pause(900).then(async () => json({ answer: await demoAnswer(body.messages as { role: string; content: string }[]) }))
   if (path === '/api/winelist') return pause(1500).then(() => json({ result: demoWineList(body.food as string | undefined) }))
-  if (path === '/api/pricehint') return pause(800).then(() => json({ hint: demoPriceHint(String(body.name ?? '')) }))
+  if (path === '/api/pricehint') {
+    demoPriced.add(`${body.producer}|${body.name}`) // the demo "remembers" it, like the real server
+    return pause(800).then(() => json({ hint: demoPriceHint(String(body.name ?? '')) }))
+  }
+  if (path === '/api/prices') return json({ prices: demoPrices(body.wines as { id: string }[]) })
   if (path === '/api/windows') return pause(1000).then(() => json({ windows: (body.wines as WindowWine[]).map(demoWindow) }))
   return json({ error: t('Not available in the demo.') }, 501)
 }
@@ -127,4 +131,24 @@ function demoWindow(w: WindowWine): WindowSuggestion {
   const base = w.vintage ?? currentYear()
   const [from, to] = w.type === 'red' ? [4, 15] : w.type === 'sparkling' ? [1, 6] : w.type === 'fortified' ? [10, 40] : [1, 6]
   return { id: w.id, drinkFrom: Math.max(base + from, currentYear() - 1), drinkTo: base + to, peakYear: null, confidence: 'medium', note: t('Demo estimate based on the style of wine.') }
+}
+
+/** Made-up price history for demo wines: a few points over the past year, drifting up or down. */
+/** Wines priced during this visit (the real server keeps them in its database). */
+const demoPriced = new Set<string>()
+
+function demoPrices(wines: { id: string; producer?: string; name?: string }[] = []) {
+  const out: Record<string, { low: number; high: number; source: string; at: string }[]> = {}
+  const today = Date.now()
+  for (const w of wines) {
+    const seed = [...w.id].reduce((n, c) => n + c.charCodeAt(0), 0)
+    if (seed % 3 === 0 && !demoPriced.has(`${w.producer}|${w.name}`)) continue // some not priced yet, so "Estimate" has something to do
+    const base = 20 + (seed % 90)
+    const drift = ((seed % 7) - 3) / 100
+    out[w.id] = [0, 1, 2, 3].map((i) => {
+      const v = Math.round(base * (1 + drift * (3 - i)))
+      return { low: v - 2, high: v + 3, source: i === 1 ? 'winelist' : 'pricehint', at: new Date(today - i * 95 * 86_400_000).toISOString().slice(0, 10) }
+    })
+  }
+  return out
 }
