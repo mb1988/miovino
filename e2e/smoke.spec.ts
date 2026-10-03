@@ -331,3 +331,20 @@ test('value today from remembered prices, and a wine’s price history', async (
   await expect(page.getByRole('img', { name: 'Price from £105 to £130' })).toBeVisible()
   expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations).toEqual([])
 })
+
+test('a newly added wine gets its typical price looked up once, in the background', async ({ page }) => {
+  await page.route('**/api/health', (route) => route.fulfill({ json: { ok: true, authenticated: true, devices: 1, scan: true, ai: 'Google Gemini' } }))
+  const asked: unknown[] = []
+  await page.route('**/api/pricehint', (route) => {
+    asked.push(route.request().postDataJSON())
+    return route.fulfill({ json: { hint: { low: 40, high: 48, where: 'Independents.' } } })
+  })
+  await page.goto('/add/manual')
+  await page.getByPlaceholder('e.g. Giacomo Fenocchio').fill('Vietti')
+  await page.getByPlaceholder('e.g. Barolo Villero').fill('Barolo Castiglione')
+  await page.locator('select').first().selectOption('2019')
+  await page.getByRole('button', { name: /Add to cellar/ }).click()
+  await expect(page.getByRole('heading', { name: 'Barolo Castiglione' })).toBeVisible()
+  await expect.poll(() => asked.length).toBe(1)
+  expect(asked[0]).toMatchObject({ producer: 'Vietti', name: 'Barolo Castiglione', vintage: 2019 })
+})
