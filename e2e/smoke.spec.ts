@@ -308,3 +308,26 @@ test('buy again on a wine page, and find any bottle with its price', async ({ pa
   await page.goto('/wishlist')
   await expect(page.getByText(/Vietti · Barbera d’Asti Tre Vigne/)).toBeVisible()
 })
+
+test('value today from remembered prices, and a wine’s price history', async ({ page }) => {
+  await seed(page, {
+    wines: [wine('w1'), wine('w2', { producer: 'Leflaive', name: 'Puligny-Montrachet', type: 'white' })],
+    bottles: [
+      { id: 'b1', wineId: 'w1', status: 'cellar', purchasePrice: 100, purchaseDate: '2024-01-01', createdAt: now, updatedAt: now },
+      { id: 'b2', wineId: 'w2', status: 'cellar', purchasePrice: 50, purchaseDate: '2024-01-01', createdAt: now, updatedAt: now },
+    ],
+  })
+  await page.route('**/api/prices', (route) =>
+    route.fulfill({ json: { prices: { w1: [{ low: 120, high: 140, source: 'pricehint', at: '2026-09-01' }, { low: 100, high: 110, source: 'winelist', at: '2026-03-01' }] } } }),
+  )
+  await page.goto('/stats')
+  await expect(page.getByText('At today’s prices: £180')).toBeVisible() // 130 (AI) + 50 (paid, no estimate)
+  await expect(page.getByText('1 bottle priced from the AI’s typical UK price (an estimate).')).toBeVisible()
+  await expect(page.getByRole('button', { name: /Estimate today’s price for 1 wine/ })).toBeVisible()
+
+  await page.goto('/wine/w1')
+  await page.getByRole('button', { name: 'Where to buy and at what price' }).click()
+  await expect(page.getByText('Price history')).toBeVisible()
+  await expect(page.getByRole('img', { name: 'Price from £105 to £130' })).toBeVisible()
+  expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations).toEqual([])
+})

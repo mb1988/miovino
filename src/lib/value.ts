@@ -15,24 +15,31 @@ export function priceChange(w: Pick<WineWithBottles, 'bottles' | 'marketPrice'>)
 }
 
 /**
- * The cellar's worth at today's prices: each bottle at its wine's current price where you've set one,
- * otherwise at what you paid. `repriced` counts the bottles that used a current price.
+ * The cellar's worth at today's prices. Each bottle counts at the current price you set for its wine,
+ * else at the AI's remembered typical UK price (`estimates`, by wine id), else at what you paid.
+ * `repriced` counts bottles priced today (by you or the AI), `estimated` those priced by the AI.
  */
-export function cellarValueNow(cellar: Pick<WineWithBottles, 'bottles' | 'marketPrice'>[]) {
+export function cellarValueNow(cellar: Pick<WineWithBottles, 'id' | 'bottles' | 'marketPrice'>[], estimates: Map<string, number> = new Map()) {
   let atCost = 0
   let now = 0
   let repriced = 0
+  let estimated = 0
   for (const w of cellar)
     for (const b of w.bottles) {
       if (b.status !== 'cellar') continue
       const paid = b.purchasePrice
       if (paid != null) atCost += paid
+      const ai = estimates.get(w.id)
       if (w.marketPrice != null) {
         now += w.marketPrice
         repriced++
+      } else if (ai != null) {
+        now += ai
+        repriced++
+        estimated++
       } else if (paid != null) now += paid
     }
-  return { atCost, now, gain: now - atCost, repriced }
+  return { atCost, now, gain: now - atCost, repriced, estimated }
 }
 
 /** "+12%" / "−5%" with a real minus sign. */

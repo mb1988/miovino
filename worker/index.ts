@@ -5,7 +5,8 @@ import { authStatus, handleAuth } from './passkeys'
 import { handleAsk, handlePriceHint, handleWindows, handleWineList, type AskDb } from './ask'
 import { handlePush, monthlyReminder, type PushDb } from './push'
 import { BadRequest, sync, validate, type Db } from './sync'
-import { remember, type FactsDb } from './facts'
+import { priceHistory, remember, type FactsDb } from './facts'
+import { validatePricesRequest } from '../src/shared/priceHistory'
 
 interface Env extends AuthEnv, AiEnv {
   DB: D1Database
@@ -92,6 +93,13 @@ export default {
 
       // POST /api/pricehint — wishlist "where to buy": typical UK price range
       if (url.pathname === '/api/pricehint' && req.method === 'POST') return handlePriceHint(req, env.DB as unknown as FactsDb, env)
+
+      // POST /api/prices — remembered price history for a list of wines (no AI call)
+      if (url.pathname === '/api/prices' && req.method === 'POST') {
+        const wines = validatePricesRequest(await req.json())
+        if (!wines) return json({ error: 'Send {wines: [{id, producer, name, vintage}, …]} (up to 300).' }, 400)
+        return json({ prices: await priceHistory(env.DB as unknown as FactsDb, wines) })
+      }
 
       // POST /api/windows — drinking-window suggestions
       if (url.pathname === '/api/windows' && req.method === 'POST') return handleWindows(req, env.DB as unknown as FactsDb, env)

@@ -630,4 +630,16 @@ export const IT: Record<string, string> = {
   'Find where to buy': 'Trova dove comprarlo',
   'In your cellar: {n} bottles': 'In cantina: {n} bottiglie',
   'On the wishlist': 'Nella lista',
+  // Value today / price history
+  'Price history': 'Storico prezzi',
+  'AI estimate': 'Stima AI',
+  'From a wine list': 'Da una carta dei vini',
+  'Price from £{from} to £{to}': 'Prezzo da £{from} a £{to}',
+  '(10 at a time)': '(10 alla volta)',
+  'Priced {n} wine.': 'Prezzato {n} vino.',
+  'Priced {n} wines.': 'Prezzati {n} vini.',
+  'Estimate today’s price for {n} wine': 'Stima il prezzo di oggi per {n} vino',
+  'Estimate today’s prices for {n} wines': 'Stima i prezzi di oggi per {n} vini',
+  '{n} bottle priced from the AI’s typical UK price (an estimate).': '{n} bottiglia valutata col prezzo tipico UK stimato dall’AI.',
+  '{n} bottles priced from the AI’s typical UK prices (estimates).': '{n} bottiglie valutate coi prezzi tipici UK stimati dall’AI.',
 }

@@ -490,6 +490,27 @@ describe('wishlist price hint endpoint', () => {
     }
   })
 
+  it('returns the remembered price history for a list of wines, without asking the AI', async () => {
+    const db = sqliteD1()
+    const worker = ((await import(/* @vite-ignore */ new URL('../../worker/index.ts', import.meta.url).href)) as { default: { fetch: (req: Request, env: unknown) => Promise<Response> } }).default
+    const env = { DB: db, ALLOW_NO_AUTH: 'true', ASSETS: { fetch: async () => new Response('index') }, GEMINI_API_KEY: 'k' }
+    const post = (path: string, body: unknown) => worker.fetch(new Request('https://cellar.test' + path, { method: 'POST', body: JSON.stringify(body) }), env)
+    let replies = [{ low: 30, high: 34 }, { low: 36, high: 40 }]
+    vi.stubGlobal('fetch', async () => Response.json({ candidates: [{ content: { parts: [{ text: JSON.stringify({ ...replies.shift(), where: 'Shops.' }) }] }, finishReason: 'STOP' }] }))
+    try {
+      await post('/api/pricehint', { producer: 'Gaja', name: 'Barbaresco', vintage: 2016 })
+      db.raw.prepare("UPDATE wine_facts SET created_at = created_at - 40 * 86400000").run() // a month and a bit ago: stale
+      await post('/api/pricehint', { producer: 'GAJA', name: 'barbaresco', vintage: 2016 })
+      const res = (await (await post('/api/prices', { wines: [{ id: 'w1', producer: 'Gaja', name: 'Barbaresco', vintage: 2016 }, { id: 'w2', producer: 'Nobody', name: 'Nothing', vintage: null }] })).json()) as { prices: Record<string, { low: number; source: string }[]> }
+      expect(res.prices.w1.map((p) => p.low)).toEqual([36, 30])
+      expect(res.prices.w1[0].source).toBe('pricehint')
+      expect(res.prices.w2).toBeUndefined()
+      expect((await post('/api/prices', { wines: [] })).status).toBe(400)
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
   it('asks for a UK price range and returns it tidied', async () => {
     const call = await setup('sk-test')
     let prompt = ''

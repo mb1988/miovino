@@ -6,14 +6,42 @@ import { formatMoney } from '../lib/settings'
 import { currentYear } from '../lib/status'
 import { cellarTimeline, type YearRow } from '../lib/timeline'
 import { cellarValueNow, signedPct } from '../lib/value'
-import { BarChart3 } from 'lucide-react'
+import { BarChart3, Loader2, Sparkles } from 'lucide-react'
+import { estimatePrice, latestEstimates, usePriceMemory } from '../lib/priceMemory'
+import { useSync } from '../lib/sync'
 
 /** Cellar over time: what you spent each year, and bottles in and out. */
 export default function StatsPage() {
   const cellar = useCellar()
   const data = useMemo(() => (cellar ? cellarTimeline(cellar) : undefined), [cellar])
-  const value = useMemo(() => cellarValueNow(cellar ?? []), [cellar])
+  const owned = useMemo(() => (cellar ?? []).filter((w) => w.inCellar > 0).map((w) => ({ id: w.id, producer: w.producer, name: w.name, vintage: w.vintage })), [cellar])
+  const { prices, reload } = usePriceMemory(owned)
+  const estimates = useMemo(() => latestEstimates(prices), [prices])
+  const value = useMemo(() => cellarValueNow(cellar ?? [], estimates), [cellar, estimates])
+  const sync = useSync()
+  const [busy, setBusy] = useState(false)
+  const [note, setNote] = useState('')
   if (!cellar || !data) return null
+  // Wines in the cellar with no price today (none set by you, none remembered from the AI).
+  const missing = owned.filter((w) => !estimates.has(w.id) && cellar.find((c) => c.id === w.id)?.marketPrice == null)
+  const estimateMissing = async () => {
+    setBusy(true)
+    setNote('')
+    let done = 0
+    // Ten at a time, one by one: stays well inside the free AI tier's per-minute limit.
+    for (const w of missing.slice(0, 10)) {
+      try {
+        await estimatePrice(w)
+        done++
+      } catch (e) {
+        setNote((e as Error).message)
+        break
+      }
+    }
+    await reload()
+    setBusy(false)
+    if (done) setNote(plural(done, 'Priced {n} wine.', 'Priced {n} wines.'))
+  }
   const thisYear = currentYear()
   const inCellar = cellar.reduce((n, w) => n + w.inCellar, 0)
   const spentThisYear = data.years.find((y) => y.year === thisYear)?.spent ?? 0
@@ -35,6 +63,19 @@ export default function StatsPage() {
             {value.atCost > 0 ? ` (${signedPct((value.gain / value.atCost) * 100)})` : ''}
           </span>
         </p>
+      )}
+      {(value.estimated > 0 || missing.length > 0) && (
+        <div className="-mt-3 mb-6 space-y-2 text-xs text-cream-400">
+          {value.estimated > 0 && <p>{plural(value.estimated, '{n} bottle priced from the AI’s typical UK price (an estimate).', '{n} bottles priced from the AI’s typical UK prices (estimates).')}</p>}
+          {missing.length > 0 && sync.available && sync.authenticated && (
+            <button onClick={estimateMissing} disabled={busy} className="flex min-h-9 items-center gap-1.5 text-wine-300 disabled:text-cream-500">
+              {busy ? <Loader2 size={14} className="animate-spin" aria-hidden /> : <Sparkles size={14} aria-hidden />}
+              {busy ? t('Asking…') : plural(missing.length, 'Estimate today’s price for {n} wine', 'Estimate today’s prices for {n} wines')}
+              {!busy && missing.length > 10 ? <span className="text-cream-500">{t('(10 at a time)')}</span> : null}
+            </button>
+          )}
+          {note && <p role="status">{note}</p>}
+        </div>
       )}
       {data.unpriced > 0 && <p className="-mt-4 mb-6 text-xs text-cream-500">{plural(data.unpriced, '{n} bottle in the cellar has no price, so the value is a floor.', '{n} bottles in the cellar have no price, so the value is a floor.')}</p>}
 

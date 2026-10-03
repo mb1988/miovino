@@ -8,6 +8,7 @@ import { FACT_MAX_AGE_DAYS, wineKey, type FactKind } from '../src/shared/wineKey
 interface Stmt {
   bind(...v: unknown[]): Stmt
   first<T = Record<string, unknown>>(): Promise<T | null>
+  all<T = Record<string, unknown>>(): Promise<{ results: T[] }>
   run(): Promise<unknown>
 }
 export interface FactsDb {
@@ -34,4 +35,28 @@ export async function remember(db: FactsDb, wine: WineRef, kind: FactKind, data:
   } catch (e) {
     console.warn('wine_facts: could not remember', kind, (e as Error).message)
   }
+}
+
+/**
+ * Every remembered price for these wines, newest first, as {wineId: points}.
+ * One query per 90 wines (D1 allows 100 bound values per statement).
+ */
+export async function priceHistory(db: FactsDb, wines: { id: string; producer: string; name: string; vintage: number | null }[]) {
+  const byKey = new Map<string, string[]>()
+  for (const w of wines) byKey.set(wineKey(w), [...(byKey.get(wineKey(w)) ?? []), w.id])
+  const keys = [...byKey.keys()]
+  const out: Record<string, { low: number | null; high: number | null; source: string; at: string }[]> = {}
+  for (let i = 0; i < keys.length; i += 90) {
+    const chunk = keys.slice(i, i + 90)
+    const { results } = await db
+      .prepare(`SELECT wine_key, data, source, created_at FROM wine_facts WHERE kind = 'price' AND wine_key IN (${chunk.map((_, j) => `?${j + 1}`).join(', ')}) ORDER BY created_at DESC`)
+      .bind(...chunk)
+      .all<{ wine_key: string; data: string; source: string; created_at: number }>()
+    for (const r of results) {
+      const d = JSON.parse(r.data) as { low?: number | null; high?: number | null }
+      const point = { low: d.low ?? null, high: d.high ?? null, source: r.source, at: new Date(r.created_at).toISOString().slice(0, 10) }
+      for (const id of byKey.get(r.wine_key) ?? []) (out[id] ??= []).push(point)
+    }
+  }
+  return out
 }
