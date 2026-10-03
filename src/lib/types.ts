@@ -1,4 +1,5 @@
 import { WINE_TYPES } from '../shared/wine'
+import type { GrapePct } from '../shared/blend'
 export { WINE_TYPES }
 export type WineType = (typeof WINE_TYPES)[number]
 
@@ -42,6 +43,7 @@ export interface Wine extends Synced {
   region?: string
   appellation?: string
   grapes: string[]
+  grapePct?: GrapePct // share of each grape (%), only where known — never guessed
   alcohol?: number
   bottleSize: number // ml
   drinkFrom?: number

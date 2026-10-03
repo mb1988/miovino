@@ -56,6 +56,7 @@ async function route(path: string, method: string, body: Record<string, unknown>
     return pause(800).then(() => json({ hint: demoPriceHint(String(body.name ?? '')) }))
   }
   if (path === '/api/prices') return json({ prices: demoPrices(body.wines as { id: string }[]) })
+  if (path === '/api/blends') return pause(900).then(() => json({ blends: demoBlends(body.wines as { id: string; grapes?: string[] }[]) }))
   if (path === '/api/windows') return pause(1000).then(() => json({ windows: (body.wines as WindowWine[]).map(demoWindow) }))
   return json({ error: t('Not available in the demo.') }, 501)
 }
@@ -71,6 +72,7 @@ function demoLabel(): LabelResult {
     region: 'Piedmont',
     appellation: 'Barolo DOCG',
     grapes: ['Nebbiolo'],
+    grapePercents: [100],
     alcohol: 14.5,
     bottleSizeMl: 750,
     drinkFrom: currentYear(),
@@ -151,4 +153,11 @@ function demoPrices(wines: { id: string; producer?: string; name?: string }[] = 
     })
   }
   return out
+}
+
+/** Demo: a "published" blend for two-grape wines only, so the review flow can be tried; the rest stay unknown. */
+function demoBlends(wines: { id: string; grapes?: string[] }[] = []) {
+  return wines
+    .filter((w) => w.grapes?.length === 2)
+    .map((w) => ({ id: w.id, pct: { [w.grapes![0]]: 70, [w.grapes![1]]: 30 }, source: t('Demo: sample technical sheet') }))
 }

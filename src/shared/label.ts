@@ -13,6 +13,7 @@ export const LabelSchema = z.object({
   region: z.string().nullable().describe('Wine region in English, e.g. Piedmont, Bordeaux, Tuscany'),
   appellation: z.string().nullable().describe('Appellation / DOC / DOCG / AOC as printed'),
   grapes: z.array(z.string()).describe('Grape varieties: from the label, or the typical blend for the appellation'),
+  grapePercents: z.array(z.number().nullable()).default([]).describe('Percentage of each grape, in the same order as grapes, ONLY when printed on the label; null for any grape whose share is not printed. Never estimate.'),
   alcohol: z.number().nullable().describe('ABV %'),
   bottleSizeMl: z.number().nullable(),
   drinkFrom: z.number().nullable().describe('Suggested first year to drink — your best estimate for this wine and vintage'),
