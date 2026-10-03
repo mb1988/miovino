@@ -1,0 +1,63 @@
+name: Publish public copy
+
+# After each merge to main, publish a clean copy of the history to the PUBLIC repo (the owner's CV link).
+# Every commit is rewritten so the public history never contains personal data:
+#   - the owner's email (kept in the PUBLISH_SCRUB secret, never written here) is removed from files
+#   - test/fixtures/sample.xlsx is replaced in every commit by the current synthetic one
+# The rewrite is deterministic, so each run is a fast-forward of the public repo; a non-fast-forward fails safely.
+
+on:
+  workflow_run:
+    workflows: ['CI / CD']
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: publish-public
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    # Only from the private repo (this file is also copied into the public one), and only after a green CI.
+    if: github.repository == 'mb1988/miovino-private' && (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Rewrite history without personal data
+        env:
+          SCRUB: ${{ secrets.PUBLISH_SCRUB }}
+        run: |
+          set -euo pipefail
+          [ -n "$SCRUB" ] || { echo "PUBLISH_SCRUB secret missing"; exit 1; }
+          git show HEAD:test/fixtures/sample.xlsx > "$RUNNER_TEMP/clean.xlsx"
+          export CLEAN="$RUNNER_TEMP/clean.xlsx" SCRUB
+          FILTER_BRANCH_SQUELCH_WARNING=1 git filter-branch -f --tree-filter '
+            [ -f test/fixtures/sample.xlsx ] && cp "$CLEAN" test/fixtures/sample.xlsx
+            grep -rlF "$SCRUB" --exclude-dir=.git . 2>/dev/null | while read -r f; do perl -pi -e "s/\Q$ENV{SCRUB}\E//g" "$f"; done
+            true' -- main
+
+      - name: Verify nothing personal is left
+        env:
+          SCRUB: ${{ secrets.PUBLISH_SCRUB }}
+        run: |
+          set -euo pipefail
+          if git log main -p | grep -qF "$SCRUB"; then echo "::error::personal data still in history"; exit 1; fi
+          if git log main -p | grep -qE 'sk-ant-[A-Za-z0-9_-]{20,}|AIza[0-9A-Za-z_-]{30,}|AQ\.[A-Za-z0-9_-]{30,}|sk-or-v1-[a-f0-9]{20,}|-----BEGIN [A-Z ]*PRIVATE KEY'; then echo "::error::possible secret in history"; exit 1; fi
+          echo "clean: $(git rev-list --count main) commits"
+
+      - name: Push to the public repo
+        env:
+          DEPLOY_KEY: ${{ secrets.PUBLIC_REPO_DEPLOY_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh && printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/public_repo && chmod 600 ~/.ssh/public_repo
+          ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
+          export GIT_SSH_COMMAND="ssh -i ~/.ssh/public_repo -o IdentitiesOnly=yes"
+          git remote add public git@github.com:mb1988/miovino.git
+          git push public main:main
+          echo "Published $(git rev-parse --short main) to https://github.com/mb1988/miovino" >> "$GITHUB_STEP_SUMMARY"
