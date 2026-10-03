@@ -5,6 +5,7 @@ import { priceHintPrompt, PriceHintSchema, tidyPriceHint, validatePriceHintReque
 import { aiErrorResponse, generateJson, generateText, type AiEnv } from './ai'
 import { json } from './auth'
 import { recall, remember, type FactsDb } from './facts'
+import { blendsPrompt, BlendsSchema, grapesDisplay, MAX_BLEND_WINES, tidyBlends, validateBlendsRequest, type BlendSuggestion } from '../src/shared/blend'
 import type { PriceHint } from '../src/shared/whereToBuy'
 import type { WindowSuggestion } from '../src/shared/windows'
 
@@ -82,7 +83,7 @@ export async function cellarSnapshot(db: AskDb, now = new Date()) {
     const facts = [
       str(w.type),
       [w.appellation, w.region, w.country].filter(Boolean).join(', '),
-      Array.isArray(w.grapes) && w.grapes.length ? (w.grapes as string[]).join('/') : '',
+      Array.isArray(w.grapes) && w.grapes.length ? grapesDisplay(w.grapes as string[], w.grapePct as Record<string, number> | undefined).join('/') : '',
       `window ${window}`,
       `${inCellar.length} bottle${inCellar.length > 1 ? 's' : ''}${where.length ? ` at ${where.join('; ')}` : ''}`,
       prices.length ? `paid ${prices.join('/')}` : '',
@@ -186,6 +187,27 @@ export async function handleWindows(req: Request, db: FactsDb, env: AiEnv) {
       if (s.drinkFrom != null || s.drinkTo != null) await remember(db, w, 'window', { drinkFrom: s.drinkFrom, drinkTo: s.drinkTo, peakYear: s.peakYear, confidence: s.confidence, note: s.note }, 'windows')
     }
     return json({ windows: [...known, ...fresh] })
+  } catch (e) {
+    return aiErrorResponse(e)
+  }
+}
+
+/** POST /api/blends — grape percentages the producer has published (high confidence, adding up to 100), remembered per wine. */
+export async function handleBlends(req: Request, db: FactsDb, env: AiEnv) {
+  const wines = validateBlendsRequest(await req.json())
+  if (!wines) return json({ error: `Send 1–${MAX_BLEND_WINES} wines as {wines: [{id, producer, name, vintage, …}]}.` }, 400)
+  const known: BlendSuggestion[] = []
+  const ask = []
+  for (const w of wines) {
+    const k = await recall<Omit<BlendSuggestion, 'id'>>(db, w, 'blend')
+    if (k) known.push({ ...k.data, id: w.id })
+    else ask.push(w)
+  }
+  if (!ask.length) return json({ blends: known })
+  try {
+    const fresh = tidyBlends(ask, await generateJson(env, { messages: [{ role: 'user', content: blendsPrompt(ask) }] }, BlendsSchema))
+    for (const b of fresh) await remember(db, ask.find((w) => w.id === b.id)!, 'blend', { pct: b.pct, source: b.source }, 'blends')
+    return json({ blends: [...known, ...fresh] })
   } catch (e) {
     return aiErrorResponse(e)
   }

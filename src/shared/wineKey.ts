@@ -14,5 +14,5 @@ export function wineKey(w: { producer?: string | null; name?: string | null; vin
 }
 
 /** How long a remembered fact is trusted before the AI is asked again. */
-export const FACT_MAX_AGE_DAYS = { price: 30, window: 365 } as const
+export const FACT_MAX_AGE_DAYS = { price: 30, window: 365, blend: 3650 } as const
 export type FactKind = keyof typeof FACT_MAX_AGE_DAYS

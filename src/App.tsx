@@ -28,6 +28,7 @@ const WineListPage = lazy(() => import('./pages/WineListPage'))
 const WindowsPage = lazy(() => import('./pages/WindowsPage'))
 const WishlistPage = lazy(() => import('./pages/WishlistPage'))
 const FindBottlePage = lazy(() => import('./pages/FindBottlePage'))
+const GrapesPage = lazy(() => import('./pages/GrapesPage'))
 const WinePage = lazy(() => import('./pages/WinePage'))
 const DemoShowcase = lazy(() => import('./components/DemoShowcase').then((m) => ({ default: m.DemoShowcase })))
 
@@ -79,6 +80,7 @@ export default function App() {
           <Route path="/more" element={<MorePage />} />
           <Route path="/wishlist" element={<WishlistPage />} />
           <Route path="/buy" element={<FindBottlePage />} />
+          <Route path="/grapes" element={<GrapesPage />} />
           <Route path="/rack" element={<RackPage />} />
           <Route path="/ask" element={<AskPage />} />
           <Route path="/stats" element={<StatsPage />} />

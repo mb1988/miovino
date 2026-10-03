@@ -12,6 +12,7 @@ import { normalizeBarcode } from '../lib/barcode'
 import { imageToBase64 } from '../lib/image'
 import { useCanScan } from '../lib/sync'
 import { estimatePrice } from '../lib/priceMemory'
+import { blendProblem, grapesText, parseGrapes, type GrapePct } from '../shared/blend'
 import type { LabelResult } from '../lib/scanner'
 import { WINE_TYPE_LABEL, WINE_TYPES, type ExternalInfo, type Wine, type WineType } from '../lib/types'
 
@@ -54,7 +55,7 @@ export function labelToDraft(r: LabelResult, thumb: Blob): AddState {
       country: r.country ?? '',
       region: r.region ?? '',
       appellation: r.appellation ?? '',
-      grapes: r.grapes.join(', '),
+      grapes: grapesText(r.grapes, Object.fromEntries(r.grapes.flatMap((g, i) => (r.grapePercents?.[i] != null ? [[g, r.grapePercents[i]!]] : []))) as GrapePct),
       alcohol: r.alcohol?.toString() ?? '',
       bottleSize: String(r.bottleSizeMl ?? 750),
       drinkFrom: r.drinkFrom?.toString() ?? '',
@@ -94,7 +95,7 @@ function fromWine(w: Wine): WineDraft {
     country: w.country ?? '',
     region: w.region ?? '',
     appellation: w.appellation ?? '',
-    grapes: w.grapes.join(', '),
+    grapes: grapesText(w.grapes, w.grapePct),
     alcohol: w.alcohol?.toString() ?? '',
     bottleSize: String(w.bottleSize),
     drinkFrom: w.drinkFrom?.toString() ?? '',
@@ -185,6 +186,8 @@ export default function EditWinePage() {
 
   const save = async () => {
     if (!draft.producer.trim() && !draft.name.trim()) return setError('Give it at least a producer or a name.')
+    const blend = parseGrapes(draft.grapes)
+    if (blendProblem(blend.pct)) return setError(t('The grape percentages add up to more than 100%.'))
     const vintage = draft.vintage.trim().toUpperCase() === 'NV' || draft.vintage.trim() === '' ? null : int(draft.vintage) ?? null
     const wine = {
       producer: tidyName(draft.producer),
@@ -194,7 +197,8 @@ export default function EditWinePage() {
       country: draft.country.trim() || undefined,
       region: draft.region.trim() || undefined,
       appellation: draft.appellation.trim() || undefined,
-      grapes: draft.grapes.split(',').map((g) => g.trim()).filter(Boolean),
+      grapes: blend.grapes,
+      grapePct: Object.keys(blend.pct).length ? blend.pct : undefined,
       alcohol: num(draft.alcohol),
       bottleSize: int(draft.bottleSize) ?? 750,
       drinkFrom: int(draft.drinkFrom),
@@ -346,7 +350,7 @@ export default function EditWinePage() {
             <Field label={t('Region')} value={draft.region} onChange={(v) => up({ region: v })} placeholder={t('Piedmont')} />
           </div>
           <Field label={t('Appellation')} value={draft.appellation} onChange={(v) => up({ appellation: v })} placeholder={t('Barolo DOCG')} />
-          <Field label={t('Grapes')} hint={t('comma separated')} value={draft.grapes} onChange={(v) => up({ grapes: v })} placeholder={t('Nebbiolo')} />
+          <Field label={t('Grapes')} hint={t('comma separated · % optional')} value={draft.grapes} onChange={(v) => up({ grapes: v })} placeholder={t('e.g. Merlot 60%, Cabernet Franc 40%')} />
           <div className="grid grid-cols-2 gap-3">
             <Field label={t('Alcohol %')} value={draft.alcohol} onChange={(v) => up({ alcohol: v })} placeholder="14.5" inputMode="decimal" />
             <label className="block">

@@ -2,7 +2,7 @@ import { labelPrompt, LabelSchema, tidyLabel } from '../src/shared/label'
 import { aiErrorResponse, aiProvider, generateJson, type AiEnv } from './ai'
 import { authorize, json, type AuthEnv } from './auth'
 import { authStatus, handleAuth } from './passkeys'
-import { handleAsk, handlePriceHint, handleWindows, handleWineList, type AskDb } from './ask'
+import { handleAsk, handleBlends, handlePriceHint, handleWindows, handleWineList, type AskDb } from './ask'
 import { handlePush, monthlyReminder, type PushDb } from './push'
 import { BadRequest, sync, validate, type Db } from './sync'
 import { priceHistory, remember, type FactsDb } from './facts'
@@ -100,6 +100,9 @@ export default {
         if (!wines) return json({ error: 'Send {wines: [{id, producer, name, vintage}, …]} (up to 300).' }, 400)
         return json({ prices: await priceHistory(env.DB as unknown as FactsDb, wines) })
       }
+
+      // POST /api/blends — published grape percentages
+      if (url.pathname === '/api/blends' && req.method === 'POST') return handleBlends(req, env.DB as unknown as FactsDb, env)
 
       // POST /api/windows — drinking-window suggestions
       if (url.pathname === '/api/windows' && req.method === 'POST') return handleWindows(req, env.DB as unknown as FactsDb, env)

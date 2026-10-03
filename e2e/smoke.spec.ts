@@ -348,3 +348,26 @@ test('a newly added wine gets its typical price looked up once, in the backgroun
   await expect.poll(() => asked.length).toBe(1)
   expect(asked[0]).toMatchObject({ producer: 'Vietti', name: 'Barolo Castiglione', vintage: 2019 })
 })
+
+test('grape percentages: typed in the form, shown on the wine, certain ones filled from the appellation', async ({ page }) => {
+  await seed(page, {
+    wines: [wine('w1', { producer: 'Château X', name: 'Pomerol', appellation: 'Pomerol AOC', grapes: ['Merlot', 'Cabernet Franc'] }), wine('w2', { name: 'Barolo', appellation: 'Barolo DOCG', grapes: ['Nebbiolo'] })],
+    bottles: [{ id: 'b1', wineId: 'w1', status: 'cellar', createdAt: now, updatedAt: now }],
+  })
+  await page.goto('/wine/w1/edit')
+  const grapes = page.getByPlaceholder('e.g. Merlot 60%, Cabernet Franc 40%')
+  await grapes.fill('Merlot 70%, Cabernet Franc 40%')
+  await page.getByRole('button', { name: /Save/ }).click()
+  await expect(page.getByText('The grape percentages add up to more than 100%.')).toBeVisible()
+  await grapes.fill('Cabernet Franc 40%, Merlot 60%')
+  await page.getByRole('button', { name: /Save/ }).click()
+  await expect(page.getByText('Merlot 60%, Cabernet Franc 40%')).toBeVisible() // biggest share first
+
+  // The Barolo is certain (the appellation allows only Nebbiolo); the Pomerol now has its own and isn't listed.
+  await page.goto('/grapes')
+  await expect(page.getByText('Nebbiolo 100% · the appellation allows only this grape')).toBeVisible()
+  await expect(page.getByText(/Château X Pomerol/)).toHaveCount(0)
+  await page.getByRole('button', { name: 'Fill 1 wine' }).click()
+  await expect(page.getByText('Every wine has its percentages')).toBeVisible()
+  expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations).toEqual([])
+})

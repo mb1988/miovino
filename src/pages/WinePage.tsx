@@ -7,6 +7,7 @@ import { addBottles, db, deleteWine, ensureLocation, today, updateWine } from '.
 import { useBlobUrl, useCellar, useLocations, useWine } from '../lib/hooks'
 import { WhereToBuy } from '../components/WhereToBuy'
 import { PriceHistory } from '../components/PriceHistory'
+import { grapesDisplay } from '../shared/blend'
 import { usePriceMemory } from '../lib/priceMemory'
 import { classicPairing } from '../lib/pairing'
 import { parseWindow } from '../lib/importer'
@@ -237,7 +238,7 @@ export default function WinePage() {
       <Section title={t('Wine info')}>
         <div className="card divide-y divide-ink-700 text-sm">
           <InfoRow label={t('Appellation')} value={wine.appellation} />
-          <InfoRow label={t('Grapes')} value={wine.grapes.join(', ')} icon={<Grape size={14} />} />
+          <InfoRow label={t('Grapes')} value={grapesDisplay(wine.grapes, wine.grapePct).join(', ')} icon={<Grape size={14} />} />
           <InfoRow label={t('Alcohol')} value={wine.alcohol ? `${wine.alcohol}%` : undefined} />
           <InfoRow label={t('Bottle')} value={wine.bottleSize !== 750 ? `${wine.bottleSize} ml` : '750 ml'} />
         </div>
