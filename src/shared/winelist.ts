@@ -6,7 +6,7 @@ const retailEstimate = z.number().nullable().default(null).describe('Your estima
 const valueNote = z.string().nullable().default(null).describe('A few words on the price, e.g. "about 2× shop price — good value" or "5× retail, skip"')
 
 export const WineListSchema = z.object({
-  isWineList: z.boolean().describe('false if the photos do not show a wine list or menu with wines'),
+  isWineList: z.boolean().describe('false if the photos or text do not show a wine list or menu with wines'),
   currency: z.string().nullable().describe('Currency symbol or code used on the list, e.g. £ or €'),
   picks: z
     .array(
@@ -58,9 +58,14 @@ export function tidyWineList(r: Raw): WineListResult {
 
 export const MAX_LIST_PAGES = 3
 export const MAX_IMAGE_CHARS = 6_000_000 // base64 of a ~1568px JPEG is well under this
+/** Text of a PDF or web page; a long restaurant list is ~20–40k characters. */
+export const MAX_LIST_TEXT = 100_000
+export const MIN_LIST_TEXT = 80
 
+/** Photos of the pages, or the list's text (read from a PDF or a website) — one or the other. */
 export interface WineListRequest {
-  images: string[] // base64 JPEG, no data: prefix
+  images?: string[] // base64 JPEG, no data: prefix
+  text?: string
   food?: string
   budget?: number
   lang?: 'en' | 'it'
@@ -68,16 +73,41 @@ export interface WineListRequest {
 
 export function validateWineListRequest(body: unknown): WineListRequest | null {
   const b = body as WineListRequest
-  if (!b || !Array.isArray(b.images) || !b.images.length || b.images.length > MAX_LIST_PAGES) return null
-  if (!b.images.every((i) => typeof i === 'string' && i.length > 100 && i.length < MAX_IMAGE_CHARS)) return null
+  if (!b) return null
+  const hasImages = Array.isArray(b.images) && b.images.length > 0
+  const hasText = typeof b.text === 'string' && b.text.trim().length > 0
+  if (hasImages === hasText) return null
+  if (hasImages && (b.images!.length > MAX_LIST_PAGES || !b.images!.every((i) => typeof i === 'string' && i.length > 100 && i.length < MAX_IMAGE_CHARS))) return null
+  if (hasText && (b.text!.trim().length < MIN_LIST_TEXT || b.text!.length > MAX_LIST_TEXT)) return null
   if (b.food != null && (typeof b.food !== 'string' || b.food.length > 200)) return null
   if (b.budget != null && !(typeof b.budget === 'number' && b.budget > 0 && b.budget < 100_000)) return null
-  return { images: b.images, food: b.food?.trim() || undefined, budget: b.budget, lang: b.lang === 'it' ? 'it' : 'en' }
+  const source = hasImages ? { images: b.images } : { text: b.text!.trim() }
+  return { ...source, food: b.food?.trim() || undefined, budget: b.budget, lang: b.lang === 'it' ? 'it' : 'en' }
 }
 
-export function wineListPrompt(r: Pick<WineListRequest, 'food' | 'budget' | 'lang'>) {
+const ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ', pound: '£', euro: '€', eacute: 'é', egrave: 'è', agrave: 'à', ograve: 'ò', ugrave: 'ù', igrave: 'ì', ocirc: 'ô', acirc: 'â', ecirc: 'ê', ccedil: 'ç', uuml: 'ü', ouml: 'ö', auml: 'ä', ndash: '–', mdash: '—', rsquo: '’', lsquo: '‘', hellip: '…' }
+
+/** A web page's readable text: scripts, styles and tags dropped, block elements on their own lines. */
+export function htmlToText(html: string): string {
+  return html
+    .replace(/<(script|style|noscript|svg|template|head)\b[\s\S]*?<\/\1>/gi, ' ')
+    .replace(/<!--[\s\S]*?-->/g, ' ')
+    .replace(/<(br|\/p|\/div|\/li|\/tr|\/h[1-6]|\/section|\/article|\/table)\b[^>]*>/gi, '\n')
+    .replace(/<\/t[dh]>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&#(x[0-9a-f]+|\d+);/gi, (_, n: string) => String.fromCodePoint(n[0].toLowerCase() === 'x' ? parseInt(n.slice(1), 16) : Number(n)))
+    .replace(/&([a-z]+);/gi, (m, n: string) => ENTITIES[n.toLowerCase()] ?? m)
+    .split('\n')
+    .map((l) => l.replace(/\s+/g, ' ').trim())
+    .filter(Boolean)
+    .join('\n')
+}
+
+export function wineListPrompt(r: Pick<WineListRequest, 'food' | 'budget' | 'lang'>, from: 'photos' | 'text' = 'photos') {
   return [
-    'These photos are pages of a restaurant wine list. The owner of the cellar described in the system prompt is choosing a bottle.',
+    from === 'photos'
+      ? 'These photos are pages of a restaurant wine list. The owner of the cellar described in the system prompt is choosing a bottle.'
+      : 'Below is the text of a restaurant wine list, taken from its PDF or website (layout may be rough; columns can run together). The owner of the cellar described in the system prompt is choosing a bottle.',
     'Read every wine on the list, then pick up to 5 that best match THEIR taste — use their ratings, the wines they would buy again, and the styles, grapes and regions they own and love. Prefer wines that are drinking well now for their vintage.',
     r.food ? `They are eating: ${r.food}. Make the pairing count.` : 'They have not said what they are eating; favour versatile food wines.',
     r.budget ? `Budget: up to ${r.budget} per bottle on the list's prices. Stay within it unless one pick just above is clearly worth it — say so.` : '',

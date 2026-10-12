@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url'
 
 const root = fileURLToPath(new URL('../dist/client/', import.meta.url))
 const port = Number(process.env.PORT ?? 4174)
-const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.wasm': 'application/wasm', '.png': 'image/png' }
+const types = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.wasm': 'application/wasm', '.png': 'image/png' }
 
 createServer((req, res) => {
   const path = decodeURIComponent(new URL(req.url ?? '/', 'http://x').pathname)
