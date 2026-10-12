@@ -18,7 +18,7 @@ export function WineCard({ wine: w }: { wine: WineWithBottles }) {
   const locs = locationsOf(w)
   const price = bottlePrice(w)
   return (
-    <Link to={`/wine/${w.id}`} className={cx('card animate-rise block p-4 transition hover:ring-ink-600', w.inCellar === 0 && 'opacity-55')}>
+    <Link to={`/wine/${w.id}`} className={cx('card cv-auto animate-rise block p-4 transition hover:ring-ink-600', w.inCellar === 0 && 'opacity-55')}>
       <div className="flex gap-3.5">
         <div className="flex w-10 shrink-0 items-start justify-center pt-0.5">
           {photo ? <img src={photo} alt="" className="h-14 w-10 rounded-md object-cover" /> : <Bottle type={w.type} className="h-14 w-6" />}

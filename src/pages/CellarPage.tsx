@@ -1,6 +1,6 @@
 import { ArrowUpDown, ChevronDown, Camera, FileSpreadsheet, LayoutList, PenLine, Rows3, Search, SlidersHorizontal, Sparkles, Wine as WineIcon, X } from 'lucide-react'
 import { plural, t } from '../lib/i18n'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { MonthlyDigest } from '../components/MonthlyDigest'
 import { locationsOf, WineCard, WineRow } from '../components/WineCard'
@@ -41,6 +41,22 @@ function saveView(v: string) {
   }
 }
 
+/** Cards drawn on the first paint; the rest are drawn when the reader scrolls near them, so a big cellar opens fast. */
+const FIRST_CARDS = 8
+
+function useShowAll() {
+  // Very old browsers without IntersectionObserver just get every card at once.
+  const [all, setAll] = useState(() => !('IntersectionObserver' in window))
+  const [sentinel, setSentinel] = useState<HTMLElement | null>(null)
+  useEffect(() => {
+    if (all || !sentinel) return
+    const io = new IntersectionObserver((e) => e.some((x) => x.isIntersecting) && setAll(true), { rootMargin: '800px 0px' })
+    io.observe(sentinel)
+    return () => io.disconnect()
+  }, [all, sentinel])
+  return [all, setSentinel] as const
+}
+
 export default function CellarPage() {
   const { wines: cellar, all, names, active, setActive } = useCellarView()
   const settings = useSettings()
@@ -58,6 +74,7 @@ export default function CellarPage() {
   const sort = (params.get('sort') as SortKey) ?? 'urgency'
   // Cards or list: the URL wins, else this device's last choice.
   const view = params.get('view') ?? savedView()
+  const [allCards, moreSentinel] = useShowAll()
 
   const set = (k: string, v: string | null) => {
     const p = new URLSearchParams(params)
@@ -238,15 +255,17 @@ export default function CellarPage() {
         </Empty>
       ) : view === 'cards' ? (
         <div className="grid gap-3 sm:grid-cols-2">
-          {list.map((w) => (
+          {(allCards ? list : list.slice(0, FIRST_CARDS)).map((w) => (
             <WineCard key={w.id} wine={w} />
           ))}
+          {!allCards && list.length > FIRST_CARDS && <div ref={moreSentinel} className="h-px" aria-hidden />}
         </div>
       ) : (
         <div>
-          {list.map((w) => (
+          {(allCards ? list : list.slice(0, FIRST_CARDS * 2)).map((w) => (
             <WineRow key={w.id} wine={w} />
           ))}
+          {!allCards && list.length > FIRST_CARDS * 2 && <div ref={moreSentinel} className="h-px" aria-hidden />}
         </div>
       )}
 
