@@ -1,3 +1,4 @@
+import { grapesDisplay } from '../shared/blend'
 import { db, deleteAllData, loadCellar } from './db'
 import { drinkStatus, STATUS_META } from './status'
 import { WINE_TYPE_LABEL, type Bottle, type Location, type Tasting, type Wine } from './types'
@@ -107,10 +108,11 @@ export async function exportTables() {
       Country: w.country ?? '',
       Region: w.region ?? '',
       Appellation: w.appellation ?? '',
-      Grapes: w.grapes.join(', '),
+      Grapes: grapesDisplay(w.grapes, w.grapePct).join(', '),
       'In cellar': w.inCellar,
       'Drunk': w.bottles.filter((b) => b.status === 'drunk').length,
       'Avg price': prices.length ? prices.reduce((a, b) => a + b, 0) / prices.length : '',
+      'Price today': w.marketPrice ?? '',
       'Drink from': w.drinkFrom ?? '',
       'Drink until': w.drinkTo ?? '',
       'Peak year': w.peakYear ?? '',

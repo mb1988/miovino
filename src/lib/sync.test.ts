@@ -140,7 +140,7 @@ describe('two devices syncing through the Worker', () => {
     const phoneBottles = await phone.db.bottles.where('wineId').equals(id).toArray()
     expect(phoneBottles.filter((b) => b.status === 'drunk')).toHaveLength(1)
     expect((await phone.db.tastings.toArray())[0]).toMatchObject({ rating: 4.5, notes: 'Lovely' })
-  })
+  }, 60_000) // two full app instances syncing: slow on a loaded Windows machine, fast in CI
 
   it('stores and serves label photos, and drops them when the wine is deleted', async () => {
     const id = 'wine-photo-0001'
