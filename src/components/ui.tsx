@@ -204,7 +204,8 @@ export function Sheet({ open, onClose, title, children }: { open: boolean; onClo
         aria-label={title}
         ref={(el) => {
           // Move focus into the sheet when it opens, so keyboard and screen-reader users land in it.
-          if (el && !el.contains(document.activeElement)) el.focus()
+          // Next frame: focusing during React's commit would force the whole page's first layout there.
+          if (el) requestAnimationFrame(() => el.isConnected && !el.contains(document.activeElement) && el.focus())
         }}
         tabIndex={-1}
         className="animate-sheet pb-[calc(env(safe-area-inset-bottom)+1.25rem)] max-h-[88dvh] w-full max-w-xl overflow-y-auto rounded-t-3xl bg-ink-850 p-5 ring-1 ring-ink-700 outline-none sm:rounded-3xl"
