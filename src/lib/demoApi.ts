@@ -15,9 +15,12 @@ export async function seedDemo(force = false) {
   const data = demoData()
   await asRemote(() =>
     db.transaction('rw', [db.wines, db.bottles, db.tastings, db.locations, db.wishlist, db.tombstones, db.meta], async () => {
-      // A first visit starts empty: skip the clears and write all tables at once.
-      if (force) await Promise.all([db.wines.clear(), db.bottles.clear(), db.tastings.clear(), db.locations.clear(), db.wishlist.clear(), db.tombstones.clear()])
-      await Promise.all([db.wines.bulkPut(data.wines), db.bottles.bulkPut(data.bottles), db.tastings.bulkPut(data.tastings), db.locations.bulkPut(data.locations), db.wishlist.bulkPut(data.wishlist)])
+      // Clearing an empty table is cheap. Then bulkAdd, not bulkPut: with the sync hooks installed,
+      // a put first reads each key back to tell create from update, which the empty tables don't need.
+      await Promise.all([db.wines.clear(), db.bottles.clear(), db.tastings.clear(), db.locations.clear(), db.wishlist.clear(), db.tombstones.clear()])
+      await Promise.all([db.wines.bulkAdd(data.wines), db.bottles.bulkAdd(data.bottles), db.tastings.bulkAdd(data.tastings), db.locations.bulkAdd(data.locations), db.wishlist.bulkAdd(data.wishlist)])
+      // The demo server stores nothing, so don't make the first sync re-send all the sample records to it.
+      await db.meta.put({ key: 'lastPush', value: Date.now() })
     }),
   )
 }
