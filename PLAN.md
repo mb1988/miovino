@@ -186,6 +186,16 @@ Feedback after using the app. Each item is one PR; CI must be green before mergi
 3. [x] **Public repo refreshes itself** — GitHub Action: rewrite (no email / real rows) and push to the public repo after each merge
 4. [ ] **Own domain** (owner buys it, e.g. miovino.app) — then add it as a Workers custom domain and update links
 5. [ ] Wishlist price alerts — needs live shop prices (paid feed); parked
+6. [x] **Demo tour GIF** in the README (recorded from the demo build)
+7. [x] **Auto price for new wines** — one background price lookup after adding a wine
+8. [x] **Grape percentages** — "Merlot 60%, Cabernet Franc 40%" in the grapes field (>100% refused), shown on the wine page and to the chat, read from labels only when printed. More → Grape percentages fills existing wines only from facts: single-grape appellations (Barolo/Barbaresco/Brunello/Condrieu/Chablis/Bonnezeaux…) and % already typed; blends = producer-published figures via AI (high confidence, sum 100, with source), owner accepts each. Never guessed.
+9. [x] **Wine DNA by grape share** (70/30 counts 0.7/0.3; equal split only when unknown); exports carry grape % and "Price today"
+
+### Phase 9 — next (as of 2026-10-12)
+1. [ ] **Demo speed** — live Lighthouse (mobile) on /demo: Performance 42 (A11y/BP/SEO 100), TBT ~1.9 s. First demo visit seeds ~160 records then renders all 38 WineCards. Fix: render the list progressively (first ~10 cards, rest after idle / on scroll, or `content-visibility:auto` on cards), make demo seeding cheaper; target ≥70. Re-measure with `npx -y lighthouse@12 https://miovino.miovino.workers.dev/demo` (CHROME_PATH = Playwright's chromium).
+2. [ ] **Owner action**: More → Grape percentages → Fill + Look up published blends (fills the real cellar).
+3. [ ] **Own domain** — owner buys (e.g. miovino.app); then Workers custom domain + update links (README, og tags, demo intro).
+4. [ ] Optional: email version of the monthly reminder (needs a free Resend key), wishlist price alerts (needs a paid live-price feed).
 
 Answers to the owner's questions
 - *More than one cellar?* Today: several **locations/racks** (each with its own grid) but no "cellar" level above them — item 5 adds it.
