@@ -92,6 +92,12 @@ select.field {
     transform: none;
   }
 }
+/* Off-screen cards skip layout and paint until scrolled near (size is a placeholder until first drawn). */
+.cv-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 150px;
+}
+
 .animate-rise {
   animation: rise 0.25s ease-out both;
 }

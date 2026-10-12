@@ -1,5 +1,5 @@
 import type { LabelResult } from '../shared/label'
-import { tidyWineList, type WineListResult } from '../shared/winelist'
+import type { WineListResult } from '../shared/winelist'
 import type { PriceHint } from '../shared/whereToBuy'
 import type { WindowSuggestion, WindowWine } from '../shared/windows'
 import { asRemote, db, loadCellar } from './db'
@@ -15,12 +15,9 @@ export async function seedDemo(force = false) {
   const data = demoData()
   await asRemote(() =>
     db.transaction('rw', [db.wines, db.bottles, db.tastings, db.locations, db.wishlist, db.tombstones, db.meta], async () => {
-      await Promise.all([db.wines.clear(), db.bottles.clear(), db.tastings.clear(), db.locations.clear(), db.wishlist.clear(), db.tombstones.clear()])
-      await db.wines.bulkPut(data.wines)
-      await db.bottles.bulkPut(data.bottles)
-      await db.tastings.bulkPut(data.tastings)
-      await db.locations.bulkPut(data.locations)
-      await db.wishlist.bulkPut(data.wishlist)
+      // A first visit starts empty: skip the clears and write all tables at once.
+      if (force) await Promise.all([db.wines.clear(), db.bottles.clear(), db.tastings.clear(), db.locations.clear(), db.wishlist.clear(), db.tombstones.clear()])
+      await Promise.all([db.wines.bulkPut(data.wines), db.bottles.bulkPut(data.bottles), db.tastings.bulkPut(data.tastings), db.locations.bulkPut(data.locations), db.wishlist.bulkPut(data.wishlist)])
     }),
   )
 }
@@ -50,7 +47,7 @@ async function route(path: string, method: string, body: Record<string, unknown>
   if (path === '/api/auth/devices' && method === 'GET') return json({ devices: [{ id: 'demo', device_name: t('Demo device'), created_at: Date.now() - 86_400_000 * 30, last_used_at: Date.now() }] })
   if (path === '/api/scan') return pause(1200).then(() => json({ result: demoLabel() }))
   if (path === '/api/ask') return pause(900).then(async () => json({ answer: await demoAnswer(body.messages as { role: string; content: string }[]) }))
-  if (path === '/api/winelist') return pause(1500).then(() => json({ result: demoWineList(body.food as string | undefined) }))
+  if (path === '/api/winelist') return pause(1500).then(async () => json({ result: await demoWineList(body.food as string | undefined) }))
   if (path === '/api/pricehint') {
     demoPriced.add(`${body.producer}|${body.name}`) // the demo "remembers" it, like the real server
     return pause(800).then(() => json({ hint: demoPriceHint(String(body.name ?? '')) }))
@@ -97,7 +94,9 @@ async function demoAnswer(turns: { role: string; content: string }[] = []) {
   return [intro, '', ...lines, '', `_${t('Demo mode: answers come from the built-in recommender. The real app asks an AI about your own cellar.')}_`].join('\n')
 }
 
-function demoWineList(food?: string): WineListResult {
+// Loaded on use: the wine-list parser pulls in zod, which the demo's first screen doesn't need.
+async function demoWineList(food?: string): Promise<WineListResult> {
+  const { tidyWineList } = await import('../shared/winelist')
   const it = getLang() === 'it'
   const pairing = food ? (it ? ` e si abbina a ${food}` : ` and works with ${food}`) : ''
   return tidyWineList({
