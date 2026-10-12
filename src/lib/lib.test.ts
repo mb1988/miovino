@@ -246,3 +246,21 @@ describe('price paid vs. today', async () => {
     expect([signedPct(12.4), signedPct(-4.6), signedPct(0.2)]).toEqual(['+12%', '−5%', '±0%'])
   })
 })
+
+describe('grape shares in Wine DNA', async () => {
+  const { grapeShares, rankBy } = await import('./stats')
+  const w = (grapes: string[], grapePct: Record<string, number> | undefined, rating: number, bottles = 1) =>
+    ({ grapes, grapePct, bottles: Array.from({ length: bottles }, () => ({ status: 'drunk' })), tastings: [{ rating }] }) as unknown as WineWithBottles
+  it('uses known percentages, and splits the rest equally', () => {
+    expect(grapeShares(w(['Cabernet Sauvignon', 'Merlot'], { 'Cabernet Sauvignon': 70, Merlot: 30 }, 4))).toEqual([['Cabernet Sauvignon', 0.7], ['Merlot', 0.3]])
+    expect(grapeShares(w(['Merlot', 'Cabernet Franc', 'Malbec'], { Merlot: 80 }, 4))).toEqual([['Merlot', 0.8], ['Cabernet Franc', 0.1], ['Malbec', 0.1]])
+    expect(grapeShares(w(['Syrah', 'Viognier'], undefined, 4))).toEqual([['Syrah', 0.5], ['Viognier', 0.5]])
+  })
+  it('weights bottles and ratings by share', () => {
+    const cellar = [w(['Cabernet Sauvignon', 'Merlot'], { 'Cabernet Sauvignon': 80, Merlot: 20 }, 5, 2), w(['Merlot'], { Merlot: 100 }, 3)]
+    const r = Object.fromEntries(rankBy(cellar, grapeShares).map((x) => [x.key, x]))
+    expect(r['Cabernet Sauvignon'].bottles).toBe(1.6)
+    expect(r.Merlot.bottles).toBe(1.4)
+    expect(r.Merlot.avgRating).toBeCloseTo((5 * 0.2 + 3 * 1) / 1.2) // the 5★ blend counts a little for Merlot
+  })
+})

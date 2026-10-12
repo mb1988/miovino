@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom'
 import { Bottle, PageHeader, Section, Stars, TYPE_COLOR } from '../components/ui'
 import { useCellar } from '../lib/hooks'
 import { formatMoney } from '../lib/settings'
-import { cellarStats, rankBy, tasteSummary, type Ranked } from '../lib/stats'
+import { cellarStats, grapeShares, rankBy, tasteSummary, type Ranked } from '../lib/stats'
 import { WINE_TYPE_LABEL, type WineType } from '../lib/types'
 
 export default function TastePage() {
@@ -19,7 +19,7 @@ export default function TastePage() {
     return {
       stats: cellarStats(cellar),
       types: [...allBottles.entries()].sort((a, b) => b[1] - a[1]).map(([t, n]) => ({ t, n, pct: total ? n / total : 0 })),
-      grapes: rankBy(cellar, (w) => w.grapes),
+      grapes: rankBy(cellar, grapeShares),
       regions: rankBy(cellar, (w) => [w.region ?? '']),
       countries: rankBy(cellar, (w) => [w.country ?? '']),
       producers: rankBy(cellar, (w) => [w.producer]),

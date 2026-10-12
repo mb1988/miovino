@@ -54,33 +54,54 @@ export interface Ranked {
   tastings: number
 }
 
-/** Ranks a dimension (grape/region/producer/country) by bottles owned+drunk and by your ratings. */
-export function rankBy(cellar: WineWithBottles[], pick: (w: WineWithBottles) => string[]): Ranked[] {
-  const m = new Map<string, { bottles: number; ratings: number[]; tastings: number }>()
+/**
+ * Ranks a dimension (grape/region/producer/country) by bottles owned+drunk and by your ratings.
+ * `pick` may give each key a weight (its share of the wine); bottles and ratings count by that weight.
+ */
+export function rankBy(cellar: WineWithBottles[], pick: (w: WineWithBottles) => (string | [string, number])[]): Ranked[] {
+  const m = new Map<string, { bottles: number; rated: number; weight: number; tastings: number }>()
   for (const w of cellar) {
-    for (const k of pick(w)) {
-      if (!k) continue
-      const e = m.get(k) ?? { bottles: 0, ratings: [], tastings: 0 }
-      e.bottles += w.bottles.length
+    for (const item of pick(w)) {
+      const [k, share] = typeof item === 'string' ? [item, 1] : item
+      if (!k || share <= 0) continue
+      const e = m.get(k) ?? { bottles: 0, rated: 0, weight: 0, tastings: 0 }
+      e.bottles += w.bottles.length * share
       e.tastings += w.tastings.length
-      for (const t of w.tastings) if (t.rating != null) e.ratings.push(t.rating)
+      for (const t of w.tastings)
+        if (t.rating != null) {
+          e.rated += t.rating * share
+          e.weight += share
+        }
       m.set(k, e)
     }
   }
   return [...m.entries()]
     .map(([key, e]) => ({
       key,
-      bottles: e.bottles,
+      bottles: Math.round(e.bottles * 10) / 10,
       tastings: e.tastings,
-      avgRating: e.ratings.length ? e.ratings.reduce((a, b) => a + b, 0) / e.ratings.length : undefined,
+      avgRating: e.weight ? e.rated / e.weight : undefined,
     }))
     .sort((a, b) => (b.avgRating ?? 0) - (a.avgRating ?? 0) || b.bottles - a.bottles)
+}
+
+/**
+ * Each grape with its share of the wine: the known percentages; grapes without one share what's left
+ * equally (all equal when none is known). A 70/30 Bordeaux counts 0.7 Cabernet, 0.3 Merlot.
+ */
+export function grapeShares(w: Pick<WineWithBottles, 'grapes' | 'grapePct'>): [string, number][] {
+  if (!w.grapes.length) return []
+  const known = w.grapes.filter((g) => w.grapePct?.[g] != null)
+  const knownTotal = known.reduce((s, g) => s + w.grapePct![g], 0)
+  const rest = w.grapes.length - known.length
+  const left = Math.max(0, 100 - knownTotal)
+  return w.grapes.map((g) => [g, (w.grapePct?.[g] != null ? w.grapePct[g] : rest ? left / rest : 0) / 100] as [string, number]).filter(([, s]) => s > 0)
 }
 
 export function tasteSummary(cellar: WineWithBottles[]): string | undefined {
   const tasted = cellar.filter((w) => w.tastings.some((t) => t.rating != null))
   if (tasted.length < 3) return undefined
-  const grapes = rankBy(tasted, (w) => w.grapes).filter((r) => r.avgRating != null)
+  const grapes = rankBy(tasted, grapeShares).filter((r) => r.avgRating != null)
   const regions = rankBy(tasted, (w) => [w.region ?? '']).filter((r) => r.avgRating != null)
   const bits: string[] = []
   if (grapes[0]) bits.push(`${grapes[0].key}`)
