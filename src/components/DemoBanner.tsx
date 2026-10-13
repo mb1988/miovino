@@ -1,5 +1,5 @@
 import { FlaskConical, Info, LogOut, RotateCcw } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { exitDemo } from '../lib/demo'
 import { t } from '../lib/i18n'
 import { Button, Sheet } from './ui'
@@ -21,7 +21,19 @@ function firstVisit() {
 export function DemoBanner() {
   const [busy, setBusy] = useState(false)
   // Visitors (e.g. from a CV link) get the short intro once.
-  const [about, setAbout] = useState(firstVisit)
+  // It opens once the cellar behind it has been drawn, so the first screen isn't held up by both at once.
+  const [first] = useState(firstVisit) // read once: effects can run twice in development
+  const [about, setAbout] = useState(false)
+  useEffect(() => {
+    if (!first) return
+    const open = () => setAbout(true)
+    if ('requestIdleCallback' in window) {
+      const id = requestIdleCallback(open, { timeout: 1200 })
+      return () => cancelIdleCallback(id)
+    }
+    const id = setTimeout(open, 300)
+    return () => clearTimeout(id)
+  }, [first])
   const reset = async () => {
     if (!confirm(t('Put the demo cellar back as it was? Your changes in the demo will be lost.'))) return
     setBusy(true)

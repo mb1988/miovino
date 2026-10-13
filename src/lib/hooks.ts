@@ -35,8 +35,13 @@ export function useBlobUrl(blob?: Blob) {
 
 /** The cellar as seen from the cellar chosen on this device (all cellars by default), plus the switcher's state. */
 export function useCellarView() {
-  const all = useCellar()
-  const locations = useLocations()
+  // One query for both, so the screen draws once when the data arrives (not once per table).
+  const data = useLiveQuery(async () => {
+    const [all, locations] = await Promise.all([loadCellar(), db.locations.orderBy('order').toArray()])
+    return { all, locations }
+  }, [])
+  const all = data?.all
+  const locations = data?.locations
   const main = useSettings().cellarName
   const chosen = useActiveCellar()
   const names = cellarNames(locations ?? [], main)
