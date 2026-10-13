@@ -1,3 +1,4 @@
+import { emailReminder, handleEmail, type EmailEnv } from './email'
 import { handleFetchList } from './fetchlist'
 import { labelPrompt, LabelSchema, tidyLabel } from '../src/shared/label'
 import { aiErrorResponse, aiProvider, generateJson, type AiEnv } from './ai'
@@ -9,7 +10,7 @@ import { BadRequest, sync, validate, type Db } from './sync'
 import { priceHistory, remember, type FactsDb } from './facts'
 import { validatePricesRequest } from '../src/shared/priceHistory'
 
-interface Env extends AuthEnv, AiEnv {
+interface Env extends AuthEnv, AiEnv, EmailEnv {
   DB: D1Database
   ASSETS: Fetcher
 }
@@ -28,8 +29,8 @@ export default {
         const signedIn = !((await authorize(req, env)) instanceof Response)
         const { devices } = env.SESSION_SECRET ? await authStatus(req, env) : { devices: 0 }
         const ai = aiProvider(env)
-        // `scan` = AI features available (label scan, chat, wine list, windows); `ai` names the provider.
-        return json({ ok: true, authenticated: signedIn, devices, scan: signedIn && !!ai, ai: signedIn ? ai : null })
+        // `scan` = AI features available (label scan, chat, wine list, windows); `ai` names the provider; `email` = email reminders can be sent.
+        return json({ ok: true, authenticated: signedIn, devices, scan: signedIn && !!ai, ai: signedIn ? ai : null, email: signedIn && !!env.RESEND_API_KEY })
       }
       const auth = await handleAuth(req, env, url.pathname)
       if (auth) return auth
@@ -111,6 +112,11 @@ export default {
       // POST /api/windows — drinking-window suggestions
       if (url.pathname === '/api/windows' && req.method === 'POST') return handleWindows(req, env.DB as unknown as FactsDb, env)
 
+      if (url.pathname === '/api/email' || url.pathname === '/api/email/test') {
+        const res = await handleEmail(req, env.DB as unknown as PushDb, env, url.pathname)
+        if (res) return res
+      }
+
       if (url.pathname.startsWith('/api/push/')) {
         const res = await handlePush(req, env.DB as unknown as PushDb, url.pathname)
         if (res) return res
@@ -128,5 +134,6 @@ export default {
   // Cron (wrangler.jsonc "triggers"): the monthly drinking summary.
   async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext) {
     ctx.waitUntil(monthlyReminder(env.DB as unknown as PushDb))
+    ctx.waitUntil(emailReminder(env.DB as unknown as PushDb, env).catch((e) => console.error('Email reminder failed', e)))
   },
 } satisfies ExportedHandler<Env>

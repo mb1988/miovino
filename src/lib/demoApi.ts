@@ -26,6 +26,7 @@ export async function seedDemo(force = false) {
 }
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })
+let demoEmail: string | null = null
 const pause = (ms: number) => new Promise((r) => setTimeout(r, ms)) // AI calls take a moment; so does the demo
 
 /** Answers every /api request in the browser, so the demo works with no server and never touches real data. */
@@ -51,6 +52,12 @@ async function route(path: string, method: string, body: Record<string, unknown>
   if (path === '/api/scan') return pause(1200).then(() => json({ result: demoLabel() }))
   if (path === '/api/ask') return pause(900).then(async () => json({ answer: await demoAnswer(body.messages as { role: string; content: string }[]) }))
   if (path === '/api/winelist') return pause(1500).then(async () => json({ result: await demoWineList(body.food as string | undefined) }))
+  // Email reminders: the demo remembers the address for this visit and pretends to send.
+  if (path === '/api/email') {
+    if (method === 'POST') demoEmail = typeof body.address === 'string' && body.address.includes('@') ? body.address.trim() : null
+    return json(method === 'POST' ? { ok: true, address: demoEmail } : { available: true, address: demoEmail })
+  }
+  if (path === '/api/email/test') return pause(600).then(() => json({ sent: !!demoEmail, reason: demoEmail ? undefined : 'no-address' }))
   if (path === '/api/fetchlist')
     return pause(700).then(() =>
       json({

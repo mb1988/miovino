@@ -2,6 +2,7 @@ import { Bell, BellOff, Share } from 'lucide-react'
 import { plural, t } from '../lib/i18n'
 import { useEffect, useState } from 'react'
 import { disablePush, enablePush, platform, pushBlocked, pushEnabled, pushSupport, testPush } from '../lib/push'
+import { EmailReminder } from './EmailReminder'
 import { Button, Section } from './ui'
 
 /** Turn the monthly drinking reminder on/off for this device. */
@@ -76,6 +77,8 @@ export function RemindersSection() {
           </div>
         )}
         {msg && <p className="text-sm text-cream-300">{msg}</p>}
+
+        <EmailReminder />
 
         <details className="group rounded-xl bg-ink-800/60 px-3 py-2 text-sm text-cream-300" open={support !== 'ok'}>
           <summary className="flex min-h-9 cursor-pointer items-center font-medium text-cream-100">{t('Which phones work?')}</summary>

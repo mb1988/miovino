@@ -290,6 +290,24 @@ test('wine list from a PDF or a website: the text is read and sent instead of ph
   expect(sent[1].text).toBe(listText)
 })
 
+test('monthly reminder by email: save an address and send a test', async ({ page }) => {
+  await seed(page, { wines: [wine('wine-gaja-0001')] })
+  let saved: string | null = null
+  await page.route('**/api/email', (route) => {
+    if (route.request().method() === 'POST') saved = (route.request().postDataJSON() as { address: string | null }).address
+    return route.fulfill({ json: route.request().method() === 'POST' ? { ok: true, address: saved } : { available: true, address: saved } })
+  })
+  await page.route('**/api/email/test', (route) => route.fulfill({ json: { sent: true } }))
+  await page.goto('/more')
+  await page.getByRole('textbox', { name: 'Email address' }).fill('owner@example.com')
+  await page.getByRole('button', { name: 'Save', exact: true }).click()
+  await expect(page.getByText('Saved. The summary will arrive on the 1st of each month.')).toBeVisible()
+  expect(saved).toBe('owner@example.com')
+  await page.getByRole('button', { name: 'Send a test email' }).click()
+  await expect(page.getByText('Sent to owner@example.com. Check your inbox (and spam).')).toBeVisible()
+  expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'best-practice']).analyze()).violations).toEqual([])
+})
+
 test('wishlist: where to buy — past sellers, live-price links, and an AI price hint saved on the item', async ({ page }) => {
   await seed(page, {
     wines: [wine('wine-gaja-0001')],
