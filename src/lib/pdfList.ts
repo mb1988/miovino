@@ -23,10 +23,17 @@ export async function readPdf(data: Blob | ArrayBuffer): Promise<{ text: string;
       for (const item of content.items) {
         if (!('str' in item)) continue
         const iy = Math.round(item.transform[5])
-        if (y != null && Math.abs(iy - y) > 2) (lines.push(line), (line = ''))
+        if (y != null && Math.abs(iy - y) > 2) {
+          lines.push(line)
+          line = ''
+        }
         line += (line && !line.endsWith(' ') && !item.str.startsWith(' ') ? ' ' : '') + item.str
         y = iy
-        if (item.hasEOL) (lines.push(line), (line = ''), (y = undefined))
+        if (item.hasEOL) {
+          lines.push(line)
+          line = ''
+          y = undefined
+        }
       }
       lines.push(line)
     }
