@@ -10,6 +10,14 @@ import './index.css'
 // Ask the browser not to evict our IndexedDB under storage pressure.
 navigator.storage?.persist?.().catch(() => {})
 
+// Offline support: register the service worker after the first screen is up (its precache download waits too).
+if ('serviceWorker' in navigator)
+  window.addEventListener('load', () => {
+    const register = () => void navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {})
+    if ('requestIdleCallback' in window) requestIdleCallback(register, { timeout: 4000 })
+    else setTimeout(register, 2000)
+  })
+
 async function boot() {
   if (DEMO) {
     // Demo: answer /api in the browser and fill the demo database before the first screen reads it.
