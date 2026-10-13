@@ -11,7 +11,7 @@ export default defineConfig({
     // Runs the Worker (API + D1 + R2) inside the dev server; not during unit tests.
     ...(process.env.VITEST ? [] : [cloudflare()]),
     VitePWA({
-      injectRegister: 'script-defer', // don't block the first paint
+      injectRegister: false, // registered from main.tsx once the page is idle, so precaching doesn't compete with the first screen
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
       manifest: {
