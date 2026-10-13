@@ -130,7 +130,7 @@ Bottom nav: **Cellar · Drink · ＋Add (big) · Journal · More**
 ### Phase 3 — features (status 2026-09-30)
 1. [x] **Wishlist / shopping list** — buy again = yes feeds it
 2. [x] **Visual rack map** — tap a slot, "show in rack" highlight
-3. [x] **Drinking reminders** — monthly card + Web Push (cron 1st of month); email digest not done
+3. [x] **Drinking reminders** — monthly card + Web Push (cron 1st of month); email digest added in Phase 9 (needs `RESEND_API_KEY`)
 4. [x] **Ask my cellar** — chat over your own data (needs `ANTHROPIC_API_KEY` Worker secret)
 5. [x] **Barcode scan** — Add → Scan barcode; ZXing (WebAssembly) on Safari, native detector elsewhere
 6. [x] **Italian UI** — More → Settings → Lingua (defaults to the phone's language); the chat answers in Italian too
@@ -196,7 +196,7 @@ Feedback after using the app. Each item is one PR; CI must be green before mergi
 - [x] **Wine list from a PDF or website** — PR #48 (2026-10-13): PDF read on the phone (pdf.js, lazy; scanned PDFs → first 3 pages as photos), website fetched by the Worker (`/api/fetchlist`, signed-in, public hosts only) with its PDF links offered.
 2. [ ] **Owner action**: More → Grape percentages → Fill + Look up published blends (fills the real cellar).
 3. [ ] **Own domain** — owner buys (e.g. miovino.app); then Workers custom domain + update links (README, og tags, demo intro).
-4. [ ] Optional: email version of the monthly reminder (needs a free Resend key), wishlist price alerts (needs a paid live-price feed).
+4. [x] Email version of the monthly reminder — PR #50 (2026-10-13), live once `RESEND_API_KEY` is set (owner). [ ] Wishlist price alerts (needs a paid live-price feed).
 
 Answers to the owner's questions
 - *More than one cellar?* Today: several **locations/racks** (each with its own grid) but no "cellar" level above them — item 5 adds it.

@@ -294,6 +294,67 @@ describe('push reminders endpoints', () => {
   })
 })
 
+describe('email reminder endpoints', () => {
+  async function setup(extra: Record<string, unknown> = {}) {
+    const db = sqliteD1()
+    type Worker = { fetch: (req: Request, env: unknown) => Promise<Response>; scheduled: (e: unknown, env: unknown, ctx: { waitUntil: (p: Promise<unknown>) => void }) => Promise<void> }
+    const worker = ((await import(/* @vite-ignore */ new URL('../../worker/index.ts', import.meta.url).href)) as { default: Worker }).default
+    const env = { DB: db, ALLOW_NO_AUTH: 'true', ASSETS: { fetch: async () => new Response('index') }, ...extra }
+    const call = (path: string, body?: unknown) => worker.fetch(new Request('https://cellar.test' + path, body === undefined ? undefined : { method: 'POST', body: JSON.stringify(body) }), env)
+    return { db, worker, env, call }
+  }
+
+  it('says when email is not set up on the server', async () => {
+    const { call } = await setup()
+    expect(await (await call('/api/email')).json()).toEqual({ available: false, address: null })
+    expect(await (await call('/api/email/test', {})).json()).toEqual({ sent: false, reason: 'no-key' })
+  })
+
+  it('saves the address, emails the monthly summary by Resend, and can be turned off', async () => {
+    const { call, worker, env } = await setup({ RESEND_API_KEY: 're_test' })
+    expect((await call('/api/email', { address: 'not an email' })).status).toBe(400)
+    expect(await (await call('/api/email', { address: ' owner@example.com ', lang: 'it' })).json()).toEqual({ ok: true, address: 'owner@example.com' })
+    expect(await (await call('/api/email')).json()).toEqual({ available: true, address: 'owner@example.com' })
+
+    const year = new Date().getUTCFullYear()
+    await call('/api/sync', {
+      cursor: 0,
+      changes: [
+        { kind: 'wines', id: 'wine-soon-0001', updatedAt: 1, deleted: false, data: { producer: 'Gaja', name: 'Barbaresco <b>', vintage: 2016, drinkFrom: 2020, drinkTo: year } },
+        { kind: 'bottles', id: 'bottle-0000-0001', updatedAt: 1, deleted: false, data: { wineId: 'wine-soon-0001', status: 'cellar' } },
+      ],
+    })
+    const sent: { url: string; auth: string | null; body: { from: string; to: string[]; subject: string; text: string; html: string } }[] = []
+    vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
+      sent.push({ url, auth: new Headers(init.headers).get('authorization'), body: JSON.parse(String(init.body)) })
+      return new Response('{"id":"x"}', { status: 200 })
+    })
+    try {
+      expect(await (await call('/api/email/test', {})).json()).toEqual({ sent: true })
+      expect(sent[0].url).toBe('https://api.resend.com/emails')
+      expect(sent[0].auth).toBe('Bearer re_test')
+      expect(sent[0].body.to).toEqual(['owner@example.com'])
+      expect(sent[0].body.from).toBe('MioVino <onboarding@resend.dev>')
+      expect(sent[0].body.text).toContain('Barbaresco')
+      expect(sent[0].body.text).toContain('https://cellar.test/')
+      expect(sent[0].body.html).toContain('Apri MioVino') // in the language saved with the address
+      expect(sent[0].body.html).not.toContain('<b>') // wine names are escaped
+
+      // The monthly cron emails too.
+      sent.length = 0
+      const waits: Promise<unknown>[] = []
+      await worker.scheduled({}, env, { waitUntil: (p) => void waits.push(p) })
+      await Promise.all(waits)
+      expect(sent.map((x) => x.url)).toEqual(['https://api.resend.com/emails'])
+    } finally {
+      vi.unstubAllGlobals()
+    }
+
+    expect(await (await call('/api/email', { address: null })).json()).toEqual({ ok: true, address: null })
+    expect(await (await call('/api/email/test', {})).json()).toEqual({ sent: false, reason: 'no-address' })
+  })
+})
+
 describe('ask my cellar endpoint', () => {
   async function setup(extra: Record<string, unknown> = {}) {
     const db = sqliteD1()
