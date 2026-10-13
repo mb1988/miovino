@@ -1,10 +1,10 @@
-import { Camera, Check, ImageUp, Loader2, Plus, ShoppingBag, Sparkles, X } from 'lucide-react'
+import { Camera, Check, FileText, Globe, ImageUp, Loader2, Plus, ShoppingBag, Sparkles, X } from 'lucide-react'
 import { useMemo, useRef, useState } from 'react'
 import { LiveCamera } from '../components/LiveCamera'
 import { VerdictBadge } from '../components/PriceVerdict'
 import { Button, cx, Label, PageHeader } from '../components/ui'
 import { useCellar } from '../lib/hooks'
-import { getLang, t } from '../lib/i18n'
+import { getLang, plural, t } from '../lib/i18n'
 import { imageToBase64 } from '../lib/image'
 import { sameWineKey } from '../lib/importer'
 import { priceLine, times } from '../lib/prices'
@@ -12,7 +12,7 @@ import { useSync } from '../lib/sync'
 import type { WineWithBottles } from '../lib/types'
 import { addWish } from '../lib/wishlist'
 import { bestValue, isPounds, priceCheck } from '../shared/prices'
-import { MAX_LIST_PAGES, type WineListPick, type WineListResult } from '../shared/winelist'
+import { MAX_LIST_PAGES, MIN_LIST_TEXT, type WineListPick, type WineListResult } from '../shared/winelist'
 
 /**
  * What the owner paid for the same wine (same vintage if they have it). Only an exact producer + name match counts:
@@ -54,10 +54,68 @@ export default function WineListPage() {
   const [result, setResult] = useState<WineListResult>()
   const [saved, setSaved] = useState<Set<number>>(new Set())
   const fileRef = useRef<HTMLInputElement>(null)
+  const pdfRef = useRef<HTMLInputElement>(null)
+  // The list as text (from a PDF or a website), used instead of photos.
+  const [doc, setDoc] = useState<{ label: string; text: string } | null>(null)
+  const [linkOpen, setLinkOpen] = useState(false)
+  const [link, setLink] = useState('')
+  const [pdfs, setPdfs] = useState<string[]>([])
+  const [reading, setReading] = useState(false)
   const cellar = useCellar()
   const priced = useMemo(() => (result ? withChecks(result, cellar ?? []) : undefined), [result, cellar])
 
-  const addPages = (files: Blob[]) => setPages((p) => [...p, ...files.map((blob) => ({ blob, url: URL.createObjectURL(blob) }))].slice(0, MAX_LIST_PAGES))
+  const addPages = (files: Blob[]) => {
+    setDoc(null)
+    setPages((p) => [...p, ...files.map((blob) => ({ blob, url: URL.createObjectURL(blob) }))].slice(0, MAX_LIST_PAGES))
+  }
+
+  /** Runs one way of getting the list in, with a spinner, and shows its error under the buttons. */
+  const load = async (work: () => Promise<void>) => {
+    setReading(true)
+    setError('')
+    setResult(undefined)
+    try {
+      await work()
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setReading(false)
+    }
+  }
+
+  const fromPdf = async (file: Blob, name: string) => {
+    const { readPdf } = await import('../lib/pdfList')
+    const r = await readPdf(file).catch(() => {
+      throw new Error(t("Couldn't read that PDF."))
+    })
+    setPages([])
+    if ('text' in r) setDoc({ label: `${name} · ${plural(r.pages, '{n} page', '{n} pages')}`, text: r.text })
+    else {
+      // A scanned PDF has no text: its first pages go in as photos.
+      setDoc(null)
+      setPages(r.images.map((blob) => ({ blob, url: URL.createObjectURL(blob) })))
+    }
+  }
+
+  const openLink = (address: string) =>
+    load(async () => {
+      const res = await fetch('/api/fetchlist', { method: 'POST', headers: { 'content-type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ url: address }) })
+      if (res.ok && (res.headers.get('content-type') ?? '').includes('pdf')) {
+        setPdfs([])
+        setLinkOpen(false)
+        return fromPdf(await res.blob(), decodeURIComponent(address.split('?')[0].split('/').pop() || address))
+      }
+      const data = (await res.json().catch(() => ({}))) as { text?: string; title?: string; pdfs?: string[]; error?: string }
+      if (!res.ok || data.text == null) throw new Error(data.error ?? t('Something went wrong ({status}).', { status: res.status }))
+      setPdfs(data.pdfs ?? [])
+      setPages([])
+      if (data.text.length < MIN_LIST_TEXT) {
+        setDoc(null)
+        throw new Error(data.pdfs?.length ? t('That page has no wine list in its text. Try one of its PDFs below.') : t('That page has no wine list in its text. Download the list and choose PDF.'))
+      }
+      setDoc({ label: data.title || address, text: data.text })
+      setLinkOpen(false)
+    })
 
   const find = async () => {
     setBusy(true)
@@ -65,13 +123,13 @@ export default function WineListPage() {
     setResult(undefined)
     setSaved(new Set())
     try {
-      const images = await Promise.all(pages.map(async (p) => (await imageToBase64(p.blob)).data))
+      const source = doc ? { text: doc.text } : { images: await Promise.all(pages.map(async (p) => (await imageToBase64(p.blob)).data)) }
       const n = Number(budget.replace(',', '.'))
       const res = await fetch('/api/winelist', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         credentials: 'same-origin',
-        body: JSON.stringify({ images, food: food.trim() || undefined, budget: n > 0 ? n : undefined, lang: getLang() }),
+        body: JSON.stringify({ ...source, food: food.trim() || undefined, budget: n > 0 ? n : undefined, lang: getLang() }),
       })
       const data = (await res.json().catch(() => ({}))) as { result?: WineListResult; error?: string }
       if (!res.ok || !data.result) throw new Error(data.error ?? t('Something went wrong ({status}).', { status: res.status }))
@@ -86,11 +144,35 @@ export default function WineListPage() {
   const ready = sync.available && sync.authenticated
   return (
     <div>
-      <PageHeader title={t('Wine list')} subtitle={t('At a restaurant? Photograph the list')} back />
+      <PageHeader title={t('Wine list')} subtitle={t('Photograph the list, or open its PDF or website')} back />
       <LiveCamera open={camOpen} onClose={() => setCamOpen(false)} onCapture={(b) => addPages([b])} hint={t('One page of the wine list, flat and sharp')} />
       <input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={(e) => (addPages([...(e.target.files ?? [])]), (e.target.value = ''))} />
+      <input
+        ref={pdfRef}
+        type="file"
+        accept="application/pdf,.pdf"
+        hidden
+        onChange={(e) => {
+          const f = e.target.files?.[0]
+          e.target.value = ''
+          if (f) void load(async () => (setPdfs([]), await fromPdf(f, f.name)))
+        }}
+      />
 
       {!ready && <p className="card mb-4 p-4 text-sm text-cream-300">{t('The wine-list scanner runs on your MioVino server — sign in on this device to use it.')}</p>}
+
+      {doc && (
+        <div className="card mb-4 flex items-center gap-3 p-3">
+          <FileText size={20} className="shrink-0 text-wine-300" aria-hidden />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm text-cream-100">{doc.label}</p>
+            <p className="text-xs text-cream-400">{t('List ready to read')}</p>
+          </div>
+          <button aria-label={t('Remove')} onClick={() => setDoc(null)} className="rounded-full p-1.5 text-cream-300 hover:bg-ink-700">
+            <X size={16} />
+          </button>
+        </div>
+      )}
 
       <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
         {pages.map((p, i) => (
@@ -113,7 +195,57 @@ export default function WineListPage() {
             </button>
           </>
         )}
+        {!pages.length && (
+          <>
+            <button disabled={reading} onClick={() => pdfRef.current?.click()} className="flex h-28 w-20 shrink-0 flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-ink-600 text-xs text-cream-300">
+              <FileText size={20} />
+              PDF
+            </button>
+            <button
+              disabled={reading}
+              aria-expanded={linkOpen}
+              onClick={() => setLinkOpen((o) => !o)}
+              className={cx('flex h-28 w-20 shrink-0 flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed text-xs text-cream-300', linkOpen ? 'border-wine-400' : 'border-ink-600')}
+            >
+              <Globe size={20} />
+              {t('Website')}
+            </button>
+          </>
+        )}
       </div>
+
+      {linkOpen && (
+        <form
+          className="mb-4 flex gap-2"
+          onSubmit={(e) => {
+            e.preventDefault()
+            if (link.trim()) void openLink(link.trim())
+          }}
+        >
+          <input className="field min-w-0 flex-1" type="text" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} aria-label={t('Wine list web address')} value={link} onChange={(e) => setLink(e.target.value)} placeholder="https://restaurant.co.uk/wine-list" />
+          <Button type="submit" disabled={!link.trim() || reading}>
+            {t('Open')}
+          </Button>
+        </form>
+      )}
+      {pdfs.length > 0 && (
+        <div className="mb-4">
+          <p className="mb-1.5 text-xs text-cream-400">{t('PDFs on that page:')}</p>
+          <div className="flex flex-wrap gap-2">
+            {pdfs.map((u) => (
+              <button key={u} disabled={reading} onClick={() => void openLink(u)} className="flex max-w-full items-center gap-1.5 rounded-full bg-ink-800 px-3 py-1.5 text-xs text-cream-100 ring-1 ring-ink-600">
+                <FileText size={13} aria-hidden />
+                <span className="truncate">{decodeURIComponent(u.split('?')[0].split('/').pop() || u)}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {reading && (
+        <p className="mb-4 flex items-center gap-2 text-sm text-cream-300">
+          <Loader2 className="animate-spin" size={16} /> {t('Opening the list…')}
+        </p>
+      )}
 
       <div className="mb-4 grid grid-cols-[1fr_7rem] gap-3">
         <label className="block">
@@ -126,7 +258,7 @@ export default function WineListPage() {
         </label>
       </div>
 
-      <Button className="w-full py-3" disabled={!pages.length || busy || !ready} onClick={find}>
+      <Button className="w-full py-3" disabled={(!pages.length && !doc) || busy || reading || !ready} onClick={find}>
         {busy ? (
           <>
             <Loader2 className="animate-spin" size={18} /> {t('Reading the list…')}

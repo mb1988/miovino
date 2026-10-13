@@ -128,17 +128,23 @@ export async function handleAsk(req: Request, db: AskDb, env: AiEnv) {
 /** POST /api/winelist — read restaurant wine-list photos and pick bottles for the owner's taste. */
 export async function handleWineList(req: Request, db: AskDb & FactsDb, env: AiEnv) {
   const body = validateWineListRequest(await req.json())
-  if (!body) return json({ error: `Send 1–${MAX_LIST_PAGES} photos of the list as base64 JPEG in "images".` }, 400)
+  if (!body) return json({ error: `Send 1–${MAX_LIST_PAGES} photos of the list as base64 JPEG in "images", or its text in "text".` }, 400)
+  const content = body.text
+    ? [{ type: 'text' as const, text: `${wineListPrompt(body, 'text')}
+
+--- WINE LIST ---
+${body.text}` }]
+    : [...body.images!.map((data) => ({ type: 'image' as const, data })), { type: 'text' as const, text: wineListPrompt(body) }]
   try {
     const result = await generateJson(
       env,
       {
         system: ['You are a sommelier helping the owner of a private wine cellar choose from a restaurant wine list. Their cellar and tasting history follow.', await cellarSnapshot(db)],
-        messages: [{ role: 'user', content: [...body.images.map((data) => ({ type: 'image' as const, data })), { type: 'text', text: wineListPrompt(body) }] }],
+        messages: [{ role: 'user', content }],
       },
       WineListSchema,
     )
-    if (!result.isWineList) return json({ error: "That doesn't look like a wine list. Photograph the pages with the wines." }, 422)
+    if (!result.isWineList) return json({ error: body.text ? "That doesn't look like a wine list. Try the PDF or page that lists the wines." : "That doesn't look like a wine list. Photograph the pages with the wines." }, 422)
     const tidy = tidyWineList(result)
     // Every shop-price estimate goes into the wine memory (and its price history).
     for (const w of [...tidy.picks, ...(tidy.deals ?? [])])

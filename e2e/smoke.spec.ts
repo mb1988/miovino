@@ -231,7 +231,7 @@ test('wine list: price verdicts, anchored on what you paid when the wine is in y
   await page.goto('/winelist')
   // A 1×1 PNG stands in for a photo of the list.
   const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64')
-  await page.locator('input[type=file]').setInputFiles({ name: 'list.png', mimeType: 'image/png', buffer: png })
+  await page.locator('input[type=file][accept="image/*"]').setInputFiles({ name: 'list.png', mimeType: 'image/png', buffer: png })
   await page.getByRole('button', { name: 'Find my bottle' }).click()
 
   await expect(page.getByText('You paid £38 · here 2.5×')).toBeVisible() // their own price beats the estimate
@@ -243,6 +243,51 @@ test('wine list: price verdicts, anchored on what you paid when the wine is in y
   await expect(page.getByText('Best value on this list: Ridge Geyserville 2021 — 1.6× shop price')).toBeVisible()
   await expect(page.getByText(/Shop prices are AI estimates/)).toBeVisible()
   expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'best-practice']).analyze()).violations).toEqual([])
+})
+
+test('wine list from a PDF or a website: the text is read and sent instead of photos', async ({ page }) => {
+  await seed(page, { wines: [wine('wine-gaja-0001')] })
+  const sent: { text?: string; images?: string[] }[] = []
+  await page.route('**/api/winelist', (route) => {
+    sent.push(route.request().postDataJSON())
+    return route.fulfill({ json: { result: { isWineList: true, currency: '£', picks: [], deals: [], note: 'Go for the Chablis.' } } })
+  })
+  const listText = 'Barolo Castiglione Vietti 2019 £180 Chablis Premier Cru Brocard 2022 £48 Rioja Reserva Muga 2018 £52'
+  await page.route('**/api/fetchlist', (route) =>
+    route.fulfill({ json: { title: 'Bistro wines', text: listText, pdfs: ['https://bistro.example/wine-list.pdf'] } }),
+  )
+  await page.goto('/winelist')
+
+  // A PDF with a text layer: read on the device, every page.
+  const stream = `BT /F1 12 Tf 40 700 Td (${listText}) Tj ET`
+  const objs = ['<< /Type /Catalog /Pages 2 0 R >>', '<< /Type /Pages /Kids [3 0 R] /Count 1 >>', '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>', `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`, '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>']
+  let pdf = '%PDF-1.4\n'
+  const offsets = objs.map((o, i) => {
+    const at = pdf.length
+    pdf += `${i + 1} 0 obj\n${o}\nendobj\n`
+    return at
+  })
+  const xref = pdf.length
+  const entries = offsets.map((o) => `${String(o).padStart(10, '0')} 00000 n \n`).join('')
+  pdf += `xref\n0 ${objs.length + 1}\n0000000000 65535 f \n${entries}trailer\n<< /Size ${objs.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`
+  await page.locator('input[type=file][accept^="application/pdf"]').setInputFiles({ name: 'wine-list.pdf', mimeType: 'application/pdf', buffer: Buffer.from(pdf) })
+  await expect(page.getByText('wine-list.pdf · 1 page')).toBeVisible()
+  await page.getByRole('button', { name: 'Find my bottle' }).click()
+  await expect(page.getByText('Go for the Chablis.')).toBeVisible()
+  expect(sent[0].images).toBeUndefined()
+  expect(sent[0].text).toContain('Chablis Premier Cru Brocard 2022') // (the test PDF's simple font can't spell £)
+
+  // A website: fetched by the server, its text used, its PDFs offered.
+  await page.getByRole('button', { name: 'Remove' }).click()
+  await page.getByRole('button', { name: 'Website' }).click()
+  await page.getByRole('textbox', { name: 'Wine list web address' }).fill('bistro.example/wines')
+  await page.getByRole('button', { name: 'Open', exact: true }).click()
+  await expect(page.getByText('Bistro wines')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'wine-list.pdf' })).toBeVisible()
+  expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'best-practice']).analyze()).violations).toEqual([])
+  await page.getByRole('button', { name: 'Find my bottle' }).click()
+  await expect.poll(() => sent.length).toBe(2)
+  expect(sent[1].text).toBe(listText)
 })
 
 test('wishlist: where to buy — past sellers, live-price links, and an AI price hint saved on the item', async ({ page }) => {

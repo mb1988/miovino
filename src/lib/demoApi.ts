@@ -51,6 +51,14 @@ async function route(path: string, method: string, body: Record<string, unknown>
   if (path === '/api/scan') return pause(1200).then(() => json({ result: demoLabel() }))
   if (path === '/api/ask') return pause(900).then(async () => json({ answer: await demoAnswer(body.messages as { role: string; content: string }[]) }))
   if (path === '/api/winelist') return pause(1500).then(async () => json({ result: await demoWineList(body.food as string | undefined) }))
+  if (path === '/api/fetchlist')
+    return pause(700).then(() =>
+      json({
+        title: t('Demo: Trattoria wine list'),
+        text: ['Wine list', 'Barolo Castiglione, Vietti 2019 £180', 'Barbaresco, Gaja 2016 £95', 'Geyserville, Ridge 2021 £70', 'Chablis 1er Cru Montmains, Brocard 2022 £48'].join('\n'),
+        pdfs: [],
+      }),
+    )
   if (path === '/api/pricehint') {
     demoPriced.add(`${body.producer}|${body.name}`) // the demo "remembers" it, like the real server
     return pause(800).then(() => json({ hint: demoPriceHint(String(body.name ?? '')) }))

@@ -1,3 +1,4 @@
+import { handleFetchList } from './fetchlist'
 import { labelPrompt, LabelSchema, tidyLabel } from '../src/shared/label'
 import { aiErrorResponse, aiProvider, generateJson, type AiEnv } from './ai'
 import { authorize, json, type AuthEnv } from './auth'
@@ -90,6 +91,9 @@ export default {
 
       // POST /api/winelist — restaurant wine-list scanner
       if (url.pathname === '/api/winelist' && req.method === 'POST') return handleWineList(req, env.DB as unknown as AskDb & FactsDb, env)
+
+      // POST /api/fetchlist — a wine list's PDF or web page, fetched for the app
+      if (url.pathname === '/api/fetchlist' && req.method === 'POST') return handleFetchList(req)
 
       // POST /api/pricehint — wishlist "where to buy": typical UK price range
       if (url.pathname === '/api/pricehint' && req.method === 'POST') return handlePriceHint(req, env.DB as unknown as FactsDb, env)
