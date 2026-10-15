@@ -693,4 +693,11 @@ export const IT: Record<string, string> = {
   'Sent to {address}. Check your inbox (and spam).': 'Inviata a {address}. Controlla la posta (e lo spam).',
   'Nothing was sent.': 'Non è stato inviato nulla.',
   'Send a test email': 'Invia un’email di prova',
+  'Market value': 'Valore di mercato',
+  'Biggest movers': 'Maggiori variazioni',
+  'Price today against what you paid per bottle.': 'Prezzo di oggi rispetto a quanto hai pagato a bottiglia.',
+  'Prices are checked automatically, a few wines a day, so each wine gets a new price about once a month.': 'I prezzi vengono controllati da soli, pochi vini al giorno: ogni vino riceve un prezzo nuovo circa una volta al mese.',
+  'vs what you paid': 'rispetto al pagato',
+  'Market value from {from} in {start} to {to} now': 'Valore di mercato da {from} a {start} a {to} oggi',
+  'What you paid': 'Quanto hai pagato',
 }

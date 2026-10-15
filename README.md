@@ -26,6 +26,7 @@ I built it for my own cellar and use it every day. It's an installable PWA, not 
 | **Restaurant wine lists** | Photograph the list and get picks that match your taste and budget, each marked **steal / fair / pricey / rip-off** against the usual shop price (or what you paid). |
 | **Where to buy & what it costs** | For a wine you own (*Buy again*) or any other (*Find a bottle*): where you bought it before, live UK price links, the AI's typical price, and a dated price history. |
 | **Cellar value today** | What the cellar is worth now — your prices, else remembered AI prices, else what you paid. |
+| **Market value tracking** | Prices re-checked automatically (a few wines a day); the cellar's market value month by month and the wines that rose or fell most. |
 | **Journal & Wine DNA** | Half-star ratings, notes, "buy again". Your styles, grapes, regions and producers, by bottles and by rating. |
 | **Several cellars** | Home, country house… switch between them; stats follow. |
 | **Reminders** | Monthly push notification: what's ready, what's closing soon. |

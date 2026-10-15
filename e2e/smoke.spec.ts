@@ -31,6 +31,7 @@ async function seed(page: Page, data: Record<string, object[]>) {
 }
 
 const now = Date.now()
+const daysAgo = (n: number) => new Date(now - n * 86_400_000).toISOString().slice(0, 10)
 const wine = (id: string, extra: object = {}) => ({ id, producer: 'Gaja', name: 'Barbaresco', vintage: 2016, type: 'red', grapes: ['Nebbiolo'], external: [], tags: [], favourite: false, bottleSize: 750, drinkFrom: 2022, drinkTo: 2030, createdAt: now, updatedAt: now, ...extra })
 
 test.beforeEach(async ({ page }) => {
@@ -381,12 +382,15 @@ test('value today from remembered prices, and a wine’s price history', async (
     ],
   })
   await page.route('**/api/prices', (route) =>
-    route.fulfill({ json: { prices: { w1: [{ low: 120, high: 140, source: 'pricehint', at: '2026-09-01' }, { low: 100, high: 110, source: 'winelist', at: '2026-03-01' }] } } }),
+    route.fulfill({ json: { prices: { w1: [{ low: 120, high: 140, source: 'pricehint', at: daysAgo(40) }, { low: 100, high: 110, source: 'winelist', at: daysAgo(220) }] } } }),
   )
   await page.goto('/stats')
   await expect(page.getByText('At today’s prices: £180')).toBeVisible() // 130 (AI) + 50 (paid, no estimate)
   await expect(page.getByText('1 bottle priced from the AI’s typical UK price (an estimate).')).toBeVisible()
   await expect(page.getByRole('button', { name: /Estimate today’s price for 1 wine/ })).toBeVisible()
+  // Market value month by month since the first remembered price (105 + 50), and the wine that moved.
+  await expect(page.getByRole('img', { name: /^Market value from £155 in .+ to £180 now$/ })).toBeVisible()
+  await expect(page.getByRole('link', { name: /Gaja Barbaresco.*£100 → £130.*\+30%/ })).toBeVisible()
 
   await page.goto('/wine/w1')
   await page.getByRole('button', { name: 'Where to buy and at what price' }).click()

@@ -9,8 +9,8 @@
     "run_worker_first": ["/api/*"]
   },
   "observability": { "enabled": true },
-  // Monthly drinking reminder: 1st of the month, 08:00 UTC.
-  "triggers": { "crons": ["0 8 1 * *"] },
+  // Monthly drinking reminder: 1st of the month, 08:00 UTC. Daily at 03:30 UTC: a few cellar price checks (worker/market.ts).
+  "triggers": { "crons": ["0 8 1 * *", "30 3 * * *"] },
   "d1_databases": [{ "binding": "DB", "database_name": "miovino", "database_id": "758175e6-7bb3-43f9-97fa-e7fbbf298957", "migrations_dir": "migrations" }],
   // Only used with the optional Cloudflare Access login: set ACCESS_* and ALLOWED_EMAILS (comma-separated) in the dashboard or with wrangler secret put.
   "vars": {

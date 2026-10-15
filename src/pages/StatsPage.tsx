@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react'
 import { Empty, PageHeader, Section } from '../components/ui'
 import { useCellar } from '../lib/hooks'
-import { plural, t } from '../lib/i18n'
+import { getLang, plural, t } from '../lib/i18n'
 import { formatMoney } from '../lib/settings'
 import { currentYear } from '../lib/status'
 import { cellarTimeline, type YearRow } from '../lib/timeline'
-import { cellarValueNow, signedPct } from '../lib/value'
-import { BarChart3, Loader2, Sparkles } from 'lucide-react'
+import { biggestMovers, cellarValueNow, signedPct, valueHistory, type Mover, type ValuePoint } from '../lib/value'
+import { Link } from 'react-router-dom'
+import { BarChart3, Loader2, Sparkles, TrendingDown, TrendingUp } from 'lucide-react'
 import { estimatePrice, latestEstimates, usePriceMemory } from '../lib/priceMemory'
 import { useSync } from '../lib/sync'
 
@@ -18,6 +19,8 @@ export default function StatsPage() {
   const { prices, reload } = usePriceMemory(owned)
   const estimates = useMemo(() => latestEstimates(prices), [prices])
   const value = useMemo(() => cellarValueNow(cellar ?? [], estimates), [cellar, estimates])
+  const history = useMemo(() => valueHistory(cellar ?? [], prices), [cellar, prices])
+  const movers = useMemo(() => biggestMovers(cellar ?? [], estimates), [cellar, estimates])
   const sync = useSync()
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState('')
@@ -77,6 +80,22 @@ export default function StatsPage() {
           {note && <p role="status">{note}</p>}
         </div>
       )}
+      {history.length >= 2 && (
+        <Section title={t('Market value')}>
+          <ValueChart points={history} />
+        </Section>
+      )}
+      {(movers.up.length > 0 || movers.down.length > 0) && (
+        <Section title={t('Biggest movers')}>
+          <div className="card divide-y divide-ink-700">
+            {[...movers.up, ...movers.down].map((m) => (
+              <MoverRow key={m.id} m={m} wine={cellar.find((w) => w.id === m.id)!} />
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-cream-500">{t('Price today against what you paid per bottle.')}</p>
+        </Section>
+      )}
+      {sync.available && sync.authenticated && <p className="-mt-3 mb-6 text-xs text-cream-500">{t('Prices are checked automatically, a few wines a day, so each wine gets a new price about once a month.')}</p>}
       {data.unpriced > 0 && <p className="-mt-4 mb-6 text-xs text-cream-500">{plural(data.unpriced, '{n} bottle in the cellar has no price, so the value is a floor.', '{n} bottles in the cellar have no price, so the value is a floor.')}</p>}
 
       {data.years.length === 0 ? (
@@ -175,5 +194,71 @@ function SpendChart({ years }: { years: YearRow[] }) {
         ))}
       </div>
     </div>
+  )
+}
+
+const monthName = (m: string, year = false) => new Date(`${m}-15T12:00:00`).toLocaleDateString(getLang() === 'it' ? 'it-IT' : 'en-GB', year ? { month: 'short', year: '2-digit' } : { month: 'short' })
+
+/** Market value (gold) against what those same bottles cost (dashed), month by month. */
+function ValueChart({ points }: { points: ValuePoint[] }) {
+  const w = 320
+  const h = 120
+  const all = points.flatMap((p) => [p.value, p.cost])
+  const min = Math.min(...all) * 0.95
+  const max = Math.max(...all) * 1.05
+  const span = max - min || 1
+  const x = (i: number) => (i / (points.length - 1)) * (w - 16) + 8
+  const y = (v: number) => h - 8 - ((v - min) / span) * (h - 16)
+  const line = (key: 'value' | 'cost') => points.map((p, i) => `${x(i).toFixed(1)},${y(p[key]).toFixed(1)}`).join(' ')
+  const first = points[0]
+  const last = points.at(-1)!
+  // Against what the bottles cost, not against the first month: buying more bottles isn't a gain.
+  const change = last.cost > 0 ? ((last.value - last.cost) / last.cost) * 100 : 0
+  return (
+    <figure className="card p-4">
+      <p className="mb-3 flex items-baseline justify-between text-sm tabular-nums">
+        <span className="text-cream-100">{formatMoney(last.value)}</span>
+        <span className={change >= 0 ? 'text-xs font-semibold text-emerald-300' : 'text-xs font-semibold text-rose-300'}>
+          {signedPct(change)} {t('vs what you paid')}
+        </span>
+      </p>
+      <svg viewBox={`0 0 ${w} ${h}`} className="h-32 w-full" role="img" aria-label={t('Market value from {from} in {start} to {to} now', { from: formatMoney(first.value), start: monthName(first.month, true), to: formatMoney(last.value) })}>
+        <polyline points={line('cost')} fill="none" stroke="var(--color-cream-500)" strokeWidth="1.5" strokeDasharray="4 4" />
+        <polyline points={line('value')} fill="none" stroke="var(--color-gold-400)" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
+        <circle cx={x(points.length - 1)} cy={y(last.value)} r="3.5" fill="var(--color-gold-400)" />
+      </svg>
+      <div className="mt-1 flex justify-between text-[10px] text-cream-500">
+        <span>{monthName(first.month, true)}</span>
+        <span>{monthName(last.month, true)}</span>
+      </div>
+      <figcaption className="mt-2 flex gap-4 text-xs text-cream-400">
+        <span className="flex items-center gap-1.5">
+          <span className="h-0.5 w-4 rounded bg-gold-400" aria-hidden />
+          {t('Market value')}
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-0 w-4 border-t border-dashed border-cream-500" aria-hidden />
+          {t('What you paid')}
+        </span>
+      </figcaption>
+    </figure>
+  )
+}
+
+function MoverRow({ m, wine }: { m: Mover; wine: { id: string; producer: string; name: string; vintage?: number | null } }) {
+  const up = m.pct > 0
+  return (
+    <Link to={`/wine/${wine.id}`} className="flex items-center gap-3 px-4 py-3">
+      {up ? <TrendingUp size={16} className="shrink-0 text-emerald-300" aria-hidden /> : <TrendingDown size={16} className="shrink-0 text-rose-300" aria-hidden />}
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm text-cream-50">
+          {wine.producer} {wine.name}
+        </span>
+        <span className="block text-xs text-cream-400 tabular-nums">
+          {wine.vintage ?? 'NV'} · {formatMoney(m.paid)} → {formatMoney(m.now)}
+        </span>
+      </span>
+      <span className={up ? 'text-sm font-semibold text-emerald-300 tabular-nums' : 'text-sm font-semibold text-rose-300 tabular-nums'}>{signedPct(m.pct)}</span>
+    </Link>
   )
 }

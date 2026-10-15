@@ -70,7 +70,7 @@ async function route(path: string, method: string, body: Record<string, unknown>
     demoPriced.add(`${body.producer}|${body.name}`) // the demo "remembers" it, like the real server
     return pause(800).then(() => json({ hint: demoPriceHint(String(body.name ?? '')) }))
   }
-  if (path === '/api/prices') return json({ prices: demoPrices(body.wines as { id: string }[]) })
+  if (path === '/api/prices') return json({ prices: await demoPrices(body.wines as { id: string }[]) })
   if (path === '/api/blends') return pause(900).then(() => json({ blends: demoBlends(body.wines as { id: string; grapes?: string[] }[]) }))
   if (path === '/api/windows') return pause(1000).then(() => json({ windows: (body.wines as WindowWine[]).map(demoWindow) }))
   return json({ error: t('Not available in the demo.') }, 501)
@@ -152,17 +152,19 @@ function demoWindow(w: WindowWine): WindowSuggestion {
   return { id: w.id, drinkFrom: Math.max(base + from, currentYear() - 1), drinkTo: base + to, peakYear: null, confidence: 'medium', note: t('Demo estimate based on the style of wine.') }
 }
 
-/** Made-up price history for demo wines: a few points over the past year, drifting up or down. */
 /** Wines priced during this visit (the real server keeps them in its database). */
 const demoPriced = new Set<string>()
 
-function demoPrices(wines: { id: string; producer?: string; name?: string }[] = []) {
+/** Made-up price history for demo wines: a few points over the past year, near what was paid, drifting up or down. */
+async function demoPrices(wines: { id: string; producer?: string; name?: string }[] = []) {
   const out: Record<string, { low: number; high: number; source: string; at: string }[]> = {}
   const today = Date.now()
+  const paid = new Map<string, number>()
+  for (const b of await db.bottles.toArray()) if (b.purchasePrice) paid.set(b.wineId, b.purchasePrice)
   for (const w of wines) {
     const seed = [...w.id].reduce((n, c) => n + c.charCodeAt(0), 0)
     if (seed % 3 === 0 && !demoPriced.has(`${w.producer}|${w.name}`)) continue // some not priced yet, so "Estimate" has something to do
-    const base = 20 + (seed % 90)
+    const base = (paid.get(w.id) ?? 20 + (seed % 90)) * (0.95 + (seed % 9) / 20) // 95%–135% of the price paid
     const drift = ((seed % 7) - 3) / 100
     out[w.id] = [0, 1, 2, 3].map((i) => {
       const v = Math.round(base * (1 + drift * (3 - i)))
