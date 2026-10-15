@@ -204,8 +204,10 @@ Answers to the owner's questions
 
 5. [x] **Market value tracking** — PR #52 (2026-10-15): a daily cron (03:30 UTC, worker/market.ts) re-prices up to 8 cellar wines whose price is missing or over 30 days old (never-priced first), so every wine gets a new point about monthly; Cellar over time shows **Market value** month by month against what those bottles cost, and **Biggest movers** (price today vs paid per bottle). Demo prices now sit near what was paid.
 
+**Status 2026-10-15:** feature-complete. App moved to `miovino.mb1988.workers.dev` (Cloudflare subdomain changed, PR #51); owner signed in again there with a fresh invite (passkeys are tied to the hostname). Market value tracking deployed. Next: owner uses the app for 2–3 weeks and lists annoyances; fix those first. Owner to-dos left: grape % fill (item 2), `RESEND_API_KEY` (item 4), own domain (item 3). If PDF/website import fails on an older iPhone, try the pdfjs legacy build.
+
 ### Later, only if wanted
-Partner/shared cellar.
+Partner/shared cellar; wishlist price alerts (paid feed).
 
 ## 7. Decisions
 - Currency: **£** ✅
