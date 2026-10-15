@@ -2,7 +2,7 @@
 
 **A private wine-cellar app that lives on your phone.** Scan a label and AI fills in the wine. See every bottle on a map of your racks, know which ones to open before they fade, and keep a tasting journal. It works offline and syncs across devices.
 
-**▶ [Try the live demo](https://miovino.miovino.workers.dev/demo)**: no sign-up, made-up wines, everything runs in your browser.
+**▶ [Try the live demo](https://miovino.mb1988.workers.dev/demo)**: no sign-up, made-up wines, everything runs in your browser.
 
 <img src="docs/screenshots/tour.gif" width="300" alt="A 20-second tour of the demo: cellar, wine page with price history, rack map with a suggested slot, AI chat, cellar value">
 

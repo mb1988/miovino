@@ -5,7 +5,7 @@ description: How to build, test, verify and ship MioVino (wine-cellar PWA on Clo
 
 # MioVino — working on the app
 
-Personal wine-cellar PWA for one owner (48 wines, UK, £). React + TS + Vite + Tailwind + Dexie (IndexedDB, offline-first) on a Cloudflare Worker + D1. Live: https://miovino.miovino.workers.dev. Roadmap and status: `PLAN.md` §6 (keep it updated when a feature ships).
+Personal wine-cellar PWA for one owner (48 wines, UK, £). React + TS + Vite + Tailwind + Dexie (IndexedDB, offline-first) on a Cloudflare Worker + D1. Live: https://miovino.mb1988.workers.dev. Roadmap and status: `PLAN.md` §6 (keep it updated when a feature ships).
 
 ## Loop for each feature
 1. Branch from latest `origin/main` (session branch, or `feat/<name>`).
@@ -17,7 +17,7 @@ Personal wine-cellar PWA for one owner (48 wines, UK, £). React + TS + Vite + T
    - `npm run build && npm run e2e` (Playwright journeys + axe scan in `e2e/smoke.spec.ts`, also run by CI; add a journey for any new screen)
    - Browser check (below) for anything visible.
 4. Commit, push, open a PR. CI (`.github/workflows/ci.yml`) runs `check`, then deploys the PR to **miovino-preview** (own D1, never real data).
-5. When `check` is green, merge. Merging to `main` backs up D1 (artifact), applies migrations, deploys production. Verify: `curl -s https://miovino.miovino.workers.dev/api/health`.
+5. When `check` is green, merge. Merging to `main` backs up D1 (artifact), applies migrations, deploys production. Verify: `curl -s https://miovino.mb1988.workers.dev/api/health`.
 6. Update `PLAN.md` §6 checkboxes.
 
 The owner has asked for autonomous progress: merge your own green PRs and continue down the roadmap without waiting. Stop and ask only for things that need them (secrets, their phone, product decisions with real trade-offs).
