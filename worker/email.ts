@@ -55,7 +55,7 @@ export async function emailReminder(db: PushDb, env: EmailEnv, test = false): Pr
   const lang: Lang = (await setting(db, 'email_lang')) === 'it' ? 'it' : 'en'
   const msg = (await cellarDigestMessage(db, new Date(), lang)) ?? (test ? READY[lang] : null)
   if (!msg) return { sent: false, reason: 'nothing-due' }
-  const origin = (await setting(db, 'subject')) ?? 'https://miovino.miovino.workers.dev'
+  const origin = (await setting(db, 'subject')) ?? 'https://miovino.mb1988.workers.dev'
   await send(env, to, reminderEmail(msg, origin, lang))
   return { sent: true }
 }

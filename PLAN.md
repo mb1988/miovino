@@ -123,7 +123,7 @@ Bottom nav: **Cellar · Drink · ＋Add (big) · Journal · More**
 - [x] Vintage filter + vintage picker; currency £
 - [x] Git repo, feature branches, CI workflow
 
-### Phase 2 — release ✅ live at https://miovino.miovino.workers.dev
+### Phase 2 — release ✅ live at https://miovino.mb1988.workers.dev
 - [x] Cloudflare Worker + D1 (photos in D1), sync, passkey login, server-side label scan
 - [x] CI/CD: every merge to `main` backs up D1, runs migrations and deploys; PRs deploy to `miovino-preview`
 

@@ -10,7 +10,7 @@ import QRCode from 'qrcode'
 
 const env = process.argv[2] === 'preview' ? 'preview' : 'production'
 const db = env === 'preview' ? 'miovino-preview' : 'miovino'
-const origin = process.env.MIOVINO_URL ?? (env === 'preview' ? 'https://miovino-preview.miovino.workers.dev' : 'https://miovino.miovino.workers.dev')
+const origin = process.env.MIOVINO_URL ?? (env === 'preview' ? 'https://miovino-preview.mb1988.workers.dev' : 'https://miovino.mb1988.workers.dev')
 
 const token = randomBytes(24).toString('base64url')
 const hash = createHash('sha256').update(token).digest('base64url')
