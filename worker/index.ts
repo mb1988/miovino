@@ -8,6 +8,7 @@ import { handleAsk, handleBlends, handlePriceHint, handleWindows, handleWineList
 import { handlePush, monthlyReminder, type PushDb } from './push'
 import { BadRequest, sync, validate, type Db } from './sync'
 import { priceHistory, remember, type FactsDb } from './facts'
+import { refreshPrices } from './market'
 import { validatePricesRequest } from '../src/shared/priceHistory'
 
 interface Env extends AuthEnv, AiEnv, EmailEnv {
@@ -15,6 +16,8 @@ interface Env extends AuthEnv, AiEnv, EmailEnv {
   ASSETS: Fetcher
 }
 
+/** Must match the daily entry in wrangler.jsonc "triggers". */
+const DAILY_CRON = '30 3 * * *'
 const PHOTO_ID = /^[A-Za-z0-9-]{8,64}$/
 const MAX_PHOTO = 1_500_000 // D1 rows max out at 2 MB; the app sends ~600px JPEGs
 
@@ -131,8 +134,12 @@ export default {
     }
   },
 
-  // Cron (wrangler.jsonc "triggers"): the monthly drinking summary.
-  async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext) {
+  // Cron (wrangler.jsonc "triggers"): a few price checks every day, and the monthly drinking summary.
+  async scheduled(event: ScheduledController, env: Env, ctx: ExecutionContext) {
+    if (event.cron === DAILY_CRON) {
+      ctx.waitUntil(refreshPrices(env.DB as unknown as FactsDb, env))
+      return
+    }
     ctx.waitUntil(monthlyReminder(env.DB as unknown as PushDb))
     ctx.waitUntil(emailReminder(env.DB as unknown as PushDb, env).catch((e) => console.error('Email reminder failed', e)))
   },

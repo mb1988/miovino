@@ -1,7 +1,8 @@
 import { MAX_WINDOW_WINES, tidyWindows, validateWindowsRequest, windowsPrompt, WindowsSchema } from '../src/shared/windows'
 import { MAX_LIST_PAGES, tidyWineList, validateWineListRequest, wineListPrompt, WineListSchema } from '../src/shared/winelist'
 import { drinkStatus, type DrinkStatus } from '../src/shared/status'
-import { priceHintPrompt, PriceHintSchema, tidyPriceHint, validatePriceHintRequest } from '../src/shared/whereToBuy'
+import { validatePriceHintRequest } from '../src/shared/whereToBuy'
+import { lookUpPrice } from './market'
 import { aiErrorResponse, generateJson, generateText, type AiEnv } from './ai'
 import { json } from './auth'
 import { recall, remember, type FactsDb } from './facts'
@@ -164,9 +165,7 @@ export async function handlePriceHint(req: Request, db: FactsDb, env: AiEnv) {
   const known = await recall<PriceHint>(db, body, 'price')
   if (known?.data.where) return json({ hint: known.data, cached: true, at: new Date(known.at).toISOString().slice(0, 10) })
   try {
-    const hint = tidyPriceHint(await generateJson(env, { messages: [{ role: 'user', content: priceHintPrompt(body) }] }, PriceHintSchema))
-    await remember(db, body, 'price', hint, 'pricehint')
-    return json({ hint })
+    return json({ hint: await lookUpPrice(db, env, body, body.lang) })
   } catch (e) {
     return aiErrorResponse(e)
   }

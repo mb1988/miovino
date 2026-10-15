@@ -247,6 +247,39 @@ describe('price paid vs. today', async () => {
   })
 })
 
+describe('market value over time', async () => {
+  const { biggestMovers, valueHistory } = await import('./value')
+  const bottle = (purchaseDate: string, purchasePrice: number, consumedAt?: string) => ({ status: consumedAt ? 'drunk' : 'cellar', purchaseDate, purchasePrice, consumedAt, createdAt: 0 })
+  it('values the bottles held each month at the newest price known by then, from the first tracked month', () => {
+    const cellar = [
+      { id: 'a', marketPrice: 40, bottles: [bottle('2026-01-10', 20), bottle('2026-01-10', 20)] },
+      { id: 'b', bottles: [bottle('2025-12-01', 50, '2026-08-05'), bottle('2026-09-10', 10)] },
+    ] as unknown as WineWithBottles[]
+    const prices = {
+      a: [
+        { low: 28, high: 32, source: 'pricehint', at: '2026-09-02' },
+        { low: 24, high: 26, source: 'winelist', at: '2026-06-20' },
+      ],
+    }
+    expect(valueHistory(cellar, prices, 6, new Date('2026-10-15T12:00:00Z'))).toEqual([
+      { month: '2026-06', value: 100, cost: 90 },
+      { month: '2026-07', value: 100, cost: 90 },
+      { month: '2026-08', value: 50, cost: 40 }, // the 2025 bottle was drunk in August
+      { month: '2026-09', value: 70, cost: 50 },
+      { month: '2026-10', value: 90, cost: 50 }, // this month: your own price (40) wins
+    ])
+    expect(valueHistory(cellar, {}, 6, new Date('2026-10-15T12:00:00Z'))).toEqual([{ month: '2026-10', value: 90, cost: 50 }])
+  })
+  it('lists the wines that moved most against what you paid', () => {
+    const w = (id: string, paid: number, marketPrice?: number) => ({ id, marketPrice, inCellar: 1, bottles: [{ status: 'cellar', purchasePrice: paid }] })
+    const cellar = [w('up', 20, 30), w('flat', 20, 20), w('down', 40), w('big', 10), w('gone', 10, 99)] as unknown as WineWithBottles[]
+    cellar[4].inCellar = 0
+    const { up, down } = biggestMovers(cellar, new Map([['down', 30], ['big', 25]]))
+    expect(up.map((m) => [m.id, Math.round(m.pct)])).toEqual([['big', 150], ['up', 50]])
+    expect(down.map((m) => [m.id, m.now])).toEqual([['down', 30]])
+  })
+})
+
 describe('grape shares in Wine DNA', async () => {
   const { grapeShares, rankBy } = await import('./stats')
   const w = (grapes: string[], grapePct: Record<string, number> | undefined, rating: number, bottles = 1) =>

@@ -202,8 +202,10 @@ Answers to the owner's questions
 - *More than one cellar?* Today: several **locations/racks** (each with its own grid) but no "cellar" level above them — item 5 adds it.
 - *Monthly reminder only with Safari?* On iPhone, web push only works once the app is on the Home Screen (iOS 16.4+); adding it from Safari is the reliable way. On **Android it works in Chrome/Edge/Firefox directly**, installed or not.
 
+5. [x] **Market value tracking** — PR #52 (2026-10-15): a daily cron (03:30 UTC, worker/market.ts) re-prices up to 8 cellar wines whose price is missing or over 30 days old (never-priced first), so every wine gets a new point about monthly; Cellar over time shows **Market value** month by month against what those bottles cost, and **Biggest movers** (price today vs paid per bottle). Demo prices now sit near what was paid.
+
 ### Later, only if wanted
-Market value tracking, partner/shared cellar.
+Partner/shared cellar.
 
 ## 7. Decisions
 - Currency: **£** ✅

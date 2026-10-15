@@ -589,3 +589,50 @@ describe('wishlist price hint endpoint', () => {
     }
   })
 })
+
+describe('daily market check', () => {
+  it('prices cellar wines that were never priced or not for a month, a few a day, and stops on an AI error', async () => {
+    const db = sqliteD1()
+    type Worker = { fetch: (req: Request, env: unknown) => Promise<Response>; scheduled: (e: unknown, env: unknown, ctx: { waitUntil: (p: Promise<unknown>) => void }) => Promise<void> }
+    const worker = ((await import(/* @vite-ignore */ new URL('../../worker/index.ts', import.meta.url).href)) as { default: Worker }).default
+    const env = { DB: db, ALLOW_NO_AUTH: 'true', ASSETS: { fetch: async () => new Response('index') }, GEMINI_API_KEY: 'k' }
+    const w = (id: string, producer: string, vintage: number) => ({ kind: 'wines', id: `wine-${id}-0001`, updatedAt: 1, deleted: false, data: { producer, name: 'Rosso', vintage } })
+    const b = (id: string, status: string) => ({ kind: 'bottles', id: `bottle-${id}-0001`, updatedAt: 1, deleted: false, data: { wineId: `wine-${id}-0001`, status } })
+    await worker.fetch(
+      new Request('https://cellar.test/api/sync', {
+        method: 'POST',
+        body: JSON.stringify({ cursor: 0, changes: [w('aaaa', 'Fresh', 2019), b('aaaa', 'cellar'), w('bbbb', 'Old', 2018), b('bbbb', 'cellar'), w('cccc', 'Never', 2017), b('cccc', 'cellar'), w('dddd', 'Drunk', 2016), b('dddd', 'drunk')] }),
+      }),
+      env,
+    )
+    const day = 86_400_000
+    const fact = (producer: string, vintage: number, ago: number) =>
+      db.raw.prepare("INSERT INTO wine_facts (wine_key, kind, data, source, created_at) VALUES (?, 'price', '{\"low\":20,\"high\":24}', 'pricehint', ?)").run(`${producer.toLowerCase()}|rosso|${vintage}`, Date.now() - ago * day)
+    fact('Fresh', 2019, 3)
+    fact('Old', 2018, 45)
+    const asked: string[] = []
+    let fail = false
+    vi.stubGlobal('fetch', async (_url: unknown, init?: RequestInit) => {
+      if (fail) return new Response('quota', { status: 429 })
+      asked.push(/Wine: (\w+)/.exec(String(init?.body))![1])
+      return Response.json({ candidates: [{ content: { parts: [{ text: JSON.stringify({ low: 30, high: 34, where: 'Shops.' }) }] }, finishReason: 'STOP' }] })
+    })
+    const run = async () => {
+      const waits: Promise<unknown>[] = []
+      await worker.scheduled({ cron: '30 3 * * *' }, env, { waitUntil: (p) => void waits.push(p) })
+      await Promise.all(waits)
+    }
+    try {
+      await run()
+      expect(asked).toEqual(['Never', 'Old']) // never-priced first; the fresh one and the drunk one are skipped
+      expect((db.raw.prepare("SELECT COUNT(*) AS n FROM wine_facts WHERE kind = 'price'").get() as { n: number }).n).toBe(4)
+      await run()
+      expect(asked).toHaveLength(2) // all fresh now: no AI calls
+      db.raw.prepare('UPDATE wine_facts SET created_at = created_at - 40 * 86400000').run()
+      fail = true
+      await run() // the AI refuses: logged, nothing thrown
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+})
