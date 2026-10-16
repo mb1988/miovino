@@ -118,3 +118,43 @@ export function wineListPrompt(r: Pick<WineListRequest, 'food' | 'budget' | 'lan
     .filter(Boolean)
     .join('\n')
 }
+
+/** A long list (PDF or website) is read in parts of about this size, so one request never trips the free AI tier's per-minute limit. */
+export const PART_CHARS = 24_000
+
+/** Splits list text into parts of at most `max` characters, at line breaks where possible. */
+export function splitListText(text: string, max = PART_CHARS): string[] {
+  const parts: string[] = []
+  let cur = ''
+  for (const line of text.split('\n')) {
+    for (let i = 0; i < Math.max(line.length, 1); i += max) {
+      const piece = line.slice(i, i + max)
+      if (cur && cur.length + 1 + piece.length > max) {
+        parts.push(cur)
+        cur = ''
+      }
+      cur = cur ? `${cur}\n${piece}` : piece
+    }
+  }
+  if (cur.trim()) parts.push(cur)
+  return parts
+}
+
+const FIT_ORDER = { great: 0, good: 1, safe: 2 } as const
+const sameWine = (a: { producer: string; name: string; vintage: number | null }, b: typeof a) =>
+  a.producer.toLowerCase() === b.producer.toLowerCase() && a.name.toLowerCase() === b.name.toLowerCase() && a.vintage === b.vintage
+
+/** One answer from the answers for each part: the best 5 picks overall (by fit, then the order found), 3 deals, no repeats. */
+export function mergeWineLists(results: WineListResult[]): WineListResult {
+  const picks: WineListPick[] = []
+  for (const p of results.flatMap((r) => r.picks).sort((a, b) => FIT_ORDER[a.fit] - FIT_ORDER[b.fit])) if (!picks.some((q) => sameWine(p, q))) picks.push(p)
+  const deals: WineListDeal[] = []
+  for (const d of results.flatMap((r) => r.deals)) if (!picks.some((q) => sameWine(d, q)) && !deals.some((q) => sameWine(d, q))) deals.push(d)
+  return {
+    isWineList: results.some((r) => r.isWineList),
+    currency: results.find((r) => r.currency)?.currency ?? null,
+    picks: picks.slice(0, 5),
+    deals: deals.slice(0, 3),
+    note: results.find((r) => r.note)?.note ?? null,
+  }
+}

@@ -291,6 +291,45 @@ test('wine list from a PDF or a website: the text is read and sent instead of ph
   expect(sent[1].text).toBe(listText)
 })
 
+test('a long list is read in parts; when the free AI limit hits, the picks so far stay and the rest can be read later', async ({ page }) => {
+  await page.clock.install()
+  await seed(page, { wines: [wine('wine-gaja-0001')] })
+  const line = (i: number) => `Wine number ${i} from a long list, a fine bottle ${2000 + (i % 20)} £${40 + (i % 50)}`
+  const listText = Array.from({ length: 900 }, (_, i) => line(i)).join('\n') // ~60k characters: 3 parts
+  await page.route('**/api/fetchlist', (route) => route.fulfill({ json: { title: 'Long list', text: listText, pdfs: [] } }))
+  const pick = (name: string, fit: string) => ({ producer: 'P', name, vintage: 2019, price: 60, byTheGlass: false, fit, why: 'Your style.', inCellar: false, retailEstimate: null, valueNote: null })
+  let calls = 0
+  let limited = true
+  await page.route('**/api/winelist', (route) => {
+    calls++
+    const part = (route.request().postDataJSON() as { text: string }).text
+    if (part.includes(line(0))) return route.fulfill({ json: { result: { isWineList: true, currency: '£', picks: [pick('First part wine', 'good')], deals: [], note: null } } })
+    if (limited) return route.fulfill({ status: 429, json: { error: 'Rate limited — the free AI quota is used up for now. Try again in a minute.' } })
+    return route.fulfill({ json: { result: { isWineList: true, currency: '£', picks: [pick(`Later wine ${calls}`, 'great')], deals: [], note: null } } })
+  })
+  await page.goto('/winelist')
+  await page.getByRole('button', { name: 'Website' }).click()
+  await page.getByRole('textbox', { name: 'Wine list web address' }).fill('long.example/wines')
+  await page.getByRole('button', { name: 'Open', exact: true }).click()
+  await expect(page.getByText('Long list')).toBeVisible()
+  await page.getByRole('button', { name: 'Find my bottle' }).click()
+
+  // Part 2 is refused: it waits a minute, tries once more, then keeps part 1's picks.
+  await expect(page.getByRole('button', { name: /Free AI limit reached — carrying on in \d+ s \(part 2 of 3\)/ })).toBeVisible()
+  await page.clock.runFor(61_000)
+  await expect(page.getByRole('alert')).toContainText('Read 1 of 3 parts of the list')
+  await expect(page.getByText('First part wine')).toBeVisible()
+  expect(calls).toBe(3)
+
+  // Later: the rest is read and merged, best fits first.
+  limited = false
+  await page.getByRole('button', { name: 'Read the rest' }).click()
+  await expect(page.getByText('Later wine 4')).toBeVisible()
+  await expect(page.getByText('Later wine 5')).toBeVisible()
+  await expect(page.getByText('First part wine')).toBeVisible()
+  await expect(page.getByRole('alert')).toHaveCount(0)
+})
+
 test('monthly reminder by email: save an address and send a test', async ({ page }) => {
   await seed(page, { wines: [wine('wine-gaja-0001')] })
   let saved: string | null = null
