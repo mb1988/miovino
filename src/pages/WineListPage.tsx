@@ -12,7 +12,7 @@ import { useSync } from '../lib/sync'
 import type { WineWithBottles } from '../lib/types'
 import { addWish } from '../lib/wishlist'
 import { bestValue, isPounds, priceCheck } from '../shared/prices'
-import { MAX_LIST_PAGES, MIN_LIST_TEXT, type WineListPick, type WineListResult } from '../shared/winelist'
+import { MAX_LIST_PAGES, mergeWineLists, MIN_LIST_TEXT, splitListText, type WineListPick, type WineListResult } from '../shared/winelist'
 
 /**
  * What the owner paid for the same wine (same vintage if they have it). Only an exact producer + name match counts:
@@ -40,6 +40,8 @@ const FIT_STYLE: Record<WineListPick['fit'], string> = {
   good: 'bg-sky-400/15 text-sky-200 ring-sky-400/30',
   safe: 'bg-stone-500/15 text-stone-300 ring-stone-500/30',
 }
+/** Seconds to wait when the free AI tier asks us to slow down (its limits are per minute). */
+const RETRY_WAIT = 60
 const FIT_LABEL: Record<WineListPick['fit'], string> = { great: 'Your style', good: 'Good bet', safe: 'Safe choice' }
 
 /** At a restaurant: photograph the wine list, get picks for your own taste. */
@@ -61,6 +63,9 @@ export default function WineListPage() {
   const [link, setLink] = useState('')
   const [pdfs, setPdfs] = useState<string[]>([])
   const [reading, setReading] = useState(false)
+  const [progress, setProgress] = useState('')
+  // A long list stopped part-way (the free AI tier's limit): what's left, to carry on later.
+  const [rest, setRest] = useState<{ parts: string[]; total: number; done: WineListResult[]; why: string } | null>(null)
   const cellar = useCellar()
   const priced = useMemo(() => (result ? withChecks(result, cellar ?? []) : undefined), [result, cellar])
 
@@ -117,29 +122,81 @@ export default function WineListPage() {
       setLinkOpen(false)
     })
 
-  const find = async () => {
+  const ask = async (source: { text: string } | { images: string[] }): Promise<WineListResult> => {
+    const n = Number(budget.replace(',', '.'))
+    const res = await fetch('/api/winelist', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ ...source, food: food.trim() || undefined, budget: n > 0 ? n : undefined, lang: getLang() }),
+    })
+    const data = (await res.json().catch(() => ({}))) as { result?: WineListResult; error?: string }
+    if (!res.ok || !data.result) throw Object.assign(new Error(data.error ?? t('Something went wrong ({status}).', { status: res.status })), { status: res.status })
+    return data.result
+  }
+
+  /** One part of a long list. When the free AI tier says "wait", waits a minute (with a countdown) and tries once more. */
+  const askPart = async (text: string, n: number, total: number) => {
+    try {
+      return await ask({ text })
+    } catch (e) {
+      if ((e as { status?: number }).status !== 429) throw e
+      for (let s = RETRY_WAIT; s > 0; s--) {
+        setProgress(t('Free AI limit reached — carrying on in {s} s (part {n} of {total})', { s, n, total }))
+        await new Promise((r) => setTimeout(r, 1000))
+      }
+      setProgress(t('Reading part {n} of {total}…', { n, total }))
+      return await ask({ text })
+    }
+  }
+
+  /**
+   * Reads the parts still to do, showing the picks so far after each one. If the AI gives up part-way,
+   * the picks so far stay on screen and "Read the rest" carries on from the part that failed.
+   */
+  const readParts = async (parts: string[], total: number, done: WineListResult[]) => {
+    for (let i = 0; i < parts.length; i++) {
+      const n = total - parts.length + i + 1
+      setProgress(total > 1 ? t('Reading part {n} of {total}…', { n, total }) : '')
+      try {
+        done.push(await askPart(parts[i], n, total))
+      } catch (e) {
+        if ((e as { status?: number }).status === 422 && total > 1) continue // a part with no wines (e.g. the food menu)
+        if (!done.length) throw e
+        setRest({ parts: parts.slice(i), total, done, why: (e as Error).message })
+        return
+      }
+      setResult(mergeWineLists(done))
+    }
+    if (!done.length) throw new Error(t("That doesn't look like a wine list. Try the PDF or page that lists the wines."))
+    setRest(null)
+  }
+
+  const run = async (work: () => Promise<void>) => {
     setBusy(true)
     setError('')
-    setResult(undefined)
-    setSaved(new Set())
     try {
-      const source = doc ? { text: doc.text } : { images: await Promise.all(pages.map(async (p) => (await imageToBase64(p.blob)).data)) }
-      const n = Number(budget.replace(',', '.'))
-      const res = await fetch('/api/winelist', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        credentials: 'same-origin',
-        body: JSON.stringify({ ...source, food: food.trim() || undefined, budget: n > 0 ? n : undefined, lang: getLang() }),
-      })
-      const data = (await res.json().catch(() => ({}))) as { result?: WineListResult; error?: string }
-      if (!res.ok || !data.result) throw new Error(data.error ?? t('Something went wrong ({status}).', { status: res.status }))
-      setResult(data.result)
+      await work()
     } catch (e) {
       setError((e as Error).message)
     } finally {
       setBusy(false)
+      setProgress('')
     }
   }
+
+  const find = () => {
+    setResult(undefined)
+    setSaved(new Set())
+    setRest(null)
+    return run(async () => {
+      if (doc) {
+        const parts = splitListText(doc.text)
+        await readParts(parts, parts.length, [])
+      } else setResult(await ask({ images: await Promise.all(pages.map(async (p) => (await imageToBase64(p.blob)).data)) }))
+    })
+  }
+  const readRest = () => rest && run(() => (setRest(null), readParts(rest.parts, rest.total, [...rest.done])))
 
   const ready = sync.available && sync.authenticated
   return (
@@ -261,7 +318,7 @@ export default function WineListPage() {
       <Button className="w-full py-3" disabled={(!pages.length && !doc) || busy || reading || !ready} onClick={find}>
         {busy ? (
           <>
-            <Loader2 className="animate-spin" size={18} /> {t('Reading the list…')}
+            <Loader2 className="animate-spin" size={18} /> {progress || t('Reading the list…')}
           </>
         ) : (
           t('Find my bottle')
@@ -269,6 +326,14 @@ export default function WineListPage() {
       </Button>
       {busy && <p className="mt-2 text-center text-xs text-cream-500">{t('Usually under a minute for a long list')}</p>}
       {error && <p className="mt-3 text-sm text-rose-300">{error}</p>}
+      {rest && !busy && (
+        <div role="alert" className="mt-3 rounded-xl bg-amber-400/10 p-3 text-sm text-amber-100 ring-1 ring-amber-400/30">
+          <p>{t('Read {read} of {total} parts of the list, so these picks cover only those. {why}', { read: rest.total - rest.parts.length, total: rest.total, why: rest.why })}</p>
+          <Button variant="secondary" className="mt-2" onClick={readRest}>
+            {t('Read the rest')}
+          </Button>
+        </div>
+      )}
 
       {result && priced && (
         <section className="mt-6 space-y-3">

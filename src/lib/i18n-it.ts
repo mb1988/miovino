@@ -700,4 +700,8 @@ export const IT: Record<string, string> = {
   'vs what you paid': 'rispetto al pagato',
   'Market value from {from} in {start} to {to} now': 'Valore di mercato da {from} a {start} a {to} oggi',
   'What you paid': 'Quanto hai pagato',
+  'Free AI limit reached — carrying on in {s} s (part {n} of {total})': 'Limite dell’AI gratuita raggiunto — riprendo tra {s} s (parte {n} di {total})',
+  'Reading part {n} of {total}…': 'Leggo la parte {n} di {total}…',
+  'Read {read} of {total} parts of the list, so these picks cover only those. {why}': 'Lette {read} parti su {total} della carta: questi consigli riguardano solo quelle. {why}',
+  'Read the rest': 'Leggi il resto',
 }
