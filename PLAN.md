@@ -194,8 +194,8 @@ Feedback after using the app. Each item is one PR; CI must be green before mergi
 ### Phase 9 — next (as of 2026-10-12)
 1. [x] **Demo speed** — PRs #47 + #49 (2026-10-12/13). Lighthouse mobile on /demo: **51 → 76–83** (TBT 1.5 s → 0.1–0.45 s). #47: splash in index.html, first 8 cards then the rest on scroll (+`content-visibility:auto`), demo seed via bulkAdd and marked pushed, wine-list parser lazy, Sheet focuses next frame. #49: cellar + locations in one live query (one render), first-visit About sheet opens on idle, splash has a tagline (it is now the LCP element), service worker registered on idle after load (`injectRegister: false`, see main.tsx). Left on the table: ~0.9 s (4× CPU) evaluating the main bundle. Re-measure with `npx -y lighthouse@12 <url>/demo` (CHROME_PATH = Playwright's chromium).
 - [x] **Wine list from a PDF or website** — PR #48 (2026-10-13): PDF read on the phone (pdf.js, lazy; scanned PDFs → first 3 pages as photos), website fetched by the Worker (`/api/fetchlist`, signed-in, public hosts only) with its PDF links offered.
-2. [ ] **Owner action**: More → Grape percentages → Fill + Look up published blends (fills the real cellar).
-3. [ ] **Own domain** — owner buys (e.g. miovino.app); then Workers custom domain + update links (README, og tags, demo intro).
+2. [x] **Owner action**: More → Grape percentages → Fill + Look up published blends — done by owner 2026-10-16.
+3. [ ] **Own domain** (owner: not for now, 2026-10-16) — owner buys (e.g. miovino.app); then Workers custom domain + update links (README, og tags, demo intro).
 4. [x] Email version of the monthly reminder — PR #50 (2026-10-13), live once `RESEND_API_KEY` is set (owner). [ ] Wishlist price alerts (needs a paid live-price feed).
 
 Answers to the owner's questions
@@ -204,7 +204,7 @@ Answers to the owner's questions
 
 5. [x] **Market value tracking** — PR #52 (2026-10-15): a daily cron (03:30 UTC, worker/market.ts) re-prices up to 8 cellar wines whose price is missing or over 30 days old (never-priced first), so every wine gets a new point about monthly; Cellar over time shows **Market value** month by month against what those bottles cost, and **Biggest movers** (price today vs paid per bottle). Demo prices now sit near what was paid.
 
-**Status 2026-10-15:** feature-complete. App moved to `miovino.mb1988.workers.dev` (Cloudflare subdomain changed, PR #51); owner signed in again there with a fresh invite (passkeys are tied to the hostname). Market value tracking deployed. Next: owner uses the app for 2–3 weeks and lists annoyances; fix those first. Owner to-dos left: grape % fill (item 2), `RESEND_API_KEY` (item 4), own domain (item 3). If PDF/website import fails on an older iPhone, try the pdfjs legacy build.
+**Status 2026-10-15:** feature-complete. App moved to `miovino.mb1988.workers.dev` (Cloudflare subdomain changed, PR #51); owner signed in again there with a fresh invite (passkeys are tied to the hostname). Market value tracking deployed. Next: owner uses the app for 2–3 weeks and lists annoyances; fix those first. Owner to-dos left: `RESEND_API_KEY` (item 4, optional). Own domain: not for now. If PDF/website import fails on an older iPhone, try the pdfjs legacy build.
 
 ### Later, only if wanted
 Partner/shared cellar; wishlist price alerts (paid feed).
