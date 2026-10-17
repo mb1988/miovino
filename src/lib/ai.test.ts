@@ -7,6 +7,8 @@ interface AiModule {
   generateText: (env: Record<string, string>, req: unknown) => Promise<{ text: string; truncated: boolean; provider: string }>
   generateJson: (env: Record<string, string>, req: unknown, schema: z.ZodType) => Promise<unknown>
   parseJson: (text: string) => unknown
+  DAILY_LIMIT: string
+  MINUTE_LIMIT: string
 }
 const ai = (await import(/* @vite-ignore */ new URL('../../worker/ai.ts', import.meta.url).href)) as AiModule
 
@@ -66,6 +68,14 @@ describe('AI providers', () => {
   it('treats an answer that does not fit the schema as a failure, and reports the last error', async () => {
     vi.stubGlobal('fetch', async (url: string) => (url.includes('googleapis') ? gem('{"name": 42}') : new Response('slow down', { status: 429 })))
     await expect(ai.generateJson({ GEMINI_API_KEY: 'g', OPENROUTER_API_KEY: 'o' }, ask, Schema)).rejects.toMatchObject({ status: 429 })
+  })
+
+  it('tells the daily allowance apart from the per-minute limit', async () => {
+    const quota = (id: string) => new Response(JSON.stringify({ error: { code: 429, details: [{ violations: [{ quotaId: id }] }] } }), { status: 429 })
+    vi.stubGlobal('fetch', async () => quota('GenerateRequestsPerDayPerProjectPerModel-FreeTier'))
+    await expect(ai.generateText({ GEMINI_API_KEY: 'g' }, ask)).rejects.toMatchObject({ status: 429, daily: true, message: ai.DAILY_LIMIT })
+    vi.stubGlobal('fetch', async () => quota('GenerateContentInputTokensPerModelPerMinute-FreeTier'))
+    await expect(ai.generateText({ GEMINI_API_KEY: 'g' }, ask)).rejects.toMatchObject({ status: 429, daily: false, message: ai.MINUTE_LIMIT })
   })
 
   it("sends images in each provider's own format", async () => {

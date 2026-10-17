@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { htmlToText, MAX_LIST_TEXT, mergeWineLists, splitListText, validateWineListRequest, wineListPrompt, type WineListResult } from './winelist'
+import { htmlToText, MAX_LIST_TEXT, mergeWineLists, onList, splitListText, validateWineListRequest, wineListPrompt, type WineListResult } from './winelist'
 
 const photo = 'x'.repeat(200)
 const list = 'Barolo, Vietti 2019 — £95\nChablis 1er Cru, Brocard 2022 — £48\nRioja Reserva, Muga 2018 — £52'
@@ -49,5 +49,19 @@ describe('long lists in parts', () => {
     expect(m.picks.map((p) => p.name)).toEqual(['D', 'B', 'A'])
     expect(m.deals.map((d) => d.name)).toEqual(['C', 'E'])
     expect([m.currency, m.note, m.isWineList]).toEqual(['£', 'first', true])
+  })
+})
+
+describe('picks must be on the list', () => {
+  const list = 'CHIANTI CLASSICO\nFelsina Berardenga Chianti Classico Riserva 2019 £68\nCastello di Ama, Chianti Classico 2021 £55\nBarolo, G.D. Vajra Albe 2020 £72'
+  it('keeps wines that are on it, even with accents, commas or a missing word', () => {
+    expect(onList({ producer: 'Fèlsina', name: 'Chianti Classico Riserva Berardenga' }, list)).toBe(true)
+    expect(onList({ producer: 'Castello di Ama', name: 'Chianti Classico' }, list)).toBe(true)
+    expect(onList({ producer: 'G.D. Vajra', name: 'Barolo Albe' }, list)).toBe(true)
+  })
+  it('drops a wine from another producer or not on the list at all', () => {
+    expect(onList({ producer: 'Mazzei', name: 'Castello di Fonterutoli Chianti Classico' }, list)).toBe(false)
+    expect(onList({ producer: 'Gaja', name: 'Barbaresco' }, list)).toBe(false)
+    expect(onList({ producer: '', name: 'Sassicaia' }, list)).toBe(false)
   })
 })

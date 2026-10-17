@@ -46,6 +46,8 @@ export class AiError extends Error {
   constructor(
     public status: number,
     message: string,
+    /** A 429 for the day, not the minute: waiting a minute won't help. */
+    public daily = false,
   ) {
     super(message)
   }
@@ -142,9 +144,12 @@ export async function generateJson<S extends z.ZodType>(env: AiEnv, req: AiReque
   throw last!
 }
 
+export const MINUTE_LIMIT = 'The free AI is busy (its per-minute limit). Try again in a minute.'
+export const DAILY_LIMIT = 'The free AI’s allowance for today is used up. It resets overnight — try again tomorrow morning.'
+
 /** Turns an AiError (or anything else) into the JSON error response the app shows. */
 export function aiErrorResponse(e: unknown) {
-  if (e instanceof AiError) return json({ error: e.message }, e.status)
+  if (e instanceof AiError) return json({ error: e.message, ...(e.daily ? { daily: true } : {}) }, e.status)
   throw e
 }
 
@@ -190,7 +195,9 @@ async function httpError(provider: ProviderId, res: Response): Promise<AiError> 
   console.warn(`AI ${provider} HTTP ${res.status} type=${res.headers.get('content-type')} len=${body.length} server=${res.headers.get('server')} body=${body.slice(0, 500).replace(/s+/g, ' ')}`)
   const detail = body.slice(0, 300)
   const name = PROVIDER_NAMES[provider]
-  if (res.status === 429) return new AiError(429, 'Rate limited — the free AI quota is used up for now. Try again in a minute.')
+  // Google names the quota it hit (e.g. "GenerateRequestsPerDayPerProjectPerModel-FreeTier"); OpenRouter says "free-models-per-day".
+  if (res.status === 429 && /per.?day|daily/i.test(body)) return new AiError(429, DAILY_LIMIT, true)
+  if (res.status === 429) return new AiError(429, MINUTE_LIMIT)
   if (res.status === 401 || res.status === 403) return new AiError(502, `The server's ${name} key was rejected.`)
   // Google answers a bad key, or a region without the free tier, with 400 + a message: show it plainly.
   const reason = (() => {

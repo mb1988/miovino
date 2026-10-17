@@ -130,8 +130,8 @@ export default function WineListPage() {
       credentials: 'same-origin',
       body: JSON.stringify({ ...source, food: food.trim() || undefined, budget: n > 0 ? n : undefined, lang: getLang() }),
     })
-    const data = (await res.json().catch(() => ({}))) as { result?: WineListResult; error?: string }
-    if (!res.ok || !data.result) throw Object.assign(new Error(data.error ?? t('Something went wrong ({status}).', { status: res.status })), { status: res.status })
+    const data = (await res.json().catch(() => ({}))) as { result?: WineListResult; error?: string; daily?: boolean }
+    if (!res.ok || !data.result) throw Object.assign(new Error(data.error ?? t('Something went wrong ({status}).', { status: res.status })), { status: res.status, daily: !!data.daily })
     return data.result
   }
 
@@ -140,7 +140,8 @@ export default function WineListPage() {
     try {
       return await ask({ text })
     } catch (e) {
-      if ((e as { status?: number }).status !== 429) throw e
+      const { status, daily } = e as { status?: number; daily?: boolean }
+      if (status !== 429 || daily) throw e // the day's allowance: waiting a minute won't help
       for (let s = RETRY_WAIT; s > 0; s--) {
         setProgress(t('Free AI limit reached — carrying on in {s} s (part {n} of {total})', { s, n, total }))
         await new Promise((r) => setTimeout(r, 1000))

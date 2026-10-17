@@ -111,7 +111,7 @@ export function wineListPrompt(r: Pick<WineListRequest, 'food' | 'budget' | 'lan
     'Read every wine on the list, then pick up to 5 that best match THEIR taste — use their ratings, the wines they would buy again, and the styles, grapes and regions they own and love. Prefer wines that are drinking well now for their vintage.',
     r.food ? `They are eating: ${r.food}. Make the pairing count.` : 'They have not said what they are eating; favour versatile food wines.',
     r.budget ? `Budget: up to ${r.budget} per bottle on the list's prices. Stay within it unless one pick just above is clearly worth it — say so.` : '',
-    'Only pick wines that are actually on the list, written as printed. Mark inCellar when the same wine is already in their cellar.',
+    'Only pick wines that are actually on the list, written as printed. Their cellar (in the system prompt) is only there to show their taste: never pick a wine because it is in the cellar if it is not also on this list. Mark inCellar when a wine on the list is also in their cellar.',
     `For every pick, estimate the typical UK retail price of one bottle (retailEstimate, in pounds) so the owner can judge the markup. UK restaurants usually charge 2.5–3.5× retail: up to ${MARKUP_THRESHOLDS.steal}× is a steal, above ${MARKUP_THRESHOLDS.pricey}× a rip-off. If the list is not in pounds, still give retail in pounds and say so in valueNote. In deals, flag up to 3 other bottles worth knowing about for their price.`,
     r.lang === 'it' ? 'Write "why", "valueNote" and "note" in Italian.' : 'Write "why", "valueNote" and "note" in British English.',
   ]
@@ -157,4 +157,34 @@ export function mergeWineLists(results: WineListResult[]): WineListResult {
     deals: deals.slice(0, 3),
     note: results.find((r) => r.note)?.note ?? null,
   }
+}
+
+const words = (s: string) =>
+  s
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((w) => w.length >= 3)
+
+// Words that say nothing about which producer it is.
+const GENERIC = new Set(['the', 'and', 'del', 'della', 'dei', 'des', 'les', 'von', 'castello', 'chateau', 'domaine', 'tenuta', 'cantina', 'cantine', 'azienda', 'agricola', 'bodegas', 'bodega', 'weingut', 'fattoria', 'podere', 'estate', 'vineyards', 'winery', 'maison', 'clos'])
+
+/**
+ * Is this wine really on the list text? A word of its producer must appear (if it has one), and at least
+ * half the words of its name (lenient: PDF text runs columns together and splits words). Catches a pick
+ * the AI took from the owner's cellar, which it is shown for their taste, or simply made up.
+ */
+export function onList(w: { producer: string; name: string }, listText: string): boolean {
+  const have = new Set(words(listText))
+  const producer = words(w.producer).filter((x) => !GENERIC.has(x))
+  if (producer.length && !producer.some((x) => have.has(x))) return false
+  const name = [...new Set(words(w.name))]
+  if (!name.length) return producer.length > 0
+  return name.filter((x) => have.has(x)).length * 2 >= name.length
+}
+
+/** Keeps only the picks and deals found in the list text (for lists read as text: PDF or website). */
+export function onlyOnList(r: WineListResult, listText: string): WineListResult {
+  return { ...r, picks: r.picks.filter((p) => onList(p, listText)), deals: r.deals.filter((d) => onList(d, listText)) }
 }
