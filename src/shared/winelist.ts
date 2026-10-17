@@ -100,6 +100,8 @@ export interface WineListRequest {
   lang?: 'en' | 'it'
   /** Something different: wines outside their usual regions and grapes, explained from their taste. */
   explore?: boolean
+  /** One part of a longer list: fewer picks per style, so the answer comes back quicker (the parts are merged). */
+  part?: boolean
 }
 
 export function validateWineListRequest(body: unknown): WineListRequest | null {
@@ -113,7 +115,7 @@ export function validateWineListRequest(body: unknown): WineListRequest | null {
   if (b.food != null && (typeof b.food !== 'string' || b.food.length > 200)) return null
   if (b.budget != null && !(typeof b.budget === 'number' && b.budget > 0 && b.budget < 100_000)) return null
   const source = hasImages ? { images: b.images } : { text: b.text!.trim() }
-  return { ...source, food: b.food?.trim() || undefined, budget: b.budget, lang: b.lang === 'it' ? 'it' : 'en', explore: b.explore === true }
+  return { ...source, food: b.food?.trim() || undefined, budget: b.budget, lang: b.lang === 'it' ? 'it' : 'en', explore: b.explore === true, part: b.part === true }
 }
 
 const ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ', pound: '£', euro: '€', eacute: 'é', egrave: 'è', agrave: 'à', ograve: 'ò', ugrave: 'ù', igrave: 'ì', ocirc: 'ô', acirc: 'â', ecirc: 'ê', ccedil: 'ç', uuml: 'ü', ouml: 'ö', auml: 'ä', ndash: '–', mdash: '—', rsquo: '’', lsquo: '‘', hellip: '…' }
@@ -134,12 +136,12 @@ export function htmlToText(html: string): string {
     .join('\n')
 }
 
-export function wineListPrompt(r: Pick<WineListRequest, 'food' | 'budget' | 'lang' | 'explore'>, from: 'photos' | 'text' = 'photos') {
+export function wineListPrompt(r: Pick<WineListRequest, 'food' | 'budget' | 'lang' | 'explore' | 'part'>, from: 'photos' | 'text' = 'photos') {
   return [
     from === 'photos'
       ? 'These photos are pages of a restaurant wine list. The owner of the cellar described in the system prompt is choosing a bottle.'
       : 'Below is the text of a restaurant wine list, taken from its PDF or website (layout may be rough; columns can run together). The owner of the cellar described in the system prompt is choosing a bottle.',
-    'Read every wine on the list and sort them by style: red, white, sparkling, rose, sweet (dessert and fortified). For EACH style the list has, pick up to 5, best first. Skip a style the list does not have.',
+    `Read every wine on the list and sort them by style: red, white, sparkling, rose, sweet (dessert and fortified). For EACH style the list has, pick up to ${r.part ? 3 : PER_STYLE}, best first. Skip a style the list does not have.`,
     r.explore
       ? 'They want something DIFFERENT from their usual: pick wines from regions, grapes and styles that are rare or missing in their cellar (e.g. Pinot Noir or Burgundy for someone whose cellar is mostly Piedmont), but that they are likely to enjoy given what they rate highly. In "why", make the bridge from their taste (e.g. "you love Nebbiolo\'s perfume and acidity, so try this Pinot Noir"). Use fit "good" or "safe" unless it is an outstanding match.'
       : 'Pick what best matches THEIR taste — use their ratings, the wines they would buy again, and the styles, grapes and regions they own and love. Within a style they rarely drink, still pick what suits that taste best.',
@@ -154,8 +156,11 @@ export function wineListPrompt(r: Pick<WineListRequest, 'food' | 'budget' | 'lan
     .join('\n')
 }
 
-/** A long list (PDF or website) is read in parts of about this size, so one request never trips the free AI tier's per-minute limit. */
-export const PART_CHARS = 24_000
+/**
+ * A long list (PDF or website) is read in parts of about this size. Big parts on purpose: the free AI tier allows
+ * plenty of text but only a few requests a minute, so an 18-page list is one or two requests.
+ */
+export const PART_CHARS = 50_000
 
 /** Splits list text into parts of at most `max` characters, at line breaks where possible. */
 export function splitListText(text: string, max = PART_CHARS): string[] {
