@@ -1,5 +1,5 @@
 import { Camera, Check, FileText, Globe, ImageUp, Loader2, Plus, ShoppingBag, Sparkles, X } from 'lucide-react'
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { LiveCamera } from '../components/LiveCamera'
 import { VerdictBadge } from '../components/PriceVerdict'
 import { Button, cx, Label, PageHeader } from '../components/ui'
@@ -12,7 +12,7 @@ import { useSync } from '../lib/sync'
 import type { WineWithBottles } from '../lib/types'
 import { addWish } from '../lib/wishlist'
 import { bestValue, isPounds, priceCheck } from '../shared/prices'
-import { MAX_LIST_PAGES, mergeWineLists, MIN_LIST_TEXT, splitListText, type WineListPick, type WineListResult } from '../shared/winelist'
+import { MAX_LIST_PAGES, mergeWineLists, MIN_LIST_TEXT, splitListText, styleOf, type WineListPick, type WineListResult, type WineStyle } from '../shared/winelist'
 
 /**
  * What the owner paid for the same wine (same vintage if they have it). Only an exact producer + name match counts:
@@ -44,30 +44,81 @@ const FIT_STYLE: Record<WineListPick['fit'], string> = {
 const RETRY_WAIT = 60
 const FIT_LABEL: Record<WineListPick['fit'], string> = { great: 'Your style', good: 'Good bet', safe: 'Safe choice' }
 
+/** The chips above the picks; rosé and sweet share one, as lists rarely have many of either. */
+const GROUPS: { id: string; label: string; styles: WineStyle[] }[] = [
+  { id: 'red', label: 'Red', styles: ['red'] },
+  { id: 'white', label: 'White', styles: ['white'] },
+  { id: 'sparkling', label: 'Sparkling', styles: ['sparkling'] },
+  { id: 'other', label: 'Rosé & sweet', styles: ['rose', 'sweet'] },
+]
+
+type Mode = 'taste' | 'explore'
+type Rest = { parts: string[]; total: number; done: WineListResult[]; why: string }
+type Run = { result?: WineListResult; rest?: Rest | null }
+
+/**
+ * The loaded list, food, budget and answers are kept on the phone, so leaving the page or the app
+ * reloading doesn't mean reading the list again. Kept for a day after last use (then it's another restaurant).
+ */
+const KEEP = 'miovino.winelist'
+interface Kept {
+  at: number
+  doc: { label: string; text: string } | null
+  food: string
+  budget: string
+  mode: Mode
+  runs: Partial<Record<Mode, Run>>
+}
+function loadKept(): Kept | null {
+  try {
+    const k = JSON.parse(localStorage.getItem(KEEP) ?? 'null') as Kept | null
+    return k && Date.now() - k.at < 86_400_000 ? k : null
+  } catch {
+    return null
+  }
+}
+
 /** At a restaurant: photograph the wine list, get picks for your own taste. */
 export default function WineListPage() {
   const sync = useSync()
+  const [kept] = useState(loadKept)
   const [pages, setPages] = useState<{ blob: Blob; url: string }[]>([])
-  const [food, setFood] = useState('')
-  const [budget, setBudget] = useState('')
+  const [food, setFood] = useState(kept?.food ?? '')
+  const [budget, setBudget] = useState(kept?.budget ?? '')
   const [camOpen, setCamOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const [result, setResult] = useState<WineListResult>()
-  const [saved, setSaved] = useState<Set<number>>(new Set())
+  // One answer per mode ("my taste" / "something different"), so switching back and forth asks nothing again.
+  const [mode, setMode] = useState<Mode>(kept?.mode ?? 'taste')
+  const [runs, setRuns] = useState<Partial<Record<Mode, Run>>>(kept?.runs ?? {})
+  const result = runs[mode]?.result
+  const rest = runs[mode]?.rest ?? null
+  const patch = (m: Mode, p: Run) => setRuns((r) => ({ ...r, [m]: { ...r[m], ...p } }))
+  const [group, setGroup] = useState('red')
+  const [saved, setSaved] = useState<Set<string>>(new Set())
   const fileRef = useRef<HTMLInputElement>(null)
   const pdfRef = useRef<HTMLInputElement>(null)
   // The list as text (from a PDF or a website), used instead of photos.
-  const [doc, setDoc] = useState<{ label: string; text: string } | null>(null)
+  const [doc, setDoc] = useState<{ label: string; text: string } | null>(kept?.doc ?? null)
   const [linkOpen, setLinkOpen] = useState(false)
   const [link, setLink] = useState('')
   const [pdfs, setPdfs] = useState<string[]>([])
   const [reading, setReading] = useState(false)
   const [progress, setProgress] = useState('')
-  // A long list stopped part-way (the free AI tier's limit): what's left, to carry on later.
-  const [rest, setRest] = useState<{ parts: string[]; total: number; done: WineListResult[]; why: string } | null>(null)
   const cellar = useCellar()
   const priced = useMemo(() => (result ? withChecks(result, cellar ?? []) : undefined), [result, cellar])
+  // Chips only for the styles this answer has; the chosen one, or the first that has picks.
+  const groups = GROUPS.filter((g) => priced?.picks.some((p) => g.styles.includes(styleOf(p.style))))
+  const shown = groups.find((g) => g.id === group) ?? groups[0]
+
+  useEffect(() => {
+    try {
+      if (!doc && !Object.keys(runs).length) localStorage.removeItem(KEEP)
+      else localStorage.setItem(KEEP, JSON.stringify({ at: Date.now(), doc, food, budget, mode, runs } satisfies Kept))
+    } catch {
+      /* private mode or full: it just won't be kept */
+    }
+  }, [doc, food, budget, mode, runs])
 
   const addPages = (files: Blob[]) => {
     setDoc(null)
@@ -78,7 +129,7 @@ export default function WineListPage() {
   const load = async (work: () => Promise<void>) => {
     setReading(true)
     setError('')
-    setResult(undefined)
+    setRuns({})
     try {
       await work()
     } catch (e) {
@@ -122,13 +173,13 @@ export default function WineListPage() {
       setLinkOpen(false)
     })
 
-  const ask = async (source: { text: string } | { images: string[] }): Promise<WineListResult> => {
+  const ask = async (source: { text: string } | { images: string[] }, m: Mode): Promise<WineListResult> => {
     const n = Number(budget.replace(',', '.'))
     const res = await fetch('/api/winelist', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       credentials: 'same-origin',
-      body: JSON.stringify({ ...source, food: food.trim() || undefined, budget: n > 0 ? n : undefined, lang: getLang() }),
+      body: JSON.stringify({ ...source, food: food.trim() || undefined, budget: n > 0 ? n : undefined, lang: getLang(), explore: m === 'explore' }),
     })
     const data = (await res.json().catch(() => ({}))) as { result?: WineListResult; error?: string; daily?: boolean }
     if (!res.ok || !data.result) throw Object.assign(new Error(data.error ?? t('Something went wrong ({status}).', { status: res.status })), { status: res.status, daily: !!data.daily })
@@ -136,9 +187,9 @@ export default function WineListPage() {
   }
 
   /** One part of a long list. When the free AI tier says "wait", waits a minute (with a countdown) and tries once more. */
-  const askPart = async (text: string, n: number, total: number) => {
+  const askPart = async (text: string, n: number, total: number, m: Mode) => {
     try {
-      return await ask({ text })
+      return await ask({ text }, m)
     } catch (e) {
       const { status, daily } = e as { status?: number; daily?: boolean }
       if (status !== 429 || daily) throw e // the day's allowance: waiting a minute won't help
@@ -147,7 +198,7 @@ export default function WineListPage() {
         await new Promise((r) => setTimeout(r, 1000))
       }
       setProgress(t('Reading part {n} of {total}…', { n, total }))
-      return await ask({ text })
+      return await ask({ text }, m)
     }
   }
 
@@ -155,22 +206,22 @@ export default function WineListPage() {
    * Reads the parts still to do, showing the picks so far after each one. If the AI gives up part-way,
    * the picks so far stay on screen and "Read the rest" carries on from the part that failed.
    */
-  const readParts = async (parts: string[], total: number, done: WineListResult[]) => {
+  const readParts = async (parts: string[], total: number, done: WineListResult[], m: Mode) => {
     for (let i = 0; i < parts.length; i++) {
       const n = total - parts.length + i + 1
       setProgress(total > 1 ? t('Reading part {n} of {total}…', { n, total }) : '')
       try {
-        done.push(await askPart(parts[i], n, total))
+        done.push(await askPart(parts[i], n, total, m))
       } catch (e) {
         if ((e as { status?: number }).status === 422 && total > 1) continue // a part with no wines (e.g. the food menu)
         if (!done.length) throw e
-        setRest({ parts: parts.slice(i), total, done, why: (e as Error).message })
+        patch(m, { rest: { parts: parts.slice(i), total, done, why: (e as Error).message } })
         return
       }
-      setResult(mergeWineLists(done))
+      patch(m, { result: mergeWineLists(done) })
     }
     if (!done.length) throw new Error(t("That doesn't look like a wine list. Try the PDF or page that lists the wines."))
-    setRest(null)
+    patch(m, { rest: null })
   }
 
   const run = async (work: () => Promise<void>) => {
@@ -186,18 +237,27 @@ export default function WineListPage() {
     }
   }
 
-  const find = () => {
-    setResult(undefined)
+  const find = (m: Mode = mode) => {
+    patch(m, { result: undefined, rest: null })
     setSaved(new Set())
-    setRest(null)
     return run(async () => {
       if (doc) {
         const parts = splitListText(doc.text)
-        await readParts(parts, parts.length, [])
-      } else setResult(await ask({ images: await Promise.all(pages.map(async (p) => (await imageToBase64(p.blob)).data)) }))
+        await readParts(parts, parts.length, [], m)
+      } else patch(m, { result: await ask({ images: await Promise.all(pages.map(async (p) => (await imageToBase64(p.blob)).data)) }, m) })
     })
   }
-  const readRest = () => rest && run(() => (setRest(null), readParts(rest.parts, rest.total, [...rest.done])))
+  const readRest = () => {
+    const m = mode
+    if (rest) void run(() => (patch(m, { rest: null }), readParts(rest.parts, rest.total, [...rest.done], m)))
+  }
+  /** "My taste" / "Something different": shows that answer, asking for it once if the other one is already there. */
+  const switchMode = (m: Mode) => {
+    setMode(m)
+    setError('')
+    if (!runs[m]?.result && !runs[m]?.rest && runs[mode]?.result && !busy && (doc || pages.length)) void find(m)
+  }
+  const hasList = !!doc || pages.length > 0
 
   const ready = sync.available && sync.authenticated
   return (
@@ -316,7 +376,22 @@ export default function WineListPage() {
         </label>
       </div>
 
-      <Button className="w-full py-3" disabled={(!pages.length && !doc) || busy || reading || !ready} onClick={find}>
+      <div className="mb-3 grid grid-cols-2 gap-1 rounded-xl bg-ink-850 p-1 ring-1 ring-ink-700" role="group" aria-label={t('What to look for')}>
+        {(['taste', 'explore'] as const).map((m) => (
+          <button
+            key={m}
+            aria-pressed={mode === m}
+            disabled={busy}
+            onClick={() => switchMode(m)}
+            className={cx('min-h-10 rounded-lg px-2 text-sm', mode === m ? 'bg-ink-700 font-medium text-cream-50' : 'text-cream-400')}
+          >
+            {m === 'taste' ? t('My taste') : t('Something different')}
+          </button>
+        ))}
+      </div>
+      {mode === 'explore' && <p className="-mt-1 mb-3 text-xs text-cream-400">{t('Wines outside your usual regions and grapes, chosen for what you like.')}</p>}
+
+      <Button className="w-full py-3" disabled={!hasList || busy || reading || !ready} onClick={() => void find()}>
         {busy ? (
           <>
             <Loader2 className="animate-spin" size={18} /> {progress || t('Reading the list…')}
@@ -351,8 +426,22 @@ export default function WineListPage() {
             </p>
           )}
           {result.picks.length === 0 && <p className="text-sm text-cream-400">{t('Nothing on this list fits — the note below may help.')}</p>}
-          {priced.picks.map((p, i) => (
-            <div key={i} className="card p-4">
+          {groups.length > 0 && (
+            <div className="flex gap-2 overflow-x-auto pb-1" role="group" aria-label={t('Style')}>
+              {groups.map((g) => (
+                <button
+                  key={g.id}
+                  aria-pressed={g === shown}
+                  onClick={() => setGroup(g.id)}
+                  className={cx('min-h-9 shrink-0 rounded-full px-3.5 text-sm ring-1', g === shown ? 'bg-wine-500 text-cream-50 ring-wine-400' : 'text-cream-300 ring-ink-600')}
+                >
+                  {t(g.label)} <span className="tabular-nums opacity-70">{priced.picks.filter((p) => g.styles.includes(styleOf(p.style))).length}</span>
+                </button>
+              ))}
+            </div>
+          )}
+          {priced.picks.filter((p) => !shown || shown.styles.includes(styleOf(p.style))).map((p, i) => (
+            <div key={`${p.producer}|${p.name}|${p.vintage}`} className="card p-4">
               <div className="mb-1 flex items-start gap-2">
                 <span className="mt-0.5 font-display text-lg text-cream-400">{i + 1}</span>
                 <div className="min-w-0 flex-1">
@@ -377,14 +466,14 @@ export default function WineListPage() {
               <p className="pl-6 text-sm text-cream-200">{p.why}</p>
               {priceLine(p.check, p.retailEstimate, p.valueNote) && <p className="mt-1 pl-6 text-xs text-cream-400">{priceLine(p.check, p.retailEstimate, p.valueNote)}</p>}
               <button
-                disabled={saved.has(i)}
+                disabled={saved.has(`${p.producer}|${p.name}|${p.vintage}`)}
                 onClick={async () => {
                   await addWish({ producer: p.producer, name: p.name, vintage: p.vintage, note: t('Seen on a wine list{price}', { price: p.price != null ? ` · ${result.currency ?? ''}${p.price}` : '' }) })
-                  setSaved((s) => new Set(s).add(i))
+                  setSaved((s) => new Set(s).add(`${p.producer}|${p.name}|${p.vintage}`))
                 }}
                 className="mt-2 ml-6 flex items-center gap-1.5 text-xs text-wine-300 disabled:text-cream-500"
               >
-                {saved.has(i) ? <Check size={14} /> : <ShoppingBag size={14} />} {saved.has(i) ? t('On your wishlist') : t('Add to wishlist')}
+                {saved.has(`${p.producer}|${p.name}|${p.vintage}`) ? <Check size={14} /> : <ShoppingBag size={14} />} {saved.has(`${p.producer}|${p.name}|${p.vintage}`) ? t('On your wishlist') : t('Add to wishlist')}
               </button>
             </div>
           ))}
@@ -414,7 +503,7 @@ export default function WineListPage() {
             <p className="text-xs text-cream-500">{t('Shop prices are AI estimates, not quotes. UK restaurants usually charge 2.5–3.5× retail.')}</p>
           )}
           {result.note && <p className="rounded-xl bg-ink-800 p-3 text-sm text-cream-300">💡 {result.note}</p>}
-          <button className="flex w-full items-center justify-center gap-1.5 py-2 text-sm text-cream-400" onClick={() => (setPages([]), setResult(undefined))}>
+          <button className="flex w-full items-center justify-center gap-1.5 py-2 text-sm text-cream-400" onClick={() => (setPages([]), setDoc(null), setRuns({}), setMode('taste'))}>
             <Plus size={14} /> {t('Another list')}
           </button>
         </section>

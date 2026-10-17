@@ -330,6 +330,50 @@ test('a long list is read in parts; when the free AI limit hits, the picks so fa
   await expect(page.getByRole('alert')).toHaveCount(0)
 })
 
+test('wine list by style, "something different" asked once, and the answers kept after a reload', async ({ page }) => {
+  await seed(page, { wines: [wine('wine-gaja-0001')] })
+  const pick = (style: string, name: string) => ({ style, producer: 'P', name, vintage: 2019, price: 60, byTheGlass: false, fit: 'good', why: 'Why not.', inCellar: false, retailEstimate: null, valueNote: null })
+  let calls = 0
+  await page.route('**/api/winelist', (route) => {
+    calls++
+    const explore = (route.request().postDataJSON() as { explore?: boolean }).explore
+    const picks = explore ? [pick('red', 'Pinot Explorer')] : [pick('red', 'Barolo Usual'), pick('white', 'Soave Usual'), pick('sparkling', 'Franciacorta Usual')]
+    return route.fulfill({ json: { result: { isWineList: true, currency: '£', picks, deals: [], note: null } } })
+  })
+  await page.route('**/api/fetchlist', (route) => route.fulfill({ json: { title: 'Styles list', text: 'WINE LIST\nBarolo Usual 2019 £60\nSoave Usual 2019 £40\nFranciacorta Usual 2019 £50\nPinot Explorer 2019 £70', pdfs: [] } }))
+  await page.goto('/winelist')
+  await page.getByRole('button', { name: 'Website' }).click()
+  await page.getByRole('textbox', { name: 'Wine list web address' }).fill('styles.example')
+  await page.getByRole('button', { name: 'Open', exact: true }).click()
+  await page.getByRole('button', { name: 'Find my bottle' }).click()
+
+  // One chip per style on the answer; a chip shows only its wines.
+  await expect(page.getByRole('button', { name: 'Red 1' })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByText('Barolo Usual')).toBeVisible()
+  await expect(page.getByText('Soave Usual')).toHaveCount(0)
+  await page.getByRole('button', { name: 'White 1' }).click()
+  await expect(page.getByText('Soave Usual')).toBeVisible()
+  await expect(page.getByText('Barolo Usual')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /Rosé & sweet/ })).toHaveCount(0) // none on this list
+
+  // "Something different" asks once; going back is instant.
+  await page.getByRole('button', { name: 'Something different' }).click()
+  await expect(page.getByText('Pinot Explorer')).toBeVisible()
+  expect(calls).toBe(2)
+  await page.getByRole('button', { name: 'My taste' }).click()
+  await expect(page.getByText('Soave Usual')).toBeVisible()
+  expect(calls).toBe(2)
+
+  // Leaving or reloading keeps the list and both answers: nothing is read again.
+  await page.reload()
+  await expect(page.getByText('Styles list')).toBeVisible()
+  await expect(page.getByText('Barolo Usual')).toBeVisible()
+  await page.getByRole('button', { name: 'Something different' }).click()
+  await expect(page.getByText('Pinot Explorer')).toBeVisible()
+  expect(calls).toBe(2)
+  expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations).toEqual([])
+})
+
 test('monthly reminder by email: save an address and send a test', async ({ page }) => {
   await seed(page, { wines: [wine('wine-gaja-0001')] })
   let saved: string | null = null

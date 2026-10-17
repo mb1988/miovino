@@ -41,8 +41,8 @@ describe('long lists in parts', () => {
     expect(splitListText('short', 100)).toEqual(['short'])
   })
   it('merges the parts: best fits first, no repeats, deals not already picked', () => {
-    const pick = (name: string, fit: 'great' | 'good' | 'safe') => ({ producer: 'P', name, vintage: 2019, price: 50, byTheGlass: false, fit, why: '', inCellar: false, retailEstimate: null, valueNote: null, verdict: null })
-    const deal = (name: string) => ({ producer: 'P', name, vintage: 2019, price: 40, retailEstimate: null, valueNote: null, verdict: null })
+    const pick = (name: string, fit: 'great' | 'good' | 'safe', style = 'red') => ({ style, producer: 'P', name, vintage: 2019, price: 50, byTheGlass: false, fit, why: '', inCellar: false, retailEstimate: null, valueNote: null, verdict: null })
+    const deal = (name: string) => ({ style: 'white', producer: 'P', name, vintage: 2019, price: 40, retailEstimate: null, valueNote: null, verdict: null })
     const a: WineListResult = { isWineList: true, currency: '£', picks: [pick('A', 'safe'), pick('B', 'good')], deals: [deal('C')], note: 'first' }
     const b: WineListResult = { isWineList: true, currency: null, picks: [pick('D', 'great'), pick('B', 'good')], deals: [deal('A'), deal('E')], note: null }
     const m = mergeWineLists([a, b])
