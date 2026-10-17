@@ -304,7 +304,7 @@ test('a long list is read in parts; when the free AI limit hits, the picks so fa
     calls++
     const part = (route.request().postDataJSON() as { text: string }).text
     if (part.includes(line(0))) return route.fulfill({ json: { result: { isWineList: true, currency: '£', picks: [pick('First part wine', 'good')], deals: [], note: null } } })
-    if (limited) return route.fulfill({ status: 429, json: { error: 'Rate limited — the free AI quota is used up for now. Try again in a minute.' } })
+    if (limited) return route.fulfill({ status: 429, json: { error: 'The free AI is busy (its per-minute limit). Try again in a minute.' } })
     return route.fulfill({ json: { result: { isWineList: true, currency: '£', picks: [pick(`Later wine ${calls}`, 'great')], deals: [], note: null } } })
   })
   await page.goto('/winelist')

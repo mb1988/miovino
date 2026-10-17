@@ -1,5 +1,5 @@
 import { MAX_WINDOW_WINES, tidyWindows, validateWindowsRequest, windowsPrompt, WindowsSchema } from '../src/shared/windows'
-import { MAX_LIST_PAGES, tidyWineList, validateWineListRequest, wineListPrompt, WineListSchema } from '../src/shared/winelist'
+import { MAX_LIST_PAGES, onlyOnList, tidyWineList, validateWineListRequest, wineListPrompt, WineListSchema } from '../src/shared/winelist'
 import { drinkStatus, type DrinkStatus } from '../src/shared/status'
 import { validatePriceHintRequest } from '../src/shared/whereToBuy'
 import { lookUpPrice } from './market'
@@ -146,7 +146,8 @@ ${body.text}` }]
       WineListSchema,
     )
     if (!result.isWineList) return json({ error: body.text ? "That doesn't look like a wine list. Try the PDF or page that lists the wines." : "That doesn't look like a wine list. Photograph the pages with the wines." }, 422)
-    const tidy = tidyWineList(result)
+    // A list read as text can be checked: drop any pick that isn't on it (e.g. one taken from their cellar instead).
+    const tidy = body.text ? onlyOnList(tidyWineList(result), body.text) : tidyWineList(result)
     // Every shop-price estimate goes into the wine memory (and its price history).
     for (const w of [...tidy.picks, ...(tidy.deals ?? [])])
       if (w.retailEstimate != null) await remember(db, w, 'price', { low: w.retailEstimate, high: w.retailEstimate, where: '' }, 'winelist')
