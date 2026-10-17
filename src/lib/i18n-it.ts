@@ -704,4 +704,9 @@ export const IT: Record<string, string> = {
   'Reading part {n} of {total}…': 'Leggo la parte {n} di {total}…',
   'Read {read} of {total} parts of the list, so these picks cover only those. {why}': 'Lette {read} parti su {total} della carta: questi consigli riguardano solo quelle. {why}',
   'Read the rest': 'Leggi il resto',
+  'What to look for': 'Cosa cercare',
+  'My taste': 'Il mio gusto',
+  'Something different': 'Qualcosa di diverso',
+  'Wines outside your usual regions and grapes, chosen for what you like.': 'Vini fuori dalle tue regioni e dai tuoi vitigni abituali, scelti in base a ciò che ami.',
+  'Rosé & sweet': 'Rosati e dolci',
 }
