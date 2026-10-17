@@ -3,7 +3,7 @@ import { MAX_LIST_PAGES, onlyOnList, tidyWineList, validateWineListRequest, wine
 import { drinkStatus, type DrinkStatus } from '../src/shared/status'
 import { validatePriceHintRequest } from '../src/shared/whereToBuy'
 import { lookUpPrice } from './market'
-import { aiErrorResponse, generateJson, generateText, type AiEnv } from './ai'
+import { aiErrorResponse, generateJson, generateJsonFrom, generateText, type AiEnv } from './ai'
 import { json } from './auth'
 import { recall, remember, type FactsDb } from './facts'
 import { blendsPrompt, BlendsSchema, grapesDisplay, MAX_BLEND_WINES, tidyBlends, validateBlendsRequest, type BlendSuggestion } from '../src/shared/blend'
@@ -137,17 +137,19 @@ export async function handleWineList(req: Request, db: AskDb & FactsDb, env: AiE
 ${body.text}` }]
     : [...body.images!.map((data) => ({ type: 'image' as const, data })), { type: 'text' as const, text: wineListPrompt(body) }]
   try {
-    const result = await generateJson(
+    // Room for 5 picks in each of 5 styles, with notes: the default output limit could cut the answer short.
+    const { data: result, by } = await generateJsonFrom(
       env,
       {
         system: ['You are a sommelier helping the owner of a private wine cellar choose from a restaurant wine list. Their cellar and tasting history follow.', await cellarSnapshot(db)],
         messages: [{ role: 'user', content }],
+        maxTokens: 16_000,
       },
       WineListSchema,
     )
     if (!result.isWineList) return json({ error: body.text ? "That doesn't look like a wine list. Try the PDF or page that lists the wines." : "That doesn't look like a wine list. Photograph the pages with the wines." }, 422)
     // A list read as text can be checked: drop any pick that isn't on it (e.g. one taken from their cellar instead).
-    const tidy = body.text ? onlyOnList(tidyWineList(result), body.text) : tidyWineList(result)
+    const tidy = { ...(body.text ? onlyOnList(tidyWineList(result), body.text) : tidyWineList(result)), ai: by }
     // Every shop-price estimate goes into the wine memory (and its price history).
     for (const w of [...tidy.picks, ...(tidy.deals ?? [])])
       if (w.retailEstimate != null) await remember(db, w, 'price', { low: w.retailEstimate, high: w.retailEstimate, where: '' }, 'winelist')

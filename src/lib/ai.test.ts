@@ -35,7 +35,7 @@ describe('AI providers', () => {
 
   it('skips Gemini thought parts', async () => {
     vi.stubGlobal('fetch', async () => gem('Ciao!'))
-    expect(await ai.generateText({ GEMINI_API_KEY: 'g' }, ask)).toEqual({ text: 'Ciao!', truncated: false, provider: 'gemini' })
+    expect(await ai.generateText({ GEMINI_API_KEY: 'g' }, ask)).toEqual({ text: 'Ciao!', truncated: false, provider: 'gemini', model: 'gemini-flash-latest' })
   })
 
   it('falls back to OpenRouter when Gemini is rate limited', async () => {

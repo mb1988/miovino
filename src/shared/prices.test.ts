@@ -49,17 +49,18 @@ describe('tidyWineList', () => {
   const pick = { producer: 'Vietti', name: 'Barbera', vintage: 2021.0, price: 48, byTheGlass: false, fit: 'great' as const, why: 'x', inCellar: false }
 
   it('fills in fields an older or terser AI answer leaves out, then adds verdicts', () => {
-    const raw = WineListSchema.parse({ isWineList: true, currency: '£', picks: [pick], note: null })
+    const raw = WineListSchema.parse({ isWineList: true, currency: '£', white: [pick], note: null })
     expect(raw.deals).toEqual([])
     const r = tidyWineList(raw)
-    expect(r.picks[0]).toMatchObject({ retailEstimate: null, valueNote: null, verdict: null, vintage: 2021 })
+    expect(r.picks[0]).toMatchObject({ style: 'white', grapes: null, vintageNote: null, retailEstimate: null, valueNote: null, verdict: null, vintage: 2021 })
+    expect(raw.red).toEqual([]) // a style the list doesn't have
   })
 
   it('gives a verdict to every priced bottle, but not on a list in euros', () => {
     const raw = WineListSchema.parse({
       isWineList: true,
       currency: '£',
-      picks: [{ ...pick, retailEstimate: 16 }],
+      red: [{ ...pick, retailEstimate: 16 }],
       deals: [{ producer: 'Ridge', name: 'Geyserville', vintage: 2020.4, price: 72, retailEstimate: 45, valueNote: 'bargain' }],
       note: null,
     })

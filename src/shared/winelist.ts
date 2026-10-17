@@ -4,11 +4,10 @@ import { isPounds, MARKUP_THRESHOLDS, markup, verdictFor, type PriceVerdict } fr
 
 export const STYLES = ['red', 'white', 'sparkling', 'rose', 'sweet'] as const
 export type WineStyle = (typeof STYLES)[number]
-const STYLE_HINT = 'One of: red, white, sparkling, rose, sweet (sweet = dessert and fortified wines such as Sauternes or Port)'
 export const PER_STYLE = 5
 export const MAX_DEALS = 5
 
-/** The AI's style word, made one of STYLES (anything unknown counts as red, the most common). */
+/** A style word, made one of STYLES (anything unknown counts as red, the most common). */
 export function styleOf(s: string | null | undefined): WineStyle {
   const v = (s ?? '').toLowerCase()
   if (/spark|champ|fizz|spuman|franciac|cava|cr[eé]mant|prosecco/.test(v)) return 'sparkling'
@@ -30,59 +29,79 @@ function perStyle<T extends { style: string }>(items: T[], n = PER_STYLE): T[] {
 
 const retailEstimate = z.number().nullable().default(null).describe('Your estimate of the typical UK retail (shop) price of ONE bottle of this wine and vintage, in pounds; null if you cannot tell')
 const valueNote = z.string().nullable().default(null).describe('A few words on the price, e.g. "about 2× shop price — good value" or "5× retail, skip"')
+const grapes = z.string().nullable().default(null).describe('Main grape(s), e.g. "Nebbiolo" or "Cabernet Sauvignon, Merlot" — as printed, or what this wine is made from')
 
+const PickSchema = z.object({
+  producer: z.string().describe('Producer as printed on the list (empty string if not shown)'),
+  name: z.string().describe('Wine name as printed, including appellation / cru'),
+  vintage: z.number().nullable(),
+  grapes,
+  price: z.number().nullable().describe('Bottle price as a number; null if only by the glass or not shown'),
+  byTheGlass: z.boolean(),
+  fit: z.enum(['great', 'good', 'safe']).describe('great = right in their taste; good = likely to please; safe = reliable fallback'),
+  why: z.string().describe('One or two sentences: why this suits THIS owner (their ratings, styles, regions) and the food'),
+  vintageNote: z.string().nullable().default(null).describe('A few words on this vintage for drinking tonight, e.g. "great year, ready now", "still young — decant", "past its best"'),
+  inCellar: z.boolean().describe('true if the same wine (any vintage) is already in their cellar'),
+  retailEstimate,
+  valueNote,
+})
+const styleList = (what: string) => z.array(PickSchema).default([]).describe(`Up to 5 ${what} from the list, best first. Give 5 when the list has 5 or more; [] if it has none.`)
+
+/** One array per style: AIs fill "5 reds, 5 whites…" far more reliably than "5 per style" in one mixed list. */
 export const WineListSchema = z.object({
   isWineList: z.boolean().describe('false if the photos or text do not show a wine list or menu with wines'),
   currency: z.string().nullable().describe('Currency symbol or code used on the list, e.g. £ or €'),
-  picks: z
-    .array(
-      z.object({
-        style: z.string().default('red').describe(STYLE_HINT),
-        producer: z.string().describe('Producer as printed on the list (empty string if not shown)'),
-        name: z.string().describe('Wine name as printed, including appellation / cru'),
-        vintage: z.number().nullable(),
-        price: z.number().nullable().describe('Bottle price as a number; null if only by the glass or not shown'),
-        byTheGlass: z.boolean(),
-        fit: z.enum(['great', 'good', 'safe']).describe('great = right in their taste; good = likely to please; safe = reliable fallback'),
-        why: z.string().describe('One or two sentences: why this suits THIS owner (their ratings, styles, regions) and the food'),
-        inCellar: z.boolean().describe('true if the same wine (any vintage) is already in their cellar'),
-        retailEstimate,
-        valueNote,
-      }),
-    )
-    .describe('Up to 5 picks for EACH style the list has (red, white, sparkling, rose, sweet), best first within each style'),
+  red: styleList('RED wines'),
+  white: styleList('WHITE wines'),
+  sparkling: styleList('SPARKLING wines (Champagne, Franciacorta, Cava, Crémant…)'),
+  rose: styleList('ROSÉ wines'),
+  sweet: styleList('SWEET or fortified wines (Sauternes, Passito, Port, Sherry, Madeira…)'),
   deals: z
     .array(
       z.object({
-        style: z.string().default('red').describe(STYLE_HINT),
         producer: z.string(),
         name: z.string(),
         vintage: z.number().nullable(),
+        grapes,
         price: z.number().describe('Bottle price on the list'),
         retailEstimate,
         valueNote,
       }),
     )
     .default([])
-    .describe('Up to 5 other bottles on the list (not in picks), any style, worth flagging for their price: the best bargains, or a notorious rip-off'),
+    .describe('5 other bottles on the list (not in the picks above), any style, worth knowing for their price: the best bargains, or a notorious rip-off. Give 5 when the list has that many priced wines.'),
   note: z.string().nullable().describe('One short tip, e.g. a value pick, or what to avoid on this list'),
 })
 type Raw = z.infer<typeof WineListSchema>
 /** The verdict is worked out from the numbers (not left to the AI), so the thresholds stay in one place. */
 type WithVerdict<T> = T & { verdict: PriceVerdict | null }
-export type WineListResult = Omit<Raw, 'picks' | 'deals'> & { picks: WithVerdict<Raw['picks'][number]>[]; deals: WithVerdict<Raw['deals'][number]>[] }
-export type WineListPick = WineListResult['picks'][number]
-export type WineListDeal = WineListResult['deals'][number]
+export type WineListPick = WithVerdict<z.infer<typeof PickSchema>> & { style: WineStyle }
+export type WineListDeal = WithVerdict<Raw['deals'][number]>
+export interface WineListResult {
+  isWineList: boolean
+  currency: string | null
+  picks: WineListPick[] // every style, each pick tagged with its style
+  deals: WineListDeal[]
+  note: string | null
+  /** Which AI answered, e.g. "Google Gemini (gemini-flash-latest)": a backup model gives thinner answers. */
+  ai?: string
+}
 
-/** Tidies the AI's answer: whole vintages, a known style, at most 5 picks per style and 5 deals, and a verdict on every priced bottle (lists in pounds only). */
+/** Tidies the AI's answer: one list of picks tagged by style (at most 5 each), whole vintages, 5 deals, and a verdict on every priced bottle (lists in pounds only). */
 export function tidyWineList(r: Raw): WineListResult {
-  const tidy = <T extends { vintage: number | null; price: number | null; retailEstimate: number | null }>(x: T) => ({
+  const tidy = <T extends { vintage: number | null; price: number | null; retailEstimate: number | null; grapes?: string | null }>(x: T) => ({
     ...x,
     vintage: x.vintage == null ? null : Math.round(x.vintage),
-    style: styleOf((x as { style?: string }).style),
+    grapes: x.grapes?.trim() || null,
     verdict: isPounds(r.currency) ? verdictFor(markup(x.price, x.retailEstimate)) : null,
   })
-  return { ...r, picks: perStyle(r.picks.map(tidy)), deals: r.deals.slice(0, MAX_DEALS).map(tidy) }
+  return {
+    isWineList: r.isWineList,
+    currency: r.currency,
+    picks: STYLES.flatMap((style) => (r[style] ?? []).slice(0, PER_STYLE).map((p) => ({ ...tidy(p), style }))),
+    deals: r.deals.slice(0, MAX_DEALS).map(tidy),
+    note: r.note,
+  }
 }
 
 export const MAX_LIST_PAGES = 3
@@ -141,15 +160,15 @@ export function wineListPrompt(r: Pick<WineListRequest, 'food' | 'budget' | 'lan
     from === 'photos'
       ? 'These photos are pages of a restaurant wine list. The owner of the cellar described in the system prompt is choosing a bottle.'
       : 'Below is the text of a restaurant wine list, taken from its PDF or website (layout may be rough; columns can run together). The owner of the cellar described in the system prompt is choosing a bottle.',
-    `Read every wine on the list and sort them by style: red, white, sparkling, rose, sweet (dessert and fortified). For EACH style the list has, pick up to ${r.part ? 3 : PER_STYLE}, best first. Skip a style the list does not have.`,
+    `Read every wine on the list and sort them by style into the arrays red, white, sparkling, rose and sweet (dessert and fortified). Fill EACH style the list has with up to ${r.part ? 3 : PER_STYLE} picks, best first — give that many whenever the list has them, even in styles they drink less. Leave a style empty only if the list has none.`,
     r.explore
       ? 'They want something DIFFERENT from their usual: pick wines from regions, grapes and styles that are rare or missing in their cellar (e.g. Pinot Noir or Burgundy for someone whose cellar is mostly Piedmont), but that they are likely to enjoy given what they rate highly. In "why", make the bridge from their taste (e.g. "you love Nebbiolo\'s perfume and acidity, so try this Pinot Noir"). Use fit "good" or "safe" unless it is an outstanding match.'
       : 'Pick what best matches THEIR taste — use their ratings, the wines they would buy again, and the styles, grapes and regions they own and love. Within a style they rarely drink, still pick what suits that taste best.',
-    'Prefer wines that are drinking well now for their vintage.',
+    'Judge every vintage: prefer bottles that are in their drinking window tonight (a big red that is still too young, or a white or rosé past its best, only if you say so). Say it in vintageNote. Give the main grape(s) of each wine in grapes.',
     r.food ? `They are eating: ${r.food}. Make the pairing count.` : 'They have not said what they are eating; favour versatile food wines.',
     r.budget ? `Budget: up to ${r.budget} per bottle on the list's prices. Stay within it unless one pick just above is clearly worth it — say so.` : '',
     'Only pick wines that are actually on the list, written as printed. Their cellar (in the system prompt) is only there to show their taste: never pick a wine because it is in the cellar if it is not also on this list. Mark inCellar when a wine on the list is also in their cellar.',
-    `For every pick, estimate the typical UK retail price of one bottle (retailEstimate, in pounds) so the owner can judge the markup. UK restaurants usually charge 2.5–3.5× retail: up to ${MARKUP_THRESHOLDS.steal}× is a steal, above ${MARKUP_THRESHOLDS.pricey}× a rip-off. If the list is not in pounds, still give retail in pounds and say so in valueNote. In deals, flag up to 5 other bottles worth knowing about for their price.`,
+    `For every pick, estimate the typical UK retail price of one bottle (retailEstimate, in pounds) so the owner can judge the markup. UK restaurants usually charge 2.5–3.5× retail: up to ${MARKUP_THRESHOLDS.steal}× is a steal, above ${MARKUP_THRESHOLDS.pricey}× a rip-off. If the list is not in pounds, still give retail in pounds and say so in valueNote. In deals, flag 5 other bottles worth knowing about for their price (fewer only if the list is short).`,
     r.lang === 'it' ? 'Write "why", "valueNote" and "note" in Italian.' : 'Write "why", "valueNote" and "note" in British English.',
   ]
     .filter(Boolean)
@@ -196,6 +215,7 @@ export function mergeWineLists(results: WineListResult[]): WineListResult {
     picks: perStyle(picks),
     deals: deals.slice(0, MAX_DEALS),
     note: results.find((r) => r.note)?.note ?? null,
+    ai: [...new Set(results.map((r) => r.ai).filter(Boolean))].join(', ') || undefined,
   }
 }
 

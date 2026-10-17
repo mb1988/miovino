@@ -36,6 +36,8 @@ export interface AiAnswer {
   text: string
   truncated: boolean
   provider: ProviderId
+  /** The model that actually answered (Gemini's backup, OpenRouter's pick from its list). */
+  model?: string
 }
 
 export type ProviderId = 'gemini' | 'openrouter' | 'anthropic'
@@ -129,6 +131,11 @@ export async function generateText(env: AiEnv, req: AiRequest): Promise<AiAnswer
 
 /** A JSON answer checked against `schema`. An answer that doesn't fit counts as a failure and the next provider is tried. */
 export async function generateJson<S extends z.ZodType>(env: AiEnv, req: AiRequest, schema: S): Promise<z.infer<S> & {}> {
+  return (await generateJsonFrom(env, req, schema)).data
+}
+
+/** generateJson, plus who answered, e.g. "Google Gemini (gemini-flash-lite-latest)". */
+export async function generateJsonFrom<S extends z.ZodType>(env: AiEnv, req: AiRequest, schema: S): Promise<{ data: z.infer<S> & {}; by: string }> {
   const list = providers(env)
   if (!list.length) throw noAi(env)
   const withSchema = { ...req, json: true, messages: appendText(req.messages, jsonInstructions(schema)) }
@@ -139,7 +146,7 @@ export async function generateJson<S extends z.ZodType>(env: AiEnv, req: AiReque
     try {
       const answer = await p.call(withSchema)
       const parsed = schema.safeParse(parseJson(answer.text))
-      if (parsed.success) return parsed.data as z.infer<S> & {}
+      if (parsed.success) return { data: parsed.data as z.infer<S> & {}, by: `${PROVIDER_NAMES[answer.provider]}${answer.model ? ` (${answer.model})` : ''}` }
       last = new AiError(502, 'The AI answer was incomplete. Try again.')
       console.warn(`AI ${p.id} returned JSON that doesn't fit: ${parsed.error.message.slice(0, 300)}`)
     } catch (e) {
@@ -229,7 +236,9 @@ function gemini(key: string, model: string): Provider {
     id: 'gemini',
     async call(req) {
       let res: Response | undefined
+      let used = model
       for (const m of [...new Set([model, GEMINI_BACKUP_MODEL])]) {
+        used = m
         res = await geminiFetch(key, m, req)
         if (res.ok || !GEMINI_RETRY.has(res.status)) break
         console.warn(`AI gemini ${m} answered ${res.status}; trying the next Gemini model`)
@@ -242,7 +251,7 @@ function gemini(key: string, model: string): Provider {
       const c = body.candidates?.[0]
       if (body.promptFeedback?.blockReason || c?.finishReason === 'SAFETY' || c?.finishReason === 'PROHIBITED_CONTENT') throw new AiError(422, 'The AI declined this request. Try another photo or rephrase.')
       const text = (c?.content?.parts ?? []).filter((p) => !p.thought && p.text).map((p) => p.text).join('')
-      return { text, truncated: c?.finishReason === 'MAX_TOKENS', provider: 'gemini' }
+      return { text, truncated: c?.finishReason === 'MAX_TOKENS', provider: 'gemini', model: used }
     },
   }
 }
@@ -294,13 +303,13 @@ function openrouter(key: string, modelList: string): Provider {
         body: JSON.stringify({ model, ...(models.length > 1 ? { models } : {}), messages, max_tokens: req.maxTokens ?? 8192 }),
       })
       if (!res.ok) throw await httpError('openrouter', res)
-      const body = (await res.json()) as { choices?: { message?: { content?: string | null }; finish_reason?: string }[]; error?: { message?: string; code?: number } }
+      const body = (await res.json()) as { model?: string; choices?: { message?: { content?: string | null }; finish_reason?: string }[]; error?: { message?: string; code?: number } }
       // OpenRouter can answer 200 with an error from the upstream model.
       if (body.error) throw new AiError(body.error.code === 429 ? 429 : 502, `OpenRouter: ${body.error.message ?? 'error'}`)
       const choice = body.choices?.[0]
       const text = choice?.message?.content ?? ''
       if (isSafetyVerdict(text)) throw new AiError(502, 'OpenRouter sent a safety check instead of an answer.')
-      return { text, truncated: choice?.finish_reason === 'length', provider: 'openrouter' }
+      return { text, truncated: choice?.finish_reason === 'length', provider: 'openrouter', model: body.model }
     },
   }
 }
