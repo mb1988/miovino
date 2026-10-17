@@ -425,7 +425,7 @@ describe('wine-list scanner endpoint', () => {
     const picks = {
       isWineList: true,
       currency: '£',
-      picks: [{ producer: 'Vietti', name: 'Barbera d’Asti Tre Vigne', vintage: 2021.0, price: 48, byTheGlass: false, fit: 'great', why: 'Bright Piedmont red, like the Barolos you rate highly.', inCellar: false, retailEstimate: 20, valueNote: 'about 2.4× shop price' }],
+      red: [{ producer: 'Vietti', name: 'Barbera d’Asti Tre Vigne', vintage: 2021.0, price: 48, byTheGlass: false, fit: 'great', why: 'Bright Piedmont red, like the Barolos you rate highly.', inCellar: false, retailEstimate: 20, valueNote: 'about 2.4× shop price' }],
       note: 'Good value in the Piedmont section.',
     }
     let sent: { systemInstruction: { parts: { text: string }[] }; contents: { parts: { text?: string; inlineData?: unknown }[] }[]; generationConfig: { responseMimeType?: string } } | undefined
@@ -440,8 +440,9 @@ describe('wine-list scanner endpoint', () => {
     try {
       const res = await call({ images: [jpeg, jpeg], food: 'brasato', budget: 60, lang: 'it' })
       expect(res.status).toBe(200)
-      const { result } = (await res.json()) as { result: typeof picks & { deals: unknown[] } }
-      expect(result.picks[0]).toMatchObject({ name: 'Barbera d’Asti Tre Vigne', vintage: 2021, fit: 'great', verdict: 'fair' })
+      const { result } = (await res.json()) as { result: { picks: Record<string, unknown>[]; deals: unknown[]; ai: string } }
+      expect(result.picks[0]).toMatchObject({ name: 'Barbera d’Asti Tre Vigne', vintage: 2021, fit: 'great', verdict: 'fair', style: 'red' })
+      expect(result.ai).toBe('Google Gemini (gemini-flash-latest)')
       expect(result.deals).toEqual([]) // left out by the AI: filled in, not an error
       expect(headers!.get('x-goog-api-key')).toBe('sk-test')
       expect(sent!.generationConfig.responseMimeType).toBe('application/json')

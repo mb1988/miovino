@@ -708,6 +708,7 @@ export const IT: Record<string, string> = {
   'My taste': 'Il mio gusto',
   'Something different': 'Qualcosa di diverso',
   'Wines outside your usual regions and grapes, chosen for what you like.': 'Vini fuori dalle tue regioni e dai tuoi vitigni abituali, scelti in base a ciò che ami.',
-  'Rosé & sweet': 'Rosati e dolci',
+  Sweet: 'Dolci',
+  'Answered by {ai}': 'Risposta di {ai}',
   'The AI took too long to answer. Try again.': 'L’AI ci ha messo troppo a rispondere. Riprova.',
 }

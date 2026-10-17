@@ -335,7 +335,7 @@ test('a long list is read in parts; when the free AI limit hits, the picks so fa
 test('wine list by style, "something different" asked once, and the answers kept after a reload', async ({ page }) => {
   await page.clock.install()
   await seed(page, { wines: [wine('wine-gaja-0001')] })
-  const pick = (style: string, name: string) => ({ style, producer: 'P', name, vintage: 2019, price: 60, byTheGlass: false, fit: 'good', why: 'Why not.', inCellar: false, retailEstimate: null, valueNote: null })
+  const pick = (style: string, name: string) => ({ style, producer: 'P', name, vintage: 2019, grapes: style === 'white' ? 'Garganega' : null, vintageNote: 'ready now', price: 60, byTheGlass: false, fit: 'good', why: 'Why not.', inCellar: false, retailEstimate: null, valueNote: null })
   let calls = 0
   await page.route('**/api/winelist', (route) => {
     calls++
@@ -357,7 +357,9 @@ test('wine list by style, "something different" asked once, and the answers kept
   await page.getByRole('button', { name: 'White 1' }).click()
   await expect(page.getByText('Soave Usual')).toBeVisible()
   await expect(page.getByText('Barolo Usual')).toHaveCount(0)
-  await expect(page.getByRole('button', { name: /Rosé & sweet/ })).toHaveCount(0) // none on this list
+  await expect(page.getByRole('button', { name: /^(Rosé|Sweet)/ })).toHaveCount(0) // none on this list
+  await expect(page.getByText('Garganega')).toBeVisible()
+  await expect(page.getByText('2019: ready now')).toBeVisible()
 
   // "Something different" asks once; going back is instant.
   await page.getByRole('button', { name: 'Something different' }).click()

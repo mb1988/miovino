@@ -118,8 +118,22 @@ async function demoWineList(food?: string, explore = false): Promise<WineListRes
   const it = getLang() === 'it'
   const y = currentYear()
   const pairing = food ? (it ? ` e si abbina a ${food}` : ` and works with ${food}`) : ''
-  const pick = (style: string, producer: string, name: string, age: number, price: number, fit: 'great' | 'good' | 'safe', why: string, retailEstimate: number, inCellar = false) =>
-    ({ style, producer, name, vintage: age == null ? null : y - age, price, byTheGlass: false, fit, why: why + pairing + '.', inCellar, retailEstimate, valueNote: null })
+  const GRAPES: Record<string, string> = { Barbaresco: 'Nebbiolo', 'Rioja Reserva': 'Tempranillo', 'Vouvray Sec Le Haut-Lieu': 'Chenin Blanc', 'Soave Classico La Rocca': 'Garganega', 'Brut Réserve': 'Pinot Noir, Chardonnay, Meunier', Barsac: 'Sémillon, Sauvignon Blanc', 'Mercurey 1er Cru Clos des Myglands': 'Pinot Noir', 'Châteauneuf-du-Pape': 'Grenache, Mourvèdre, Syrah', 'Riesling Trocken': 'Riesling', 'De Nit Rosé': 'Macabeo, Xarel·lo, Monastrell' }
+  const pick = (style: string, producer: string, name: string, age: number, price: number, fit: 'great' | 'good' | 'safe', why: string, retailEstimate: number, inCellar = false) => ({
+    style,
+    producer,
+    name,
+    vintage: y - age,
+    grapes: GRAPES[name] ?? null,
+    price,
+    byTheGlass: false,
+    fit,
+    why: why + pairing + '.',
+    vintageNote: it ? (age >= 6 ? 'pronto da bere' : 'giovane ma piacevole') : age >= 6 ? 'ready to drink' : 'young but enjoyable',
+    inCellar,
+    retailEstimate,
+    valueNote: null,
+  })
   const picks = explore
     ? [
         pick('red', 'Domaine Faiveley', 'Mercurey 1er Cru Clos des Myglands', 5, 62, 'good', it ? 'Ami il profumo e l’acidità del Nebbiolo: questo Pinot Noir ha la stessa eleganza, più leggero' : 'You love Nebbiolo’s perfume and acidity: this Pinot Noir has the same finesse, lighter', 27),
@@ -135,13 +149,19 @@ async function demoWineList(food?: string, explore = false): Promise<WineListRes
         pick('sparkling', 'Bérêche et Fils', 'Brut Réserve', 0, 85, 'good', it ? 'Champagne da vigneron, vinoso e preciso' : 'Grower Champagne, vinous and precise', 42),
         pick('sweet', 'Château Coutet', 'Barsac', 12, 70, 'good', it ? 'Dolce ma fresco, per il dessert' : 'Sweet but fresh, for dessert', 35),
       ]
+  // The AI answers one array per style; tidyWineList tags each pick with its array's style again.
+  const of = (style: string) => picks.filter((p) => p.style === style)
   return tidyWineList({
     isWineList: true,
     currency: '£',
-    picks,
+    red: of('red'),
+    white: of('white'),
+    sparkling: of('sparkling'),
+    rose: of('rose'),
+    sweet: of('sweet'),
     deals: [
-      { style: 'red', producer: 'Ridge', name: 'Geyserville', vintage: y - 5, price: 72, retailEstimate: 45, valueNote: it ? 'meno di 2× il prezzo in enoteca: un affare' : 'under 2× shop price — a bargain' },
-      { style: 'rose', producer: 'Château d’Esclans', name: 'Whispering Angel', vintage: y - 1, price: 110, retailEstimate: 20, valueNote: it ? 'più di 5× il prezzo al dettaglio' : 'over 5× retail — skip' },
+      { producer: 'Ridge', name: 'Geyserville', vintage: y - 5, price: 72, retailEstimate: 45, grapes: 'Zinfandel', valueNote: it ? 'meno di 2× il prezzo in enoteca: un affare' : 'under 2× shop price — a bargain' },
+      { producer: 'Château d’Esclans', name: 'Whispering Angel', vintage: y - 1, price: 110, retailEstimate: 20, grapes: 'Grenache, Cinsault', valueNote: it ? 'più di 5× il prezzo al dettaglio' : 'over 5× retail — skip' },
     ],
     note: it ? 'Demo: risultato di esempio, nessuna carta è stata letta.' : 'Demo: a sample result, no list was read.',
   })

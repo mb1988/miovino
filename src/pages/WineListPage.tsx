@@ -55,12 +55,13 @@ async function spaced() {
 }
 const FIT_LABEL: Record<WineListPick['fit'], string> = { great: 'Your style', good: 'Good bet', safe: 'Safe choice' }
 
-/** The chips above the picks; rosé and sweet share one, as lists rarely have many of either. */
+/** The chips above the picks, one per style. */
 const GROUPS: { id: string; label: string; styles: WineStyle[] }[] = [
   { id: 'red', label: 'Red', styles: ['red'] },
   { id: 'white', label: 'White', styles: ['white'] },
   { id: 'sparkling', label: 'Sparkling', styles: ['sparkling'] },
-  { id: 'other', label: 'Rosé & sweet', styles: ['rose', 'sweet'] },
+  { id: 'rose', label: 'Rosé', styles: ['rose'] },
+  { id: 'sweet', label: 'Sweet', styles: ['sweet'] },
 ]
 
 type Mode = 'taste' | 'explore'
@@ -473,6 +474,7 @@ export default function WineListPage() {
                   <p className="font-display text-lg leading-snug text-cream-50">
                     {p.name} {p.vintage ?? ''}
                   </p>
+                  {p.grapes && <p className="text-xs text-cream-400">{p.grapes}</p>}
                 </div>
                 {p.price != null && (
                   <span className="shrink-0 font-semibold text-cream-100 tabular-nums">
@@ -488,6 +490,11 @@ export default function WineListPage() {
                 {p.check && <VerdictBadge verdict={p.check.verdict} />}
               </div>
               <p className="pl-6 text-sm text-cream-200">{p.why}</p>
+              {p.vintageNote && (
+                <p className="mt-1 pl-6 text-xs text-cream-300">
+                  {p.vintage ?? 'NV'}: {p.vintageNote}
+                </p>
+              )}
               {priceLine(p.check, p.retailEstimate, p.valueNote) && <p className="mt-1 pl-6 text-xs text-cream-400">{priceLine(p.check, p.retailEstimate, p.valueNote)}</p>}
               <button
                 disabled={saved.has(`${p.producer}|${p.name}|${p.vintage}`)}
@@ -508,7 +515,10 @@ export default function WineListPage() {
                 {priced.deals.map((d, i) => (
                   <li key={i}>
                     <div className="flex items-start gap-2">
-                      <p className="min-w-0 flex-1 text-sm text-cream-100">{[d.producer, d.name, d.vintage].filter(Boolean).join(' ')}</p>
+                      <p className="min-w-0 flex-1 text-sm text-cream-100">
+                        {[d.producer, d.name, d.vintage].filter(Boolean).join(' ')}
+                        {d.grapes && <span className="block text-xs text-cream-400">{d.grapes}</span>}
+                      </p>
                       <span className="shrink-0 text-sm font-semibold text-cream-100 tabular-nums">
                         {result.currency ?? ''}
                         {d.price}
@@ -527,6 +537,7 @@ export default function WineListPage() {
             <p className="text-xs text-cream-500">{t('Shop prices are AI estimates, not quotes. UK restaurants usually charge 2.5–3.5× retail.')}</p>
           )}
           {result.note && <p className="rounded-xl bg-ink-800 p-3 text-sm text-cream-300">💡 {result.note}</p>}
+          {result.ai && <p className="text-center text-xs text-cream-500">{t('Answered by {ai}', { ai: result.ai })}</p>}
           <button className="flex w-full items-center justify-center gap-1.5 py-2 text-sm text-cream-400" onClick={() => (setPages([]), setDoc(null), setRuns({}), setMode('taste'))}>
             <Plus size={14} /> {t('Another list')}
           </button>
