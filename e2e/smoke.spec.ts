@@ -287,7 +287,7 @@ test('wine list from a PDF or a website: the text is read and sent instead of ph
   await expect(page.getByRole('button', { name: 'wine-list.pdf' })).toBeVisible()
   expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'best-practice']).analyze()).violations).toEqual([])
   await page.getByRole('button', { name: 'Find my bottle' }).click()
-  await expect.poll(() => sent.length).toBe(2)
+  await expect.poll(() => sent.length, { timeout: 20_000 }).toBe(2) // the second request waits 15 s (spacing for the free AI tier)
   expect(sent[1].text).toBe(listText)
 })
 
@@ -295,7 +295,7 @@ test('a long list is read in parts; when the free AI limit hits, the picks so fa
   await page.clock.install()
   await seed(page, { wines: [wine('wine-gaja-0001')] })
   const line = (i: number) => `Wine number ${i} from a long list, a fine bottle ${2000 + (i % 20)} £${40 + (i % 50)}`
-  const listText = Array.from({ length: 900 }, (_, i) => line(i)).join('\n') // ~60k characters: 3 parts
+  const listText = Array.from({ length: 1300 }, (_, i) => line(i)).join('\n') // ~90k characters: 2 parts
   await page.route('**/api/fetchlist', (route) => route.fulfill({ json: { title: 'Long list', text: listText, pdfs: [] } }))
   const pick = (name: string, fit: string) => ({ producer: 'P', name, vintage: 2019, price: 60, byTheGlass: false, fit, why: 'Your style.', inCellar: false, retailEstimate: null, valueNote: null })
   let calls = 0
@@ -314,23 +314,26 @@ test('a long list is read in parts; when the free AI limit hits, the picks so fa
   await expect(page.getByText('Long list')).toBeVisible()
   await page.getByRole('button', { name: 'Find my bottle' }).click()
 
-  // Part 2 is refused: it waits a minute, tries once more, then keeps part 1's picks.
-  await expect(page.getByRole('button', { name: /Free AI limit reached — carrying on in \d+ s \(part 2 of 3\)/ })).toBeVisible()
+  // Part 2 waits 15 s after part 1 (requests are spaced for the free tier), is refused, waits a minute, tries once more, then keeps part 1's picks.
+  await expect(page.getByText('First part wine')).toBeVisible()
+  await page.clock.runFor(16_000)
+  await expect(page.getByRole('button', { name: /Free AI limit reached — carrying on in \d+ s \(part 2 of 2\)/ })).toBeVisible()
   await page.clock.runFor(61_000)
-  await expect(page.getByRole('alert')).toContainText('Read 1 of 3 parts of the list')
+  await expect(page.getByRole('alert')).toContainText('Read 1 of 2 parts of the list')
   await expect(page.getByText('First part wine')).toBeVisible()
   expect(calls).toBe(3)
 
   // Later: the rest is read and merged, best fits first.
   limited = false
   await page.getByRole('button', { name: 'Read the rest' }).click()
+  await page.clock.runFor(16_000)
   await expect(page.getByText('Later wine 4')).toBeVisible()
-  await expect(page.getByText('Later wine 5')).toBeVisible()
   await expect(page.getByText('First part wine')).toBeVisible()
   await expect(page.getByRole('alert')).toHaveCount(0)
 })
 
 test('wine list by style, "something different" asked once, and the answers kept after a reload', async ({ page }) => {
+  await page.clock.install()
   await seed(page, { wines: [wine('wine-gaja-0001')] })
   const pick = (style: string, name: string) => ({ style, producer: 'P', name, vintage: 2019, price: 60, byTheGlass: false, fit: 'good', why: 'Why not.', inCellar: false, retailEstimate: null, valueNote: null })
   let calls = 0
@@ -358,6 +361,7 @@ test('wine list by style, "something different" asked once, and the answers kept
 
   // "Something different" asks once; going back is instant.
   await page.getByRole('button', { name: 'Something different' }).click()
+  await page.clock.runFor(16_000) // requests are spaced 15 s apart for the free AI tier
   await expect(page.getByText('Pinot Explorer')).toBeVisible()
   expect(calls).toBe(2)
   await page.getByRole('button', { name: 'My taste' }).click()

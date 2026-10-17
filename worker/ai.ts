@@ -59,6 +59,8 @@ interface Provider {
 }
 
 const TIMEOUT = 60_000
+/** Don't move on to another provider once this much time has gone: the owner is waiting at the table. */
+const GIVE_UP_AFTER = 90_000
 
 /**
  * A key as pasted into `wrangler secret put`: tolerate surrounding spaces or quotes, a pasted
@@ -110,7 +112,9 @@ export async function generateText(env: AiEnv, req: AiRequest): Promise<AiAnswer
   const list = providers(env)
   if (!list.length) throw noAi(env)
   let last: AiError | undefined
+  const started = Date.now()
   for (const p of list) {
+    if (last && Date.now() - started > GIVE_UP_AFTER) break
     try {
       const answer = await p.call(req)
       if (answer.text.trim()) return answer
@@ -129,7 +133,9 @@ export async function generateJson<S extends z.ZodType>(env: AiEnv, req: AiReque
   if (!list.length) throw noAi(env)
   const withSchema = { ...req, json: true, messages: appendText(req.messages, jsonInstructions(schema)) }
   let last: AiError | undefined
+  const started = Date.now()
   for (const p of list) {
+    if (last && Date.now() - started > GIVE_UP_AFTER) break
     try {
       const answer = await p.call(withSchema)
       const parsed = schema.safeParse(parseJson(answer.text))

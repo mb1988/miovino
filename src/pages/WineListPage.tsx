@@ -42,6 +42,17 @@ const FIT_STYLE: Record<WineListPick['fit'], string> = {
 }
 /** Seconds to wait when the free AI tier asks us to slow down (its limits are per minute). */
 const RETRY_WAIT = 60
+/** The free AI tier allows only a few requests a minute: parts of a long list are spaced at least this far apart. */
+const SPACING = 15_000
+/** A part that takes longer than this has stalled somewhere: stop waiting, keep what's read. */
+const PART_TIMEOUT = 150_000
+let lastAsk = 0
+/** Waits until the last wine-list request was at least SPACING ago. */
+async function spaced() {
+  const wait = lastAsk + SPACING - Date.now()
+  if (wait > 0) await new Promise((r) => setTimeout(r, wait))
+  lastAsk = Date.now()
+}
 const FIT_LABEL: Record<WineListPick['fit'], string> = { great: 'Your style', good: 'Good bet', safe: 'Safe choice' }
 
 /** The chips above the picks; rosé and sweet share one, as lists rarely have many of either. */
@@ -105,6 +116,14 @@ export default function WineListPage() {
   const [pdfs, setPdfs] = useState<string[]>([])
   const [reading, setReading] = useState(false)
   const [progress, setProgress] = useState('')
+  // Seconds since "Find my bottle", shown on the button so a slow answer doesn't look stuck.
+  const [elapsed, setElapsed] = useState(0)
+  useEffect(() => {
+    if (!busy) return
+    const start = Date.now()
+    const id = setInterval(() => setElapsed(Math.round((Date.now() - start) / 1000)), 1000)
+    return () => clearInterval(id)
+  }, [busy])
   const cellar = useCellar()
   const priced = useMemo(() => (result ? withChecks(result, cellar ?? []) : undefined), [result, cellar])
   // Chips only for the styles this answer has; the chosen one, or the first that has picks.
@@ -173,13 +192,17 @@ export default function WineListPage() {
       setLinkOpen(false)
     })
 
-  const ask = async (source: { text: string } | { images: string[] }, m: Mode): Promise<WineListResult> => {
+  const ask = async (source: { text: string; part?: boolean } | { images: string[] }, m: Mode): Promise<WineListResult> => {
     const n = Number(budget.replace(',', '.'))
+    await spaced()
     const res = await fetch('/api/winelist', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       credentials: 'same-origin',
+      signal: AbortSignal.timeout(PART_TIMEOUT),
       body: JSON.stringify({ ...source, food: food.trim() || undefined, budget: n > 0 ? n : undefined, lang: getLang(), explore: m === 'explore' }),
+    }).catch((e: Error) => {
+      throw Object.assign(new Error(e.name === 'TimeoutError' ? t('The AI took too long to answer. Try again.') : e.message), { status: 504 })
     })
     const data = (await res.json().catch(() => ({}))) as { result?: WineListResult; error?: string; daily?: boolean }
     if (!res.ok || !data.result) throw Object.assign(new Error(data.error ?? t('Something went wrong ({status}).', { status: res.status })), { status: res.status, daily: !!data.daily })
@@ -189,7 +212,7 @@ export default function WineListPage() {
   /** One part of a long list. When the free AI tier says "wait", waits a minute (with a countdown) and tries once more. */
   const askPart = async (text: string, n: number, total: number, m: Mode) => {
     try {
-      return await ask({ text }, m)
+      return await ask({ text, part: total > 1 }, m)
     } catch (e) {
       const { status, daily } = e as { status?: number; daily?: boolean }
       if (status !== 429 || daily) throw e // the day's allowance: waiting a minute won't help
@@ -198,7 +221,7 @@ export default function WineListPage() {
         await new Promise((r) => setTimeout(r, 1000))
       }
       setProgress(t('Reading part {n} of {total}…', { n, total }))
-      return await ask({ text }, m)
+      return await ask({ text, part: total > 1 }, m)
     }
   }
 
@@ -225,6 +248,7 @@ export default function WineListPage() {
   }
 
   const run = async (work: () => Promise<void>) => {
+    setElapsed(0)
     setBusy(true)
     setError('')
     try {
@@ -394,7 +418,7 @@ export default function WineListPage() {
       <Button className="w-full py-3" disabled={!hasList || busy || reading || !ready} onClick={() => void find()}>
         {busy ? (
           <>
-            <Loader2 className="animate-spin" size={18} /> {progress || t('Reading the list…')}
+            <Loader2 className="animate-spin" size={18} /> {progress || t('Reading the list…')} <span className="tabular-nums opacity-70">{elapsed} s</span>
           </>
         ) : (
           t('Find my bottle')
